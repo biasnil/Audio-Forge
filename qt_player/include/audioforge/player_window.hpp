@@ -4,6 +4,7 @@
 #include "audioforge/audio_engine.hpp"
 #include "audioforge/playback_queue.hpp"
 #include "audioforge/music_library.hpp"
+#include "audioforge/wallpaper_library.hpp"
 #include "audioforge/lyrics_provider.hpp"
 #include <QFont>
 
@@ -21,10 +22,14 @@ class QTimer;
 class QNetworkAccessManager;
 class QNetworkReply;
 class QCloseEvent;
+class QEvent;
+class QResizeEvent;
+class QScrollArea;
 
 namespace audioforge {
 
 class ManualTagDialog;
+class VideoBackgroundWidget;
 
 class PlayerWindow : public QWidget
 {
@@ -36,6 +41,9 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    void changeEvent(QEvent* event) override; // pauses/resumes the video wallpaper on minimize/restore
+    void resizeEvent(QResizeEvent* event) override; // re-applies title truncation for the new available width
+    bool eventFilter(QObject* watched, QEvent* event) override; // hover-underline + click-to-seek on synced lyrics lines
 
 private:
     // --- Tab / page builders ---------------------------------------------
@@ -45,6 +53,7 @@ private:
     QWidget* buildFoldersTab();
     QWidget* buildPlaylistsTab();
     QWidget* buildSettingsTab();
+    QWidget* buildWallpapersTab();
     QWidget* buildEqualizerTab();      // wraps buildEqualizerSection() in a QScrollArea, as its own top-level tab
     QWidget* buildEqualizerSection();
     void positionEqValueLabel(QSlider* slider, QLabel* label); // floats a band's dB label right above its slider handle
@@ -97,6 +106,19 @@ private:
     void setLyricsContent(const QString& rawText, bool synced); // populates m_lyricsList, and m_syncedLyrics if synced
     void setLyricsPlaceholder(const QString& text); // "Loading lyrics..." / "No lyrics found."
     void updateSyncedLyricsHighlight(float cursorSeconds); // called every tick while m_syncedLyrics isn't empty
+    void resetTitleMarquee(const QString& title); // called once per track load -- decides if scrolling is needed at all
+    void applyElidedTitleText(); // sets m_bigTitleLabel to the truncated "..." form, sized to the current viewport
+    void applyElidedMiniTitle(); // same idea for the mini player bar's m_titleLabel -- static, no marquee
+
+    // --- Live video wallpaper (live_wallpaper_spec.md) -------------------
+    void updateWallpaperForTrack(const TrackInfo& info); // called from the end of updateNowPlayingUi(), same hook fetchLyricsFor() uses
+    void refreshGlobalWallpaperLabel();
+    void chooseGlobalWallpaper();
+    void clearGlobalWallpaper();
+    void refreshWallpaperEntriesList();
+    void addWallpaperEntry();
+    void editWallpaperEntryTracks();
+    void removeSelectedWallpaperEntry();
 
     // --- Playback ----------------------------------------------------------
     void setupShortcuts();
@@ -133,15 +155,18 @@ private:
     AudioEngine m_engine;
     PlaybackQueue m_queue;
     MusicLibrary m_library;
+    WallpaperLibrary m_wallpaperLibrary;
 
     bool m_seeking = false;
     bool m_wasAtEnd = false;
     bool m_darkMode = true;
     bool m_replayGainEnabled = true;
+    bool m_videoWallpaperEnabled = true; // persisted via Settings tab's m_videoWallpaperCheckbox
     float m_currentReplayGainDb = 0.0f;
 
     bool m_crossfadeEnabled = false;
     int m_crossfadeSeconds = 5;
+    int m_videoWallpaperOpacityPercent = 100; // 0-100; 100 = fully visible (current behavior), lower fades the video
     int m_volumeBeforeMute = 100;
 
     QString m_musixmatchApiKey;
@@ -150,6 +175,7 @@ private:
     QFont m_lyricsBaseFont;
     QVector<SyncedLyricLine> m_syncedLyrics; // empty unless the current lyrics are time-synced
     int m_lastLyricsLineIndex = -1; // avoids re-styling every item on every 200ms tick when nothing changed
+    int m_hoveredLyricsLineIndex = -1; // which synced line the mouse is over right now (-1 = none); only ever set for lines that have a timestamp
 
     QNetworkAccessManager* m_network = nullptr;
     QString m_pendingLookupPath;
@@ -163,7 +189,9 @@ private:
 
     QTabWidget* m_tabs = nullptr;
     QStackedWidget* m_stack = nullptr;
+    VideoBackgroundWidget* m_wallpaperWidget = nullptr;
     QWidget* m_nowPlayingPage = nullptr;
+    QWidget* m_infoBox = nullptr; // bounded panel (title through lyrics) that gets the per-track cover-art tint now, not the whole page
     QLineEdit* m_searchBar = nullptr;
     QTableWidget* m_tracksTable = nullptr;
     QPushButton* m_musicBrainzButton = nullptr;
@@ -172,11 +200,15 @@ private:
     QListWidget* m_artistsList = nullptr;
     QListWidget* m_foldersList = nullptr;
     QListWidget* m_playlistsList = nullptr;
+    QLabel* m_globalWallpaperLabel = nullptr;
+    QListWidget* m_wallpaperEntriesList = nullptr;
 
     QLabel* m_statsLabel = nullptr;
     QCheckBox* m_crossfadeCheckbox = nullptr;
     QLabel* m_crossfadeLabel = nullptr;
     QSlider* m_crossfadeSlider = nullptr;
+    QCheckBox* m_videoWallpaperCheckbox = nullptr;
+    QSlider* m_videoWallpaperOpacitySlider = nullptr;
 
     QCheckBox* m_eqEnabledCheckbox = nullptr;
     QComboBox* m_eqPresetCombo = nullptr;
@@ -194,6 +226,13 @@ private:
 
     QLabel* m_bigCoverArtLabel = nullptr;
     QLabel* m_bigTitleLabel = nullptr;
+    QScrollArea* m_bigTitleScrollArea = nullptr; // clips m_bigTitleLabel; the marquee below scrolls it when the title doesn't fit
+    QTimer* m_titleMarqueeTimer = nullptr;
+    QString m_titleMarqueeFullText; // untruncated title -- label alternates between this and an elided version
+    QString m_miniTitleFullText; // untruncated title for the mini player bar's m_titleLabel
+    bool m_titleMarqueeNeeded = false; // false means the title already fits -- stays static, never scrolls
+    int m_titleMarqueePhase = 0; // 0 = paused showing elided text, 1 = scrolling to reveal, 2 = paused showing full text
+    int m_titleMarqueeTicksRemaining = 0; // countdown used by phases 0 and 2
     QLabel* m_bigSubtitleLabel = nullptr;
     QLabel* m_bigFormatLabel = nullptr;
     QSlider* m_bigSeekSlider = nullptr;
@@ -205,6 +244,7 @@ private:
     QPushButton* m_stopButton = nullptr;
     QPushButton* m_nextButton = nullptr;
     QPushButton* m_repeatButton = nullptr;
+    QSlider* m_bigVolumeSlider = nullptr;
     QPushButton* m_openButton = nullptr;
     QPushButton* m_replayGainButton = nullptr;
     QPushButton* m_themeButton = nullptr;
