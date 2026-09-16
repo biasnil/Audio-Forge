@@ -1,0 +1,10 @@
+<!--
+    Qt resource file: bundles audioforge.png into the binary so
+    QApplication::setWindowIcon() works identically on every platform
+    (the .rc file above only covers the Windows .exe icon itself).
+-->
+<RCC>
+    <qresource prefix="/icons">
+        <file>audioforge.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,3 @@
+// Embeds audioforge.ico into the Windows executable itself, so it shows
+// up as the .exe's icon in File Explorer, the taskbar, and Alt-Tab.
+IDI_ICON1 ICON "audioforge.ico"
