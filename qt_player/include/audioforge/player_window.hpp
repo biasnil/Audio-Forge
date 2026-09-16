@@ -6,6 +6,7 @@
 #include "audioforge/music_library.hpp"
 #include "audioforge/wallpaper_library.hpp"
 #include "audioforge/lyrics_provider.hpp"
+#include "audioforge/discord_presence.hpp"
 #include <QFont>
 
 class QTabWidget;
@@ -156,6 +157,7 @@ private:
     PlaybackQueue m_queue;
     MusicLibrary m_library;
     WallpaperLibrary m_wallpaperLibrary;
+    DiscordPresence m_discordPresence;
 
     bool m_seeking = false;
     bool m_wasAtEnd = false;
@@ -171,6 +173,10 @@ private:
 
     QString m_musixmatchApiKey;
     QLineEdit* m_musixmatchApiKeyEdit = nullptr;
+    bool m_discordPresenceEnabled = false;
+    QString m_discordClientId;
+    QCheckBox* m_discordPresenceCheckbox = nullptr;
+    QLineEdit* m_discordClientIdEdit = nullptr;
     QListWidget* m_lyricsList = nullptr;
     QFont m_lyricsBaseFont;
     QVector<SyncedLyricLine> m_syncedLyrics; // empty unless the current lyrics are time-synced

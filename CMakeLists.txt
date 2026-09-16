@@ -25,6 +25,7 @@ add_executable(audioforge WIN32
     common/src/audio_engine.cpp
     common/src/playback_queue.cpp
     common/src/warnings.cpp
+    common/src/discord_presence.cpp
 
     qt_player/src/track_metadata.cpp
     qt_player/src/track_metadata_tags.cpp
@@ -35,6 +36,7 @@ add_executable(audioforge WIN32
     qt_player/src/player_window.cpp
     qt_player/src/widgets/clickable_widget.cpp
     qt_player/src/widgets/click_seek_slider.cpp
+    qt_player/src/widgets/single_page_stacked_widget.cpp
     qt_player/src/widgets/video_background_widget.cpp
     qt_player/src/dialogs/track_list_dialog.cpp
     qt_player/src/dialogs/create_playlist_dialog.cpp
@@ -48,8 +50,10 @@ add_executable(audioforge WIN32
     # pair (rather than one single file like the old qt_main.cpp), relying
     # on transitive #include scanning alone wasn't picking them all up.
     qt_player/include/audioforge/player_window.hpp
+    common/include/audioforge/discord_presence.hpp
     qt_player/include/audioforge/widgets/clickable_widget.hpp
     qt_player/include/audioforge/widgets/click_seek_slider.hpp
+    qt_player/include/audioforge/widgets/single_page_stacked_widget.hpp
     qt_player/include/audioforge/widgets/video_background_widget.hpp
     qt_player/include/audioforge/dialogs/track_list_dialog.hpp
     qt_player/include/audioforge/dialogs/create_playlist_dialog.hpp
