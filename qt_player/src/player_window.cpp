@@ -2,6 +2,7 @@
 #include "audioforge/track_metadata.hpp"
 #include "audioforge/warnings.hpp"
 #include "audioforge/widgets/clickable_widget.hpp"
+#include "audioforge/widgets/click_seek_slider.hpp"
 #include "audioforge/widgets/video_background_widget.hpp"
 #include "audioforge/dialogs/track_list_dialog.hpp"
 #include "audioforge/dialogs/create_playlist_dialog.hpp"
@@ -803,7 +804,7 @@ QWidget* PlayerWindow::buildPlayerBar()
     auto* layout = new QVBoxLayout();
     outerLayout->addLayout(layout, 1);
 
-    m_seekSlider = new QSlider(Qt::Horizontal);
+    m_seekSlider = new ClickSeekSlider(Qt::Horizontal);
     m_seekSlider->setRange(0, 0);
     layout->addWidget(m_seekSlider);
 
@@ -842,7 +843,7 @@ QWidget* PlayerWindow::buildPlayerBar()
     // a linear gain multiplier to miniaudio. Loud source material can clip
     // past ~150-200%; a proper limiter is a good follow-up.
     layout->addWidget(new QLabel("Volume"));
-    m_volumeSlider = new QSlider(Qt::Horizontal);
+    m_volumeSlider = new ClickSeekSlider(Qt::Horizontal);
     m_volumeSlider->setRange(0, 200);
     m_volumeSlider->setValue(100);
     layout->addWidget(m_volumeSlider);
@@ -1048,7 +1049,7 @@ QWidget* PlayerWindow::buildNowPlayingPage()
 
     pageLayout->addStretch(1);
 
-    m_bigSeekSlider = new QSlider(Qt::Horizontal);
+    m_bigSeekSlider = new ClickSeekSlider(Qt::Horizontal);
     m_bigSeekSlider->setRange(0, 0);
     connect(m_bigSeekSlider, &QSlider::sliderPressed, this, [this]() { m_seeking = true; });
     connect(m_bigSeekSlider, &QSlider::sliderReleased, this, [this]() {
@@ -1093,7 +1094,7 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     // actually read from.
     auto* bigVolumeRow = new QHBoxLayout();
     bigVolumeRow->addWidget(new QLabel("Volume"));
-    m_bigVolumeSlider = new QSlider(Qt::Horizontal);
+    m_bigVolumeSlider = new ClickSeekSlider(Qt::Horizontal);
     m_bigVolumeSlider->setRange(0, 200);
     m_bigVolumeSlider->setValue(m_volumeSlider->value());
     m_bigVolumeSlider->setMaximumWidth(240); // was stretching edge-to-edge; keep it compact like a normal control

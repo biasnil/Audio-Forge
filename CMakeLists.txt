@@ -34,6 +34,7 @@ add_executable(audioforge WIN32
     qt_player/src/wallpaper_library.cpp
     qt_player/src/player_window.cpp
     qt_player/src/widgets/clickable_widget.cpp
+    qt_player/src/widgets/click_seek_slider.cpp
     qt_player/src/widgets/video_background_widget.cpp
     qt_player/src/dialogs/track_list_dialog.cpp
     qt_player/src/dialogs/create_playlist_dialog.cpp
@@ -48,6 +49,7 @@ add_executable(audioforge WIN32
     # on transitive #include scanning alone wasn't picking them all up.
     qt_player/include/audioforge/player_window.hpp
     qt_player/include/audioforge/widgets/clickable_widget.hpp
+    qt_player/include/audioforge/widgets/click_seek_slider.hpp
     qt_player/include/audioforge/widgets/video_background_widget.hpp
     qt_player/include/audioforge/dialogs/track_list_dialog.hpp
     qt_player/include/audioforge/dialogs/create_playlist_dialog.hpp
