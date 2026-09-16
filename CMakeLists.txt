@@ -12,7 +12,7 @@ set(CMAKE_AUTORCC ON)  # Qt resource compiler -- picks up resources/icons.qrc
 # Qt6 -- installed via MSYS2's own qt6-base package (matches the ucrt64
 # compiler already in use).
 set(CMAKE_PREFIX_PATH "C:/msys64/ucrt64" ${CMAKE_PREFIX_PATH})
-find_package(Qt6 COMPONENTS Widgets Network REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Network Multimedia MultimediaWidgets REQUIRED)
 
 # TagLib reads/writes ID3 tags. It only ships a pkg-config file, not a CMake
 # package, so we go through pkg-config.
@@ -31,13 +31,16 @@ add_executable(audioforge WIN32
     qt_player/src/lyrics_provider.cpp
     qt_player/src/cover_art_writer.cpp
     qt_player/src/music_library.cpp
+    qt_player/src/wallpaper_library.cpp
     qt_player/src/player_window.cpp
     qt_player/src/widgets/clickable_widget.cpp
+    qt_player/src/widgets/video_background_widget.cpp
     qt_player/src/dialogs/track_list_dialog.cpp
     qt_player/src/dialogs/create_playlist_dialog.cpp
     qt_player/src/dialogs/playlist_edit_dialog.cpp
     qt_player/src/dialogs/musicbrainz_result_dialog.cpp
     qt_player/src/dialogs/manual_tag_dialog.cpp
+    qt_player/src/dialogs/wallpaper_track_picker_dialog.cpp
 
     # Headers containing Q_OBJECT are listed explicitly so AUTOMOC reliably
     # finds and moc's them -- with the class split across its own .hpp/.cpp
@@ -45,11 +48,13 @@ add_executable(audioforge WIN32
     # on transitive #include scanning alone wasn't picking them all up.
     qt_player/include/audioforge/player_window.hpp
     qt_player/include/audioforge/widgets/clickable_widget.hpp
+    qt_player/include/audioforge/widgets/video_background_widget.hpp
     qt_player/include/audioforge/dialogs/track_list_dialog.hpp
     qt_player/include/audioforge/dialogs/create_playlist_dialog.hpp
     qt_player/include/audioforge/dialogs/playlist_edit_dialog.hpp
     qt_player/include/audioforge/dialogs/musicbrainz_result_dialog.hpp
     qt_player/include/audioforge/dialogs/manual_tag_dialog.hpp
+    qt_player/include/audioforge/dialogs/wallpaper_track_picker_dialog.hpp
 
     # App icon (see resources/README) -- icons.qrc bundles the PNG so
     # setWindowIcon() works cross-platform; app_icon.rc (Windows only,
@@ -63,7 +68,7 @@ target_include_directories(audioforge PRIVATE
     vendor
 )
 
-target_link_libraries(audioforge PRIVATE Qt6::Widgets Qt6::Network PkgConfig::TAGLIB)
+target_link_libraries(audioforge PRIVATE Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets PkgConfig::TAGLIB)
 
 if(WIN32)
     # miniaudio (WASAPI device access)

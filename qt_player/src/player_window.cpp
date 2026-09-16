@@ -2,11 +2,13 @@
 #include "audioforge/track_metadata.hpp"
 #include "audioforge/warnings.hpp"
 #include "audioforge/widgets/clickable_widget.hpp"
+#include "audioforge/widgets/video_background_widget.hpp"
 #include "audioforge/dialogs/track_list_dialog.hpp"
 #include "audioforge/dialogs/create_playlist_dialog.hpp"
 #include "audioforge/dialogs/playlist_edit_dialog.hpp"
 #include "audioforge/dialogs/musicbrainz_result_dialog.hpp"
 #include "audioforge/dialogs/manual_tag_dialog.hpp"
+#include "audioforge/dialogs/wallpaper_track_picker_dialog.hpp"
 #include "audioforge/track_metadata_tags.hpp"
 #include "audioforge/lyrics_provider.hpp"
 #include "audioforge/cover_art_writer.hpp"
@@ -16,6 +18,8 @@
 #include <QShortcut>
 #include <QFile>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QFontMetrics>
 #include <QComboBox>
 #include <QStyleOptionSlider>
 #include <QHBoxLayout>
@@ -45,9 +49,12 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QStackedWidget>
+#include <QStackedLayout>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QCloseEvent>
+#include <QEvent>
+#include <QResizeEvent>
 
 #include <cmath>
 
@@ -183,6 +190,12 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->addWidget(m_stack);
 
+    // Live video wallpaper (live_wallpaper_spec.md) -- the actual
+    // VideoBackgroundWidget is created and layered in buildNowPlayingPage()
+    // instead of here, since it's scoped to just that page, not the whole
+    // window. Library data still needs loading up front either way.
+    m_wallpaperLibrary.load();
+
     // --- Library page (search + tabs + mini player bar) ---
     auto* libraryPage = new QWidget();
     auto* rootLayout = new QVBoxLayout(libraryPage);
@@ -201,7 +214,8 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     m_tabs->addTab(buildFoldersTab(), "Folders");    // index 3
     m_tabs->addTab(buildPlaylistsTab(), "Playlists");// index 4
     m_tabs->addTab(buildEqualizerTab(), "Equalizer"); // index 5 (always visible, not in the visibility config)
-    m_tabs->addTab(buildSettingsTab(), "Settings");  // index 6 (always visible, not in the visibility config)
+    m_tabs->addTab(buildWallpapersTab(), "Wallpapers"); // index 6 (always visible, not in the visibility config)
+    m_tabs->addTab(buildSettingsTab(), "Settings");  // index 7 (always visible, not in the visibility config)
     m_tabs->setCurrentIndex(1); // Tracks
 
     rootLayout->addWidget(buildPlayerBar());
@@ -226,7 +240,29 @@ PlayerWindow::~PlayerWindow() = default; // AudioEngine's own destructor tears d
 void PlayerWindow::closeEvent(QCloseEvent* event)
 {
     saveSettings();
+    m_wallpaperLibrary.save();
     QWidget::closeEvent(event);
+}
+
+void PlayerWindow::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::WindowStateChange)
+    {
+        m_wallpaperWidget->setPaused(isMinimized());
+    }
+    QWidget::changeEvent(event);
+}
+
+void PlayerWindow::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    // Only the mini player bar's title tracks the window's actual width --
+    // the big Now Playing title sits in a fixed-size box regardless of
+    // window size, so it has nothing to re-measure here.
+    if (!m_miniTitleFullText.isEmpty())
+    {
+        applyElidedMiniTitle();
+    }
 }
 
 // --- Tab builders ----------------------------------------------------
@@ -420,7 +456,90 @@ QWidget* PlayerWindow::buildSettingsTab()
     });
     l->addWidget(m_crossfadeSlider);
 
+    l->addSpacing(16);
+
+    // --- Video Wallpaper ---
+    l->addWidget(sectionHeader("Video Wallpaper"));
+    m_videoWallpaperCheckbox = new QCheckBox("Enable video wallpaper");
+    connect(m_videoWallpaperCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        m_videoWallpaperEnabled = checked;
+        m_videoWallpaperOpacitySlider->setEnabled(checked); // dimming a wallpaper that's off is meaningless
+        if (!m_queue.isEmpty())
+        {
+            // Re-resolve immediately rather than waiting for the next
+            // track change -- handles both turning it off (clears the
+            // video right away) and back on (shows it right away).
+            updateWallpaperForTrack(m_queue.currentTrack());
+        }
+    });
+    l->addWidget(m_videoWallpaperCheckbox);
+
+    auto* opacityRow = new QHBoxLayout();
+    opacityRow->addWidget(new QLabel("Wallpaper opacity"));
+    m_videoWallpaperOpacitySlider = new QSlider(Qt::Horizontal);
+    m_videoWallpaperOpacitySlider->setRange(0, 100);
+    m_videoWallpaperOpacitySlider->setValue(m_videoWallpaperOpacityPercent);
+    m_videoWallpaperOpacitySlider->setMaximumWidth(240);
+    connect(m_videoWallpaperOpacitySlider, &QSlider::valueChanged, this, [this](int value) {
+        m_videoWallpaperOpacityPercent = value;
+        m_wallpaperWidget->setOpacity(value / 100.0);
+    });
+    opacityRow->addWidget(m_videoWallpaperOpacitySlider);
+    opacityRow->addStretch();
+    l->addLayout(opacityRow);
+
     l->addStretch();
+    return w;
+}
+
+QWidget* PlayerWindow::buildWallpapersTab()
+{
+    auto* w = new QWidget();
+    auto* l = new QVBoxLayout(w);
+
+    // --- Global wallpaper ---
+    l->addWidget(sectionHeader("Global Wallpaper"));
+    l->addWidget(new QLabel("Used whenever the currently playing track has no wallpaper of its own."));
+
+    m_globalWallpaperLabel = new QLabel();
+    l->addWidget(m_globalWallpaperLabel);
+
+    auto* globalButtonsRow = new QHBoxLayout();
+    auto* chooseGlobalButton = new QPushButton("Choose Video...");
+    connect(chooseGlobalButton, &QPushButton::clicked, this, &PlayerWindow::chooseGlobalWallpaper);
+    globalButtonsRow->addWidget(chooseGlobalButton);
+
+    auto* clearGlobalButton = new QPushButton("Clear");
+    connect(clearGlobalButton, &QPushButton::clicked, this, &PlayerWindow::clearGlobalWallpaper);
+    globalButtonsRow->addWidget(clearGlobalButton);
+    globalButtonsRow->addStretch();
+    l->addLayout(globalButtonsRow);
+
+    l->addSpacing(16);
+
+    // --- Per-track wallpapers ---
+    l->addWidget(sectionHeader("Per-Track Wallpapers"));
+
+    m_wallpaperEntriesList = new QListWidget();
+    l->addWidget(m_wallpaperEntriesList, 1);
+
+    auto* entryButtonsRow = new QHBoxLayout();
+    auto* addEntryButton = new QPushButton("Add Wallpaper...");
+    connect(addEntryButton, &QPushButton::clicked, this, &PlayerWindow::addWallpaperEntry);
+    entryButtonsRow->addWidget(addEntryButton);
+
+    auto* editTracksButton = new QPushButton("Edit Tracks...");
+    connect(editTracksButton, &QPushButton::clicked, this, &PlayerWindow::editWallpaperEntryTracks);
+    entryButtonsRow->addWidget(editTracksButton);
+
+    auto* removeEntryButton = new QPushButton("Remove");
+    connect(removeEntryButton, &QPushButton::clicked, this, &PlayerWindow::removeSelectedWallpaperEntry);
+    entryButtonsRow->addWidget(removeEntryButton);
+    l->addLayout(entryButtonsRow);
+
+    refreshGlobalWallpaperLabel();
+    refreshWallpaperEntriesList();
+
     return w;
 }
 
@@ -751,9 +870,18 @@ QWidget* PlayerWindow::buildPlayerBar()
 
 QWidget* PlayerWindow::buildNowPlayingPage()
 {
+    // Live video wallpaper (live_wallpaper_spec.md) -- scoped to just this
+    // page: `page` is a thin shell holding two stacked layers, the video
+    // (bottom) and the real content (top, everything below used to attach
+    // directly to `page` -- it now attaches to `content` instead, and
+    // `content` is what m_nowPlayingPage points at, unchanged for every
+    // other function that already reads/writes m_nowPlayingPage).
     auto* page = new QWidget();
-    m_nowPlayingPage = page;
-    auto* pageLayout = new QVBoxLayout(page);
+    m_wallpaperWidget = new VideoBackgroundWidget();
+
+    auto* content = new QWidget();
+    m_nowPlayingPage = content;
+    auto* pageLayout = new QVBoxLayout(content);
     pageLayout->setContentsMargins(24, 16, 24, 16);
 
     auto* topRow = new QHBoxLayout();
@@ -775,14 +903,121 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     m_bigCoverArtLabel->setStyleSheet("background-color: rgba(255,255,255,30); border-radius: 8px;");
     contentRow->addWidget(m_bigCoverArtLabel);
 
-    auto* textColumn = new QVBoxLayout();
+    // A fixed, deliberate width for the whole info column (title through
+    // lyrics) -- not derived from window size. Single source of truth for
+    // both the box below and the title scroll area further down, so they
+    // always match.
+    static constexpr int kBigTitleBoxWidth = 620;
+
+    // The readable backdrop lives here now -- a bounded panel behind just
+    // the title/subtitle/format/lyrics column -- instead of tinting the
+    // entire page (which produced a visible seam artifact at the label
+    // boundaries; see the box's own comment further down for the size
+    // policy reasoning that keeps a wide child from forcing this, or any
+    // ancestor up to the window, to grow).
+    auto* infoBox = new QWidget();
+    infoBox->setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 8px;");
+    infoBox->setMaximumWidth(kBigTitleBoxWidth);
+    infoBox->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_infoBox = infoBox; // updateNowPlayingUi() re-tints this per track
+
+    auto* textColumn = new QVBoxLayout(infoBox);
+    textColumn->setContentsMargins(16, 12, 16, 12);
     m_bigTitleLabel = new QLabel("No file loaded");
     QFont titleFont = m_bigTitleLabel->font();
     titleFont.setPointSize(titleFont.pointSize() + 10);
     titleFont.setBold(true);
     m_bigTitleLabel->setFont(titleFont);
-    m_bigTitleLabel->setWordWrap(true);
-    textColumn->addWidget(m_bigTitleLabel);
+    m_bigTitleLabel->setWordWrap(false); // no wrap -- overflow is elided/scrolled instead of growing into a block
+    m_bigTitleLabel->setStyleSheet("background: transparent;");
+    m_bigTitleLabel->adjustSize(); // sizeHint needs the real font applied first
+
+    // Fixed-height clipping container -- a QLabel alone can't crop text
+    // that's wider than the space available, but a QScrollArea can (and
+    // lets us scroll it programmatically). Scrollbars stay hidden; the
+    // marquee timer below drives the actual scrolling, not the user.
+    m_bigTitleScrollArea = new QScrollArea();
+    m_bigTitleScrollArea->setWidget(m_bigTitleLabel);
+    m_bigTitleScrollArea->setWidgetResizable(false);
+    m_bigTitleScrollArea->setFrameShape(QFrame::NoFrame);
+    m_bigTitleScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_bigTitleScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_bigTitleScrollArea->setFixedHeight(m_bigTitleLabel->sizeHint().height());
+    m_bigTitleScrollArea->setStyleSheet("background: transparent; border: none;");
+    // A stylesheet on a QScrollArea doesn't cascade to its internal
+    // viewport() widget -- a separate child Qt creates with its own
+    // opaque palette background -- so that needs clearing explicitly too.
+    m_bigTitleScrollArea->viewport()->setStyleSheet("background: transparent;");
+    m_bigTitleScrollArea->viewport()->setAutoFillBackground(false);
+    // A fixed, deliberate width for this title area -- not derived from
+    // the window's current size. It stays this width whether the window
+    // is windowed, maximized, or resized; only how much of the title
+    // that fits (and therefore whether the marquee runs at all) changes.
+    m_bigTitleScrollArea->setMinimumWidth(0);
+    m_bigTitleScrollArea->setMaximumWidth(kBigTitleBoxWidth - 32); // minus infoBox's own left+right margins
+    // Horizontal Ignored keeps this scroll area's sizeHint (which tracks
+    // the full unclipped title -- easily much wider than the box) from
+    // ever counting toward this page's, m_stack's, or the window's own
+    // minimum size -- it's the fixed width above that actually renders,
+    // this just stops the unconstrained sizeHint from leaking upward.
+    m_bigTitleScrollArea->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    textColumn->addWidget(m_bigTitleScrollArea);
+
+    // Three-phase cycle, like Harmonoid's title marquee: sits still showing
+    // "...ellipsis" long enough to read (phase 0), slowly scrolls left to
+    // reveal the full text (phase 1), holds fully revealed for a moment
+    // (phase 2), then snaps back to the start and repeats. A complete
+    // no-op whenever the title already fits (m_titleMarqueeNeeded false),
+    // set once per track by resetTitleMarquee().
+    m_titleMarqueeTimer = new QTimer(this);
+    connect(m_titleMarqueeTimer, &QTimer::timeout, this, [this]() {
+        if (!m_titleMarqueeNeeded)
+        {
+            return;
+        }
+
+        QScrollBar* bar = m_bigTitleScrollArea->horizontalScrollBar();
+
+        if (m_titleMarqueePhase != 1) // paused, either at the start or the end
+        {
+            if (--m_titleMarqueeTicksRemaining > 0)
+            {
+                return;
+            }
+
+            if (m_titleMarqueePhase == 0)
+            {
+                // Start-pause over -- swap in the full (unelided) text so
+                // there's something for the scroll to actually reveal.
+                m_bigTitleLabel->setText(m_titleMarqueeFullText);
+                m_bigTitleLabel->adjustSize();
+                m_titleMarqueePhase = 1;
+            }
+            else
+            {
+                // End-pause over -- snap back to the start and show the
+                // elided "..." version again while paused there.
+                bar->setValue(0);
+                applyElidedTitleText();
+                m_titleMarqueePhase = 0;
+                m_titleMarqueeTicksRemaining = 30; // ~1.5s at 50ms/tick
+            }
+            return;
+        }
+
+        int next = bar->value() + 1; // one pixel per tick -- slow, deliberate scroll
+        if (next >= bar->maximum())
+        {
+            bar->setValue(bar->maximum());
+            m_titleMarqueePhase = 2;
+            m_titleMarqueeTicksRemaining = 24; // ~1.2s hold once fully revealed
+        }
+        else
+        {
+            bar->setValue(next);
+        }
+    });
+    m_titleMarqueeTimer->start(50);
 
     m_bigSubtitleLabel = new QLabel();
     textColumn->addWidget(m_bigSubtitleLabel);
@@ -807,7 +1042,7 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     textColumn->addWidget(m_lyricsList, 1);
 
     contentRow->addSpacing(24);
-    contentRow->addLayout(textColumn, 1);
+    contentRow->addWidget(infoBox, 1);
     contentRow->addStretch();
     pageLayout->addLayout(contentRow);
 
@@ -852,12 +1087,46 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     connect(bigNext, &QPushButton::clicked, this, [this]() { next(false); });
     connect(bigRepeat, &QPushButton::clicked, this, &PlayerWindow::cycleRepeatMode);
 
+    // Volume -- mirrors the mini player bar's m_volumeSlider rather than
+    // being a second source of truth. Moving either one updates the other;
+    // m_volumeSlider stays the thing applyVolume()/loadSettings()/etc.
+    // actually read from.
+    auto* bigVolumeRow = new QHBoxLayout();
+    bigVolumeRow->addWidget(new QLabel("Volume"));
+    m_bigVolumeSlider = new QSlider(Qt::Horizontal);
+    m_bigVolumeSlider->setRange(0, 200);
+    m_bigVolumeSlider->setValue(m_volumeSlider->value());
+    m_bigVolumeSlider->setMaximumWidth(240); // was stretching edge-to-edge; keep it compact like a normal control
+    bigVolumeRow->addWidget(m_bigVolumeSlider);
+    bigVolumeRow->addStretch();
+    pageLayout->addLayout(bigVolumeRow);
+
+    connect(m_bigVolumeSlider, &QSlider::valueChanged, this, [this](int value) {
+        m_volumeSlider->setValue(value); // fires applyVolume() via m_volumeSlider's own connection
+    });
+    connect(m_volumeSlider, &QSlider::valueChanged, this, [this](int value) {
+        m_bigVolumeSlider->blockSignals(true); // avoid feeding straight back into the lambda above
+        m_bigVolumeSlider->setValue(value);
+        m_bigVolumeSlider->blockSignals(false);
+    });
+
     auto* bottomRow = new QHBoxLayout();
     bottomRow->addStretch();
     auto* fullscreenButton = new QPushButton("Full Screen");
     connect(fullscreenButton, &QPushButton::clicked, this, &PlayerWindow::toggleFullScreen);
     bottomRow->addWidget(fullscreenButton);
     pageLayout->addLayout(bottomRow);
+
+    // StackAll keeps both layers visible at once -- video widget added
+    // first so it paints behind the content. Only currentWidget() actually
+    // receives mouse/keyboard input, so content must be made current or
+    // every button/slider on this page would silently stop responding
+    // (same issue as the whole-window version of this had).
+    auto* pageLayers = new QStackedLayout(page);
+    pageLayers->setStackingMode(QStackedLayout::StackAll);
+    pageLayers->addWidget(m_wallpaperWidget);
+    pageLayers->addWidget(content);
+    pageLayers->setCurrentWidget(content);
 
     return page;
 }
@@ -1849,10 +2118,11 @@ void PlayerWindow::loadTrack(const TrackInfo& info)
 
 void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
 {
-    m_titleLabel->setText(info.title);
+    m_miniTitleFullText = info.title;
+    applyElidedMiniTitle();
     m_formatLabel->setText(FormatAudioInfo(info));
 
-    m_bigTitleLabel->setText(info.title);
+    resetTitleMarquee(info.title);
     QString subtitle = info.artist;
     if (!info.album.isEmpty())
     {
@@ -1882,12 +2152,206 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
         m_bigCoverArtLabel->clear();
     }
 
-    // Tint the Now Playing page's background to roughly match the cover
-    // art's dominant color, the way several music apps do.
+    // Tint the info box's background to roughly match the cover art's
+    // dominant color, the way several music apps do -- scoped to just
+    // this bounded panel now, not the whole page (a page-wide translucent
+    // tint was producing a visible seam artifact at the label boundaries).
     QColor bg = AverageColor(info.coverArt);
-    m_nowPlayingPage->setStyleSheet(QString("background-color: %1;").arg(bg.name()));
+    m_infoBox->setStyleSheet(
+        QString("background-color: rgba(%1, %2, %3, 190); border-radius: 8px;").arg(bg.red()).arg(bg.green()).arg(bg.blue()));
 
     fetchLyricsFor(info);
+    updateWallpaperForTrack(info);
+}
+
+void PlayerWindow::resetTitleMarquee(const QString& title)
+{
+    m_titleMarqueeFullText = title;
+    m_titleMarqueePhase = 0;
+    m_titleMarqueeTicksRemaining = 30; // ~1.5s pause before scrolling starts, if it's even needed
+    m_bigTitleScrollArea->horizontalScrollBar()->setValue(0);
+
+    int availableWidth = m_bigTitleScrollArea->viewport()->width();
+    if (availableWidth <= 0)
+    {
+        availableWidth = m_bigTitleScrollArea->width(); // fallback if this runs before the page's ever been shown
+    }
+
+    QFontMetrics metrics(m_bigTitleLabel->font());
+    m_titleMarqueeNeeded = metrics.horizontalAdvance(title) > availableWidth;
+
+    if (m_titleMarqueeNeeded)
+    {
+        applyElidedTitleText();
+    }
+    else
+    {
+        m_bigTitleLabel->setText(title); // fits as-is -- show it plainly, marquee timer stays a no-op
+        m_bigTitleLabel->adjustSize();
+    }
+}
+
+void PlayerWindow::applyElidedTitleText()
+{
+    int availableWidth = m_bigTitleScrollArea->viewport()->width();
+    QFontMetrics metrics(m_bigTitleLabel->font());
+    m_bigTitleLabel->setText(metrics.elidedText(m_titleMarqueeFullText, Qt::ElideRight, availableWidth));
+    m_bigTitleLabel->adjustSize();
+}
+
+void PlayerWindow::applyElidedMiniTitle()
+{
+    // Static truncation only -- no marquee/scrolling for the mini bar,
+    // just enough so a long title doesn't blow out the compact layout the
+    // way it currently does with no eliding at all.
+    int availableWidth = m_titleLabel->width();
+    if (availableWidth <= 0)
+    {
+        return; // not laid out yet -- updateNowPlayingUi's next call, or the resize handler, will catch it
+    }
+
+    QFontMetrics metrics(m_titleLabel->font());
+    m_titleLabel->setText(metrics.elidedText(m_miniTitleFullText, Qt::ElideRight, availableWidth));
+}
+
+void PlayerWindow::updateWallpaperForTrack(const TrackInfo& info)
+{
+    if (!m_videoWallpaperEnabled)
+    {
+        m_wallpaperWidget->setVideoPath(QString());
+        return;
+    }
+
+    QString video = m_wallpaperLibrary.resolveVideoFor(info.path);
+    m_wallpaperWidget->setVideoPath(video); // empty is fine -- widget handles "no video" itself
+}
+
+void PlayerWindow::refreshGlobalWallpaperLabel()
+{
+    QString path = m_wallpaperLibrary.globalVideoPath();
+    m_globalWallpaperLabel->setText(path.isEmpty() ? "None" : QFileInfo(path).fileName());
+}
+
+void PlayerWindow::chooseGlobalWallpaper()
+{
+    QString path = QFileDialog::getOpenFileName(this, "Choose global wallpaper video", QString(), "Video files (*.mp4)");
+    if (path.isEmpty())
+    {
+        return;
+    }
+
+    m_wallpaperLibrary.setGlobalVideoPath(path);
+    refreshGlobalWallpaperLabel();
+
+    // If nothing more specific applies to the current track, this should
+    // take effect immediately rather than waiting for the next track change.
+    if (!m_queue.isEmpty())
+    {
+        updateWallpaperForTrack(m_queue.currentTrack());
+    }
+}
+
+void PlayerWindow::clearGlobalWallpaper()
+{
+    m_wallpaperLibrary.setGlobalVideoPath(QString());
+    refreshGlobalWallpaperLabel();
+
+    if (!m_queue.isEmpty())
+    {
+        updateWallpaperForTrack(m_queue.currentTrack());
+    }
+}
+
+void PlayerWindow::refreshWallpaperEntriesList()
+{
+    m_wallpaperEntriesList->clear();
+    const QVector<WallpaperEntry>& entries = m_wallpaperLibrary.entries();
+    for (int i = 0; i < entries.size(); ++i)
+    {
+        const WallpaperEntry& entry = entries[i];
+        QString label = QString("%1  (%2 tracks)")
+            .arg(QFileInfo(entry.videoPath).fileName())
+            .arg(entry.trackPaths.size());
+        auto* item = new QListWidgetItem(label);
+        item->setData(Qt::UserRole, i);
+        m_wallpaperEntriesList->addItem(item);
+    }
+}
+
+void PlayerWindow::addWallpaperEntry()
+{
+    QString videoPath = QFileDialog::getOpenFileName(this, "Choose wallpaper video", QString(), "Video files (*.mp4)");
+    if (videoPath.isEmpty())
+    {
+        return;
+    }
+
+    WallpaperTrackPickerDialog dialog(m_library.tracks(), QStringList(), this);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        WallpaperEntry& entry = m_wallpaperLibrary.addEntry();
+        entry.videoPath = videoPath;
+        entry.trackPaths = dialog.resultTrackPaths();
+        refreshWallpaperEntriesList();
+
+        if (!m_queue.isEmpty())
+        {
+            updateWallpaperForTrack(m_queue.currentTrack());
+        }
+    }
+}
+
+void PlayerWindow::editWallpaperEntryTracks()
+{
+    QListWidgetItem* item = m_wallpaperEntriesList->currentItem();
+    if (!item)
+    {
+        ErrorReporter::info(this, "No wallpaper selected", "Select a wallpaper from the list first.");
+        return;
+    }
+
+    int index = item->data(Qt::UserRole).toInt();
+    QVector<WallpaperEntry>& entries = m_wallpaperLibrary.entries();
+    if (index < 0 || index >= entries.size())
+    {
+        return;
+    }
+
+    WallpaperTrackPickerDialog dialog(m_library.tracks(), entries[index].trackPaths, this);
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        entries[index].trackPaths = dialog.resultTrackPaths();
+        refreshWallpaperEntriesList();
+
+        if (!m_queue.isEmpty())
+        {
+            updateWallpaperForTrack(m_queue.currentTrack());
+        }
+    }
+}
+
+void PlayerWindow::removeSelectedWallpaperEntry()
+{
+    QListWidgetItem* item = m_wallpaperEntriesList->currentItem();
+    if (!item)
+    {
+        ErrorReporter::info(this, "No wallpaper selected", "Select a wallpaper from the list first.");
+        return;
+    }
+
+    int index = item->data(Qt::UserRole).toInt();
+    bool confirmed = ErrorReporter::confirm(this, "Remove wallpaper",
+        "Remove this wallpaper assignment? This can't be undone.");
+    if (confirmed)
+    {
+        m_wallpaperLibrary.removeEntryAt(index);
+        refreshWallpaperEntriesList();
+
+        if (!m_queue.isEmpty())
+        {
+            updateWallpaperForTrack(m_queue.currentTrack());
+        }
+    }
 }
 
 void PlayerWindow::play()
@@ -2083,6 +2547,14 @@ void PlayerWindow::loadSettings()
     m_crossfadeSeconds = settings.value("crossfadeSeconds", 5).toInt();
     m_crossfadeSlider->setValue(m_crossfadeSeconds);
 
+    m_videoWallpaperEnabled = settings.value("videoWallpaperEnabled", true).toBool();
+    m_videoWallpaperCheckbox->setChecked(m_videoWallpaperEnabled);
+
+    m_videoWallpaperOpacityPercent = settings.value("videoWallpaperOpacity", 100).toInt();
+    m_videoWallpaperOpacitySlider->setValue(m_videoWallpaperOpacityPercent);
+    m_videoWallpaperOpacitySlider->setEnabled(m_videoWallpaperEnabled);
+    m_wallpaperWidget->setOpacity(m_videoWallpaperOpacityPercent / 100.0);
+
     m_musixmatchApiKey = settings.value("musixmatchApiKey").toString();
     m_musixmatchApiKeyEdit->setText(m_musixmatchApiKey);
 
@@ -2128,6 +2600,8 @@ void PlayerWindow::saveSettings()
     settings.setValue("replayGainEnabled", m_replayGainEnabled);
     settings.setValue("crossfadeEnabled", m_crossfadeEnabled);
     settings.setValue("crossfadeSeconds", m_crossfadeSeconds);
+    settings.setValue("videoWallpaperEnabled", m_videoWallpaperEnabled);
+    settings.setValue("videoWallpaperOpacity", m_videoWallpaperOpacityPercent);
     settings.setValue("musixmatchApiKey", m_musixmatchApiKey);
 
     if (m_engine.isEqualizerAvailable())
