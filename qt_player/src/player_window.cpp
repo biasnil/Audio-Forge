@@ -56,6 +56,7 @@
 #include <QCloseEvent>
 #include <QEvent>
 #include <QResizeEvent>
+#include <QMouseEvent>
 
 #include <cmath>
 
@@ -1040,6 +1041,8 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     m_lyricsBaseFont = m_lyricsList->font();
     m_lyricsBaseFont.setPointSize(15);
     m_lyricsList->setFont(m_lyricsBaseFont);
+    m_lyricsList->viewport()->setMouseTracking(true); // needed for hover, no click/drag required
+    m_lyricsList->viewport()->installEventFilter(this);
     textColumn->addWidget(m_lyricsList, 1);
 
     contentRow->addSpacing(24);
@@ -1696,6 +1699,7 @@ void PlayerWindow::setLyricsPlaceholder(const QString& text)
     m_lyricsList->clear();
     m_syncedLyrics.clear();
     m_lastLyricsLineIndex = -1;
+    m_hoveredLyricsLineIndex = -1;
 
     auto* item = new QListWidgetItem(text);
     item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
@@ -1708,6 +1712,7 @@ void PlayerWindow::setLyricsContent(const QString& rawText, bool synced)
     m_lyricsList->clear();
     m_syncedLyrics.clear();
     m_lastLyricsLineIndex = -1;
+    m_hoveredLyricsLineIndex = -1;
 
     if (synced)
     {
@@ -1787,6 +1792,7 @@ void PlayerWindow::updateSyncedLyricsHighlight(float cursorSeconds)
             int alpha = qMax(50, 190 - distance * 35); // fades out the further a line is from "now"
             item->setForeground(QColor(255, 255, 255, alpha));
         }
+        font.setUnderline(i == m_hoveredLyricsLineIndex); // keep the hover underline through a restyle
         item->setFont(font);
     }
 
@@ -1794,6 +1800,70 @@ void PlayerWindow::updateSyncedLyricsHighlight(float cursorSeconds)
     {
         m_lyricsList->scrollToItem(m_lyricsList->item(currentIndex), QAbstractItemView::PositionAtCenter);
     }
+}
+
+bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched != m_lyricsList->viewport())
+    {
+        return QWidget::eventFilter(watched, event);
+    }
+
+    if (event->type() == QEvent::MouseMove || event->type() == QEvent::Leave)
+    {
+        QListWidgetItem* item = nullptr;
+        if (event->type() == QEvent::MouseMove)
+        {
+            item = m_lyricsList->itemAt(static_cast<QMouseEvent*>(event)->pos());
+        }
+
+        int index = item ? m_lyricsList->row(item) : -1;
+        // Only lines that came from synced lyrics have a real timestamp --
+        // for plain/unsynced lyrics m_syncedLyrics is empty, so this is
+        // always false and hover has no visible effect at all.
+        const bool hasTimestamp = index >= 0 && index < m_syncedLyrics.size();
+        if (!hasTimestamp)
+        {
+            index = -1;
+        }
+
+        if (index != m_hoveredLyricsLineIndex)
+        {
+            if (m_hoveredLyricsLineIndex >= 0 && m_hoveredLyricsLineIndex < m_lyricsList->count())
+            {
+                QFont font = m_lyricsList->item(m_hoveredLyricsLineIndex)->font();
+                font.setUnderline(false);
+                m_lyricsList->item(m_hoveredLyricsLineIndex)->setFont(font);
+            }
+            m_hoveredLyricsLineIndex = index;
+            if (m_hoveredLyricsLineIndex >= 0)
+            {
+                QFont font = item->font();
+                font.setUnderline(true);
+                item->setFont(font);
+            }
+        }
+        m_lyricsList->viewport()->setCursor(hasTimestamp ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    }
+    else if (event->type() == QEvent::MouseButtonRelease)
+    {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton)
+        {
+            QListWidgetItem* item = m_lyricsList->itemAt(mouseEvent->pos());
+            int index = item ? m_lyricsList->row(item) : -1;
+            if (index >= 0 && index < m_syncedLyrics.size())
+            {
+                m_engine.seekToSeconds(m_syncedLyrics[index].seconds);
+                // no manual UI push needed -- the next updatePlayback() tick
+                // (m_seeking is false here) picks up the new cursor and
+                // moves both seek sliders + the highlighted line itself
+            }
+            // no timestamp on this line -- intentionally does nothing
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
 }
 
 void PlayerWindow::openGroupTracks(const QString& labelWithCount, const QStringList& paths)

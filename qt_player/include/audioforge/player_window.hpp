@@ -43,6 +43,7 @@ protected:
     void closeEvent(QCloseEvent* event) override;
     void changeEvent(QEvent* event) override; // pauses/resumes the video wallpaper on minimize/restore
     void resizeEvent(QResizeEvent* event) override; // re-applies title truncation for the new available width
+    bool eventFilter(QObject* watched, QEvent* event) override; // hover-underline + click-to-seek on synced lyrics lines
 
 private:
     // --- Tab / page builders ---------------------------------------------
@@ -174,6 +175,7 @@ private:
     QFont m_lyricsBaseFont;
     QVector<SyncedLyricLine> m_syncedLyrics; // empty unless the current lyrics are time-synced
     int m_lastLyricsLineIndex = -1; // avoids re-styling every item on every 200ms tick when nothing changed
+    int m_hoveredLyricsLineIndex = -1; // which synced line the mouse is over right now (-1 = none); only ever set for lines that have a timestamp
 
     QNetworkAccessManager* m_network = nullptr;
     QString m_pendingLookupPath;
