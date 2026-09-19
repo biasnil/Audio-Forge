@@ -3,6 +3,7 @@
 #include "audioforge/warnings.hpp"
 #include "audioforge/widgets/clickable_widget.hpp"
 #include "audioforge/widgets/click_seek_slider.hpp"
+#include "audioforge/widgets/single_page_stacked_widget.hpp"
 #include "audioforge/widgets/video_background_widget.hpp"
 #include "audioforge/dialogs/track_list_dialog.hpp"
 #include "audioforge/dialogs/create_playlist_dialog.hpp"
@@ -13,6 +14,7 @@
 #include "audioforge/track_metadata_tags.hpp"
 #include "audioforge/lyrics_provider.hpp"
 #include "audioforge/cover_art_writer.hpp"
+#include "audioforge/discord_presence.hpp"
 
 #include <QVBoxLayout>
 #include <QMenu>
@@ -188,7 +190,7 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
 
     m_network = new QNetworkAccessManager(this);
 
-    m_stack = new QStackedWidget();
+    m_stack = new SinglePageStackedWidget();
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->addWidget(m_stack);
 
@@ -399,6 +401,7 @@ QWidget* PlayerWindow::buildSettingsTab()
     // --- Stats ---
     l->addWidget(sectionHeader("Library"));
     m_statsLabel = new QLabel();
+    m_statsLabel->setMinimumHeight(m_statsLabel->fontMetrics().height()); // reserved up front -- see m_bigSubtitleLabel's comment in buildNowPlayingPage()
     l->addWidget(m_statsLabel);
 
     auto* refreshButton = new QPushButton("Refresh Library");
@@ -489,6 +492,30 @@ QWidget* PlayerWindow::buildSettingsTab()
     opacityRow->addWidget(m_videoWallpaperOpacitySlider);
     opacityRow->addStretch();
     l->addLayout(opacityRow);
+
+    l->addSpacing(16);
+
+    // --- Discord Rich Presence ---
+    l->addWidget(sectionHeader("Discord Rich Presence"));
+    l->addWidget(new QLabel(
+        "Shows the current track on your Discord profile. Requires a free\n"
+        "\"Application\" client ID from discord.com/developers/applications\n"
+        "(just create one and copy its Client ID -- nothing needs to be\n"
+        "published). Discord's desktop app must be running."));
+    m_discordPresenceCheckbox = new QCheckBox("Show what I'm playing on Discord");
+    connect(m_discordPresenceCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        m_discordPresenceEnabled = checked;
+        m_discordPresence.setEnabled(checked);
+    });
+    l->addWidget(m_discordPresenceCheckbox);
+
+    m_discordClientIdEdit = new QLineEdit();
+    m_discordClientIdEdit->setPlaceholderText("Discord Application Client ID");
+    connect(m_discordClientIdEdit, &QLineEdit::textChanged, this, [this](const QString& text) {
+        m_discordClientId = text.trimmed();
+        m_discordPresence.init(m_discordClientId);
+    });
+    l->addWidget(m_discordClientIdEdit);
 
     l->addStretch();
     return w;
@@ -798,6 +825,15 @@ QWidget* PlayerWindow::buildPlayerBar()
 
     m_formatLabel = new QLabel();
     m_formatLabel->setStyleSheet("color: gray;");
+    // Reserve a full line's height right away -- a genuinely empty QLabel
+    // has a near-zero sizeHint, so without this the bar's required height
+    // silently jumps by one line the first time a track loads and
+    // FormatAudioInfo() gives it real text for the first time. That jump
+    // happened after bar->setMinimumHeight() below had already measured
+    // (and locked in) the smaller, empty-label height, so nothing pushed
+    // back against it until some unrelated relayout (fullscreen toggle,
+    // switching pages) caught the window up.
+    m_formatLabel->setMinimumHeight(m_formatLabel->fontMetrics().height());
     infoTextLayout->addWidget(m_formatLabel);
 
     outerLayout->addWidget(clickableInfo);
@@ -866,6 +902,14 @@ QWidget* PlayerWindow::buildPlayerBar()
 
     connect(m_volumeSlider, &QSlider::valueChanged, this, &PlayerWindow::applyVolume);
     connect(m_themeButton, &QPushButton::clicked, this, &PlayerWindow::toggleTheme);
+
+    // This bar's own content (seek/time/transport/secondary/volume rows)
+    // is exactly the same size whether idle or playing -- only the Tracks
+    // table above it (in rootLayout) grows or shrinks. Pinning the
+    // minimum height here, before anything ever plays, stops that table
+    // from ever compressing this bar enough to push the Volume row (or
+    // anything else in it) below the visible window.
+    bar->setMinimumHeight(bar->sizeHint().height());
 
     return bar;
 }
@@ -1022,10 +1066,22 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     m_titleMarqueeTimer->start(50);
 
     m_bigSubtitleLabel = new QLabel();
+    // Same reserved-height fix as m_formatLabel in buildPlayerBar(), but
+    // more consequential here: this page is inside m_stack, and
+    // QStackedWidget sizes itself off the LARGEST minimum size across ALL
+    // its pages, not just the one currently shown. So this label jumping
+    // from empty to real text the first time a track plays (in
+    // updateNowPlayingUi()) was silently growing the whole window's
+    // required height even while the Library page, not this one, was the
+    // one actually visible -- which is exactly why toggling to Now
+    // Playing and back (forcing Qt to finish laying this page out) made
+    // it "fix itself".
+    m_bigSubtitleLabel->setMinimumHeight(m_bigSubtitleLabel->fontMetrics().height());
     textColumn->addWidget(m_bigSubtitleLabel);
 
     m_bigFormatLabel = new QLabel();
     m_bigFormatLabel->setStyleSheet("color: rgba(255,255,255,150);");
+    m_bigFormatLabel->setMinimumHeight(m_bigFormatLabel->fontMetrics().height());
     textColumn->addWidget(m_bigFormatLabel);
 
     m_lyricsList = new QListWidget();
@@ -1067,12 +1123,14 @@ QWidget* PlayerWindow::buildNowPlayingPage()
 
     auto* bigTransportRow = new QHBoxLayout();
     bigTransportRow->addStretch();
-    auto* bigShuffle = new QPushButton("Shuffle");
+    m_bigShuffleButton = new QPushButton("Shuffle: Off");
+    auto* bigShuffle = m_bigShuffleButton;
     auto* bigPrev = new QPushButton("Previous");
     auto* bigPlay = new QPushButton("Play");
     auto* bigPause = new QPushButton("Pause");
     auto* bigNext = new QPushButton("Next");
-    auto* bigRepeat = new QPushButton("Repeat");
+    m_bigRepeatButton = new QPushButton("Repeat: Off");
+    auto* bigRepeat = m_bigRepeatButton;
     bigTransportRow->addWidget(bigShuffle);
     bigTransportRow->addWidget(bigPrev);
     bigTransportRow->addWidget(bigPlay);
@@ -1977,6 +2035,17 @@ void PlayerWindow::next(bool fromAutoAdvance)
         return;
     }
 
+    if (fromAutoAdvance)
+    {
+        // Diagnostic: shows in warnings.log why a track did (or didn't) advance.
+        // shuffle: 0=Off 1=Random 2=Smart   repeat: 0=Off 1=All 2=One
+        ErrorReporter::logOnly(QString("Auto-advance: shuffle=%1 repeat=%2 index=%3 queueSize=%4")
+            .arg(static_cast<int>(m_queue.shuffleMode()))
+            .arg(static_cast<int>(m_queue.repeatMode()))
+            .arg(m_queue.currentIndex())
+            .arg(m_queue.size()));
+    }
+
     if (fromAutoAdvance && m_queue.repeatMode() == RepeatMode::One)
     {
         m_engine.seekToSeconds(0);
@@ -2004,26 +2073,46 @@ void PlayerWindow::previous()
     }
 }
 
+void PlayerWindow::updateShuffleRepeatLabels()
+{
+    QString shuffleText;
+    switch (m_queue.shuffleMode())
+    {
+        case ShuffleMode::Off:    shuffleText = "Shuffle: Off"; break;
+        case ShuffleMode::Random: shuffleText = "Shuffle: Random"; break;
+        case ShuffleMode::Smart:  shuffleText = "Shuffle: Smart"; break;
+    }
+
+    QString repeatText;
+    switch (m_queue.repeatMode())
+    {
+        case RepeatMode::Off: repeatText = "Repeat: Off"; break;
+        case RepeatMode::All: repeatText = "Repeat: All"; break;
+        case RepeatMode::One: repeatText = "Repeat: One"; break;
+    }
+
+    m_shuffleButton->setText(shuffleText);
+    m_repeatButton->setText(repeatText);
+    if (m_bigShuffleButton)
+    {
+        m_bigShuffleButton->setText(shuffleText);
+    }
+    if (m_bigRepeatButton)
+    {
+        m_bigRepeatButton->setText(repeatText);
+    }
+}
+
 void PlayerWindow::cycleRepeatMode()
 {
     m_queue.cycleRepeatMode();
-    switch (m_queue.repeatMode())
-    {
-        case RepeatMode::Off: m_repeatButton->setText("Repeat: Off"); break;
-        case RepeatMode::All: m_repeatButton->setText("Repeat: All"); break;
-        case RepeatMode::One: m_repeatButton->setText("Repeat: One"); break;
-    }
+    updateShuffleRepeatLabels();
 }
 
 void PlayerWindow::cycleShuffleMode()
 {
     m_queue.cycleShuffleMode();
-    switch (m_queue.shuffleMode())
-    {
-        case ShuffleMode::Off: m_shuffleButton->setText("Shuffle: Off"); break;
-        case ShuffleMode::Random: m_shuffleButton->setText("Shuffle: Random"); break;
-        case ShuffleMode::Smart: m_shuffleButton->setText("Shuffle: Smart"); break;
-    }
+    updateShuffleRepeatLabels();
 }
 
 void PlayerWindow::toggleReplayGain()
@@ -2233,6 +2322,13 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
 
     fetchLyricsFor(info);
     updateWallpaperForTrack(info);
+
+    if (m_discordPresenceEnabled)
+    {
+        m_discordPresence.setNowPlaying(
+            info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
+            info.artist, 0, static_cast<int>(m_engine.lengthSeconds()));
+    }
 }
 
 void PlayerWindow::resetTitleMarquee(const QString& title)
@@ -2428,17 +2524,35 @@ void PlayerWindow::removeSelectedWallpaperEntry()
 void PlayerWindow::play()
 {
     m_engine.play();
+    if (m_discordPresenceEnabled && !m_queue.isEmpty())
+    {
+        const TrackInfo& info = m_queue.currentTrack();
+        m_discordPresence.setNowPlaying(
+            info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
+            info.artist, static_cast<int>(m_engine.cursorSeconds()), static_cast<int>(m_engine.lengthSeconds()));
+    }
 }
 
 void PlayerWindow::pause()
 {
     m_engine.pause();
+    if (m_discordPresenceEnabled)
+    {
+        // No accurate way to show a paused countdown via Discord's
+        // timestamp-based activity, so just hide it while paused rather
+        // than let it keep counting down as if still playing.
+        m_discordPresence.clearPresence();
+    }
 }
 
 void PlayerWindow::stop()
 {
     m_queue.cancelPendingNext();
     m_engine.stop();
+    if (m_discordPresenceEnabled)
+    {
+        m_discordPresence.clearPresence();
+    }
 }
 
 // Combines the volume slider with the current track's ReplayGain value (if
@@ -2629,6 +2743,12 @@ void PlayerWindow::loadSettings()
     m_musixmatchApiKey = settings.value("musixmatchApiKey").toString();
     m_musixmatchApiKeyEdit->setText(m_musixmatchApiKey);
 
+    m_discordPresenceEnabled = settings.value("discordPresenceEnabled", false).toBool();
+    m_discordPresenceCheckbox->setChecked(m_discordPresenceEnabled); // fires the toggled lambda -> setEnabled()
+
+    m_discordClientId = settings.value("discordClientId").toString();
+    m_discordClientIdEdit->setText(m_discordClientId); // fires the textChanged lambda -> init()
+
     if (m_engine.isEqualizerAvailable())
     {
         bool eqEnabled = settings.value("eqEnabled", false).toBool();
@@ -2674,6 +2794,8 @@ void PlayerWindow::saveSettings()
     settings.setValue("videoWallpaperEnabled", m_videoWallpaperEnabled);
     settings.setValue("videoWallpaperOpacity", m_videoWallpaperOpacityPercent);
     settings.setValue("musixmatchApiKey", m_musixmatchApiKey);
+    settings.setValue("discordPresenceEnabled", m_discordPresenceEnabled);
+    settings.setValue("discordClientId", m_discordClientId);
 
     if (m_engine.isEqualizerAvailable())
     {

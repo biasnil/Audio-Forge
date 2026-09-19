@@ -6,6 +6,7 @@
 #include "audioforge/music_library.hpp"
 #include "audioforge/wallpaper_library.hpp"
 #include "audioforge/lyrics_provider.hpp"
+#include "audioforge/discord_presence.hpp"
 #include <QFont>
 
 class QTabWidget;
@@ -96,6 +97,7 @@ private:
     void previous();
     void cycleRepeatMode();
     void cycleShuffleMode();
+    void updateShuffleRepeatLabels(); // keeps the mini bar AND Now Playing page shuffle/repeat buttons in sync
     void toggleReplayGain();
 
     // --- Lyrics (cache, then LRCLIB, then Musixmatch, then local .lrc/.txt, then nothing) ---
@@ -156,6 +158,7 @@ private:
     PlaybackQueue m_queue;
     MusicLibrary m_library;
     WallpaperLibrary m_wallpaperLibrary;
+    DiscordPresence m_discordPresence;
 
     bool m_seeking = false;
     bool m_wasAtEnd = false;
@@ -171,6 +174,10 @@ private:
 
     QString m_musixmatchApiKey;
     QLineEdit* m_musixmatchApiKeyEdit = nullptr;
+    bool m_discordPresenceEnabled = false;
+    QString m_discordClientId;
+    QCheckBox* m_discordPresenceCheckbox = nullptr;
+    QLineEdit* m_discordClientIdEdit = nullptr;
     QListWidget* m_lyricsList = nullptr;
     QFont m_lyricsBaseFont;
     QVector<SyncedLyricLine> m_syncedLyrics; // empty unless the current lyrics are time-synced
@@ -238,6 +245,8 @@ private:
     QSlider* m_bigSeekSlider = nullptr;
     QLabel* m_bigTimeLabel = nullptr;
     QPushButton* m_shuffleButton = nullptr;
+    QPushButton* m_bigShuffleButton = nullptr; // Now Playing page copy of the shuffle button
+    QPushButton* m_bigRepeatButton = nullptr;  // Now Playing page copy of the repeat button
     QPushButton* m_prevButton = nullptr;
     QPushButton* m_playButton = nullptr;
     QPushButton* m_pauseButton = nullptr;

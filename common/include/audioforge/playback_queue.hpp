@@ -23,6 +23,7 @@ public:
     void setQueue(const QVector<TrackInfo>& queue, int startIndex);
 
     bool isEmpty() const { return m_queue.isEmpty(); }
+    int size() const { return m_queue.size(); }
     const TrackInfo& currentTrack() const { return m_queue[m_queueIndex]; }
     int currentIndex() const { return m_queueIndex; }
 
