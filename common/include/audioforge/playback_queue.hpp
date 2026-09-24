@@ -23,6 +23,7 @@ public:
     void setQueue(const QVector<TrackInfo>& queue, int startIndex);
 
     bool isEmpty() const { return m_queue.isEmpty(); }
+    int size() const { return m_queue.size(); }
     const TrackInfo& currentTrack() const { return m_queue[m_queueIndex]; }
     int currentIndex() const { return m_queueIndex; }
 
@@ -36,7 +37,8 @@ public:
     // this does consume/advance the shuffle order (that consumption is
     // real/final), so calling it twice in a row without committing returns
     // the same cached result rather than picking again. Returns false if
-    // there's nothing to advance to (end of queue, repeat off).
+    // there's nothing to advance to (end of queue, repeat off -- in the
+    // shuffle modes, "end" means one full queue's worth of tracks).
     bool peekNext();
     bool hasPendingNext() const { return m_pendingNextIndex >= 0; }
     const TrackInfo& pendingNextTrack() const { return m_queue[m_pendingNextIndex]; }

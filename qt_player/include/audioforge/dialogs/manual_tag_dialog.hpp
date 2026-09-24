@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QString>
 #include <QByteArray>
+#include <functional>
 
 class QVBoxLayout;
 class QScrollArea;
@@ -37,6 +38,12 @@ public:
     void applyLookupResult(const QString& title, const QString& artist,
                             const QString& album, unsigned int year);
 
+    // Replaces how Save writes the tags (default: WriteAllTags on the
+    // dialog's path). PlayerWindow uses this to release the file from the
+    // audio engine first when it's the track that's currently playing.
+    using SaveFunction = std::function<bool(const QMap<QString, QString>& tags)>;
+    void setSaveFunction(SaveFunction saveFunction) { m_saveFunction = std::move(saveFunction); }
+
 signals:
     // Emitted when the user clicks "Fill from internet". PlayerWindow
     // connects this to its existing lookupSelectedTrackOnMusicBrainz()
@@ -62,6 +69,7 @@ private:
     void trySave();
 
     QString m_path;
+    SaveFunction m_saveFunction;
     QVBoxLayout* m_rowsLayout = nullptr;
     QVector<TagRow> m_rows;
 };

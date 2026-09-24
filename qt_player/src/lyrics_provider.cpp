@@ -7,21 +7,46 @@
 #include <QCryptographicHash>
 #include <QRegularExpression>
 #include <QStringList>
+#include <QStringDecoder>
 
 #include <algorithm>
+#include <optional>
 
 namespace audioforge {
 
 namespace {
 
+// Sidecar .lrc/.txt files come from all over, so UTF-8 can't be assumed:
+// a BOM (UTF-8/16/32) wins if present; otherwise strict UTF-8, falling back
+// to the system codepage (e.g. GBK on a Chinese-locale Windows) if the
+// bytes aren't valid UTF-8. Opened in binary mode, not QIODevice::Text --
+// Text mode's \r stripping works on raw bytes and would corrupt UTF-16.
 QString ReadWholeFile(const QString& path)
 {
     QFile file(path);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (!file.exists() || !file.open(QIODevice::ReadOnly))
     {
         return QString();
     }
-    return QString::fromUtf8(file.readAll());
+    const QByteArray bytes = file.readAll();
+
+    QString text;
+    if (std::optional<QStringConverter::Encoding> bom = QStringConverter::encodingForData(bytes))
+    {
+        QStringDecoder decoder(*bom);
+        text = decoder(bytes);
+    }
+    else
+    {
+        QStringDecoder decoder(QStringConverter::Utf8);
+        text = decoder(bytes);
+        if (decoder.hasError())
+        {
+            text = QString::fromLocal8Bit(bytes);
+        }
+    }
+    text.replace("\r\n", "\n");
+    return text;
 }
 
 // %TEMP%/AudioForge/lyrics -- created on first use.

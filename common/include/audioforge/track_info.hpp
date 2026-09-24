@@ -22,7 +22,8 @@ struct TrackInfo
     int bitrateKbps = 0;
     int sampleRateHz = 0;
     int channels = 0;
-    QByteArray coverArt; // raw embedded image bytes (JPEG/PNG), empty if none
+    QByteArray coverArt; // raw image bytes (JPEG/PNG); empty if none OR not loaded --
+                         // library scans skip it to save memory, see ReadCoverArt()
 };
 
 struct PlaylistData
@@ -32,7 +33,8 @@ struct PlaylistData
 };
 
 // e.g. "MP3  •  320 kb/s  •  44.1 kHz  •  Stereo". Empty string if there's
-// no audio-properties data (bitrateKbps <= 0).
+// no audio-properties data (bitrateKbps <= 0). The format name comes from
+// the file extension.
 QString FormatAudioInfo(const TrackInfo& t);
 
 } // namespace audioforge

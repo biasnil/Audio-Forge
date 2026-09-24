@@ -50,11 +50,18 @@ static QByteArray ReadFolderCoverArt(const QString& filePath)
 
 // Opens the file's ID3v2 tag once and pulls out both the ReplayGain TXXX
 // frame and any embedded cover art (APIC frame) -- combined into one pass
-// since both need the same TagLib::MPEG::File to be opened.
-static void ReadMpegExtras(const QString& path, float& replayGainDbOut, QByteArray& coverArtOut)
+// since both need the same TagLib::MPEG::File to be opened. Either output
+// may be null to skip it.
+static void ReadMpegExtras(const QString& path, float* replayGainDbOut, QByteArray* coverArtOut)
 {
-    replayGainDbOut = 0.0f;
-    coverArtOut.clear();
+    if (replayGainDbOut)
+    {
+        *replayGainDbOut = 0.0f;
+    }
+    if (coverArtOut)
+    {
+        coverArtOut->clear();
+    }
 
 #ifdef _WIN32
     std::wstring pathW = path.toStdWString();
@@ -72,7 +79,7 @@ static void ReadMpegExtras(const QString& path, float& replayGainDbOut, QByteArr
     const auto& frameMap = id3v2->frameListMap();
 
     auto txxxIt = frameMap.find("TXXX");
-    if (txxxIt != frameMap.end())
+    if (replayGainDbOut && txxxIt != frameMap.end())
     {
         for (TagLib::ID3v2::Frame* frame : txxxIt->second)
         {
@@ -94,7 +101,7 @@ static void ReadMpegExtras(const QString& path, float& replayGainDbOut, QByteArr
                     float db = valueStr.toFloat(&ok);
                     if (ok)
                     {
-                        replayGainDbOut = db;
+                        *replayGainDbOut = db;
                     }
                 }
             }
@@ -102,18 +109,18 @@ static void ReadMpegExtras(const QString& path, float& replayGainDbOut, QByteArr
     }
 
     auto apicIt = frameMap.find("APIC");
-    if (apicIt != frameMap.end() && !apicIt->second.isEmpty())
+    if (coverArtOut && apicIt != frameMap.end() && !apicIt->second.isEmpty())
     {
         auto* picFrame = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(apicIt->second.front());
         if (picFrame)
         {
             TagLib::ByteVector data = picFrame->picture();
-            coverArtOut = QByteArray(data.data(), static_cast<int>(data.size()));
+            *coverArtOut = QByteArray(data.data(), static_cast<int>(data.size()));
         }
     }
 }
 
-TrackInfo ReadTrackInfo(const QString& path)
+TrackInfo ReadTrackInfo(const QString& path, bool includeCoverArt)
 {
     TrackInfo info;
     info.path = path;
@@ -159,13 +166,24 @@ TrackInfo ReadTrackInfo(const QString& path)
         }
     } // <-- `file` destructs here, releasing its handle on the file
 
-    ReadMpegExtras(path, info.replayGainDb, info.coverArt);
-    if (info.coverArt.isEmpty())
+    ReadMpegExtras(path, &info.replayGainDb, includeCoverArt ? &info.coverArt : nullptr);
+    if (includeCoverArt && info.coverArt.isEmpty())
     {
         info.coverArt = ReadFolderCoverArt(path);
     }
 
     return info;
+}
+
+QByteArray ReadCoverArt(const QString& path)
+{
+    QByteArray coverArt;
+    ReadMpegExtras(path, nullptr, &coverArt);
+    if (coverArt.isEmpty())
+    {
+        coverArt = ReadFolderCoverArt(path);
+    }
+    return coverArt;
 }
 
 bool WriteBasicTags(const QString& path, const QString& title, const QString& artist,

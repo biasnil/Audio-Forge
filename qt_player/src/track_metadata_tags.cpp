@@ -24,8 +24,14 @@ QMap<QString, QString> ReadAllTags(const QString& path)
 {
     QMap<QString, QString> result;
 
+    // wchar_t* is the Unicode-safe path on Windows (same as
+    // track_metadata.cpp); TagLib only accepts char* (UTF-8) elsewhere.
+#ifdef _WIN32
     std::wstring pathW = path.toStdWString();
     TagLib::FileRef file(pathW.c_str());
+#else
+    TagLib::FileRef file(path.toUtf8().constData());
+#endif
     if (file.isNull() || !file.tag())
     {
         return result;
@@ -47,8 +53,14 @@ QMap<QString, QString> ReadAllTags(const QString& path)
 
 bool WriteAllTags(const QString& path, const QMap<QString, QString>& tags)
 {
+    // wchar_t* is the Unicode-safe path on Windows (same as
+    // track_metadata.cpp); TagLib only accepts char* (UTF-8) elsewhere.
+#ifdef _WIN32
     std::wstring pathW = path.toStdWString();
     TagLib::FileRef file(pathW.c_str());
+#else
+    TagLib::FileRef file(path.toUtf8().constData());
+#endif
     if (file.isNull() || !file.file())
     {
         return false;

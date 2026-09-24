@@ -41,7 +41,8 @@ public:
 
     // Returns the cached TrackInfo for a path if it's in the library,
     // otherwise reads it fresh from disk (e.g. a file opened via "Open
-    // File..." that was never part of a scanned folder).
+    // File..." that was never part of a scanned folder). Cover art is never
+    // loaded here -- use ReadCoverArt() where it's actually displayed.
     TrackInfo findTrackInfo(const QString& path) const;
     QVector<TrackInfo> buildQueueFromPaths(const QStringList& paths) const;
 

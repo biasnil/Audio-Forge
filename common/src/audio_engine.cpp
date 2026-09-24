@@ -111,6 +111,10 @@ void AudioEngine::play()
     {
         ma_sound_start(&ActiveSound());
     }
+    if (m_crossfading && m_slotLoaded[InactiveSlot()])
+    {
+        ma_sound_start(&m_soundSlots[InactiveSlot()]);
+    }
 }
 
 void AudioEngine::pause()
@@ -118,6 +122,13 @@ void AudioEngine::pause()
     if (isLoaded())
     {
         ma_sound_stop(&ActiveSound());
+    }
+    // Mid-fade, the incoming track is audible too -- it has to stop with
+    // the outgoing one, or it would keep playing (at part volume, with the
+    // fade frozen because the outgoing cursor no longer advances).
+    if (m_crossfading && m_slotLoaded[InactiveSlot()])
+    {
+        ma_sound_stop(&m_soundSlots[InactiveSlot()]);
     }
 }
 
@@ -128,6 +139,16 @@ void AudioEngine::stop()
     {
         ma_sound_stop(&ActiveSound());
         ma_sound_seek_to_pcm_frame(&ActiveSound(), 0);
+    }
+}
+
+void AudioEngine::unload()
+{
+    abortCrossfade();
+    if (m_slotLoaded[m_activeSlot])
+    {
+        ma_sound_uninit(&ActiveSound());
+        m_slotLoaded[m_activeSlot] = false;
     }
 }
 
