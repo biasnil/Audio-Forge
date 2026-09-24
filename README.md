@@ -55,6 +55,30 @@ pacman -S mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-tools \
 Then in VS Code: **CMake: Select a Kit** (the MSYS2 UCRT64 GCC kit) →
 **CMake: Configure** → **CMake: Build**.
 
+## Deploying on Windows (machines without MSYS2/Qt)
+
+From the MSYS2 UCRT64 shell, after building:
+```
+scripts/deploy_windows.sh build/audioforge.exe dist
+```
+This produces a `dist/` folder that runs on a clean Windows install. It runs
+`windeployqt6 --release`, adds the QtMultimedia FFmpeg backend
+(`multimedia/ffmpegmediaplugin.dll`), writes `qt.conf` (`Plugins = .`), and then
+copies every DLL that anything in the folder still loads from `/ucrt64/bin`.
+It repeats that until nothing is missing.
+
+`windeployqt6` alone isn't enough. It copies the Qt DLLs and plugins, but not
+the DLLs those plugins depend on. The FFmpeg backend alone needs about 80
+codec and support libraries (avcodec, libx264, libvpx, gnutls, cairo, ...).
+When they're missing, the app starts but logs
+`No QtMultimedia backends found` and the video wallpaper can't play.
+
+Notes:
+- On MSYS2's Qt 6 the plugin folder is `multimedia/`, not `mediaservice/`
+  (the older Qt 5 name).
+- To check a folder by hand, run this from inside it. It should print nothing:
+  `ldd multimedia/ffmpegmediaplugin.dll | grep /ucrt64/bin/`
+
 ## Building (Linux)
 
 Debian/Ubuntu packages:
