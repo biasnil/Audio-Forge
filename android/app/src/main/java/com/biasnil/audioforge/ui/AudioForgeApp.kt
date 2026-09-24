@@ -15,8 +15,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -56,9 +58,17 @@ fun AudioForgeApp(container: AppContainer) {
         val snackbarHostState = remember { SnackbarHostState() }
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
-        val trackActions = rememberTrackActions(onOpenPage = openPage) { message ->
-            scope.launch { snackbarHostState.showSnackbar(message) }
-        }
+        val undoLabel = stringResource(R.string.undo)
+        val trackActions = rememberTrackActions(
+            onOpenPage = openPage,
+            showMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+            showUndoable = { message, undo ->
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(message, actionLabel = undoLabel, duration = SnackbarDuration.Long)
+                    if (result == SnackbarResult.ActionPerformed) undo()
+                }
+            },
+        )
         LaunchedEffect(Unit) {
             container.playback.errors.collect { fileName ->
                 snackbarHostState.showSnackbar(context.getString(R.string.error_cannot_play, fileName))

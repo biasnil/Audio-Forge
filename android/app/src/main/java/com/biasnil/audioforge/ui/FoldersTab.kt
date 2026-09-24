@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.isInFolder
 
 @Composable
 fun FoldersTab(onRequestAudioPermission: () -> Unit) {
@@ -80,6 +81,10 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
             ) { Text(stringResource(R.string.allow_access)) }
         }
 
+        if (settings.includePhoneLibrary && hasPermission) {
+            PhoneLibraryFolders()
+        }
+
         HorizontalDivider(Modifier.padding(top = 16.dp))
         SectionHeader(stringResource(R.string.folders_added))
         if (settings.folders.isEmpty()) {
@@ -116,6 +121,51 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        )
+    }
+}
+
+/**
+ * Every folder the phone's music library found songs in, each with a switch
+ * -- off hides its songs (and its subfolders'), e.g. WhatsApp voice notes or
+ * ringtones. Showing a folder again is instant; nothing is rescanned.
+ */
+@Composable
+private fun PhoneLibraryFolders() {
+    val container = LocalAppContainer.current
+    val settings by container.store.settings.collectAsStateWithLifecycle()
+    val folders by container.library.phoneFolders.collectAsStateWithLifecycle()
+
+    SectionHeader(stringResource(R.string.folders_phone_folders))
+    Text(
+        text = stringResource(R.string.folders_phone_folders_explanation),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    if (folders.isEmpty()) {
+        Text(
+            text = stringResource(R.string.folders_phone_folders_none),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+    folders.forEach { folder ->
+        val hiddenItself = folder.key in settings.hiddenFolders
+        // Inside a hidden parent: shown as off, and switched from the parent's row instead.
+        val hiddenByParent = !hiddenItself && settings.hiddenFolders.any { isInFolder(folder.key, it) }
+        ListItem(
+            headlineContent = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            supportingContent = {
+                Text("${folder.path}  •  ${trackCountText(folder.trackCount)}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+            },
+            trailingContent = {
+                Switch(
+                    checked = !hiddenItself && !hiddenByParent,
+                    onCheckedChange = { show -> container.library.setFolderHidden(folder.key, hidden = !show) },
+                    enabled = !hiddenByParent,
+                )
+            },
         )
     }
 }

@@ -23,6 +23,8 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             MediaStore.MediaColumns.BITRATE,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.VOLUME_NAME,
         )
         val tracks = ArrayList<Track>()
         resolver.query(collection, projection, "${MediaStore.Audio.AudioColumns.IS_MUSIC} != 0", null, null)?.use { cursor ->
@@ -37,6 +39,8 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             val bitrate = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BITRATE)
             val name = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
             val size = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+            val relativePath = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+            val volume = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.VOLUME_NAME)
 
             while (cursor.moveToNext()) {
                 currentCoroutineContext().ensureActive()
@@ -53,11 +57,19 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     bitrateKbps = (cursor.getLong(bitrate) / 1000).toInt(),
                     fileName = fileName,
                     sizeBytes = cursor.getLong(size),
+                    folderKey = folderKey(cursor.getString(volume), cursor.getString(relativePath)),
                 )
             }
         }
         return tracks
     }
+}
+
+/** "<volume>|<relative path>/" -- see Track.folderKey. */
+private fun folderKey(volume: String?, relativePath: String?): String {
+    val path = relativePath?.trim().orEmpty()
+    if (path.isEmpty()) return ""
+    return volume.orEmpty() + "|" + if (path.endsWith('/')) path else "$path/"
 }
 
 /** MediaStore reports missing tags as "<unknown>"; treat that as empty. */

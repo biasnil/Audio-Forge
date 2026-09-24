@@ -95,7 +95,7 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
 
 1. Project setup. **Done.**
 2. Playback, library, queue, playlists. **Done:** the phone's music library plus
-   added folders, the Tracks/Albums/Artists/Folders/Playlists/Settings tabs,
+   added folders (phone-library folders can be hidden, e.g. WhatsApp audio), the Tracks/Albums/Artists/Folders/Playlists/Settings tabs,
    background playback with notification and lock-screen controls, and the
    desktop's shuffle, repeat and history logic.
 3. Crossfade, equalizer, ReplayGain. **Done:** two-player crossfade (2–15 s),

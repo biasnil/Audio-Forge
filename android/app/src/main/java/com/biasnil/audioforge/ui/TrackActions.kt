@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.Track
+import com.biasnil.audioforge.data.folderPath
 import kotlinx.coroutines.launch
 
 /** What long-pressing a song offers, available anywhere below [AudioForgeApp]. */
@@ -40,7 +41,12 @@ val LocalTrackActions = staticCompositionLocalOf<TrackActions> { error("TrackAct
  * the song -- the desktop's "Change Cover..." button.
  */
 @Composable
-fun rememberTrackActions(onOpenPage: (Page) -> Unit, showMessage: (String) -> Unit): TrackActions {
+fun rememberTrackActions(
+    onOpenPage: (Page) -> Unit,
+    showMessage: (String) -> Unit,
+    /** A message with an Undo button; the lambda runs if it's tapped. */
+    showUndoable: (String, () -> Unit) -> Unit,
+): TrackActions {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -101,6 +107,20 @@ fun rememberTrackActions(onOpenPage: (Page) -> Unit, showMessage: (String) -> Un
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text(stringResource(R.string.cover_change)) }
+                        // Phone-library songs only: hide their whole folder (WhatsApp audio, ringtones...).
+                        if (track.folderKey.isNotEmpty()) {
+                            val folderName = folderPath(track.folderKey).substringAfterLast('/')
+                            TextButton(
+                                onClick = {
+                                    menuTrackUri = null
+                                    container.library.setFolderHidden(track.folderKey, hidden = true)
+                                    showUndoable(context.getString(R.string.folder_hidden, folderName)) {
+                                        container.library.setFolderHidden(track.folderKey, hidden = false)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(stringResource(R.string.folder_hide, folderName)) }
+                        }
                     }
                 },
                 confirmButton = {},
