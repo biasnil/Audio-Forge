@@ -5,6 +5,13 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +41,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -43,15 +52,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.formatAudioInfo
+import com.biasnil.audioforge.lyrics.LyricsState
+import com.biasnil.audioforge.lyrics.SyncedLyricLine
+import com.biasnil.audioforge.lyrics.currentLyricIndex
 import com.biasnil.audioforge.data.formatTime
 import com.biasnil.audioforge.playback.RepeatMode
 import com.biasnil.audioforge.playback.ShuffleMode
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -77,6 +92,7 @@ fun NowPlayingScreen(onBack: () -> Unit) {
         val tint = remember(cover) { cover?.averageColor() ?: FallbackTint }
         val position by rememberPlaybackPositionMs()
         var dragPositionMs by remember { mutableStateOf<Float?>(null) }
+        var showLyrics by rememberSaveable { mutableStateOf(false) }
         val shownPositionMs = dragPositionMs?.toLong() ?: position
 
         Column(
@@ -87,23 +103,30 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            TextButton(onClick = onBack) {
-                Icon(AppIcons.Back, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.back))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) {
+                    Icon(AppIcons.Back, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.back))
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { showLyrics = !showLyrics }) {
+                    Text(stringResource(if (showLyrics) R.string.show_cover else R.string.show_lyrics))
+                }
             }
             Spacer(Modifier.height(16.dp))
 
-            CoverImage(
-                track = track,
-                decodeSize = 360.dp,
-                cornerRadius = 8.dp,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .widthIn(max = 360.dp)
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-            )
+            // Cover art or lyrics, in the same square -- tap "Lyrics"/"Cover" to switch.
+            val squareModifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .widthIn(max = 360.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f)
+            if (showLyrics) {
+                LyricsPanel(positionMs = position, onSeek = playback::seekTo, modifier = squareModifier)
+            } else {
+                CoverImage(track = track, decodeSize = 360.dp, cornerRadius = 8.dp, modifier = squareModifier)
+            }
             Spacer(Modifier.height(24.dp))
 
             // Long titles scroll instead of wrapping (the desktop's title marquee).
@@ -196,6 +219,7 @@ fun NowPlayingScreen(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(16.dp))
 
+            // Up to 200%, like the desktop: above 100% boosts (and can clip loud tracks).
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.volume), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.width(16.dp))
@@ -203,11 +227,83 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                     value = state.volumePercent.toFloat(),
                     onValueChange = { playback.setVolume(it.roundToInt()) },
                     onValueChangeFinished = playback::saveVolume,
-                    valueRange = 0f..100f,
+                    valueRange = 0f..AppSettings.MAX_VOLUME_PERCENT.toFloat(),
                     modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = "${state.volumePercent}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(48.dp),
                 )
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * The lyrics for the current track (see LyricsRepository). Synced lyrics
+ * follow the music -- the current line large and bright, the rest fading
+ * with distance -- and tapping a line jumps there, like the desktop.
+ */
+@Composable
+private fun LyricsPanel(positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
+    val lyrics by LocalAppContainer.current.lyrics.state.collectAsStateWithLifecycle()
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.35f))
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        when (val current = lyrics) {
+            LyricsState.None -> Unit
+            LyricsState.Loading -> CenteredText(stringResource(R.string.lyrics_loading))
+            LyricsState.NotFound -> CenteredText(stringResource(R.string.lyrics_not_found))
+            is LyricsState.Plain -> LazyColumn(Modifier.fillMaxSize()) {
+                items(current.lines) { line ->
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                    )
+                }
+            }
+            is LyricsState.Synced -> SyncedLyrics(current.lines, positionMs, onSeek)
+        }
+    }
+}
+
+@Composable
+private fun SyncedLyrics(lines: List<SyncedLyricLine>, positionMs: Long, onSeek: (Long) -> Unit) {
+    val currentIndex = currentLyricIndex(lines, positionMs)
+    val listState = rememberLazyListState()
+    // Keep the current line a couple of rows from the top, teleprompter-style.
+    LaunchedEffect(currentIndex) {
+        if (currentIndex >= 0) listState.animateScrollToItem((currentIndex - 2).coerceAtLeast(0))
+    }
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        itemsIndexed(lines) { index, line ->
+            val isCurrent = index == currentIndex
+            val distance = abs(index - currentIndex)
+            Text(
+                text = line.text.ifEmpty { "\u266A" }, // instrumental gap
+                style = if (isCurrent) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                fontWeight = if (isCurrent) FontWeight.Bold else null,
+                color = MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = if (isCurrent) 1f else (0.8f - distance * 0.12f).coerceAtLeast(0.3f),
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSeek(line.timeMs) }
+                    .padding(vertical = 6.dp),
+            )
         }
     }
 }

@@ -38,6 +38,8 @@ class FolderSource(private val context: Context) {
         val audioFiles = ArrayList<Entry>()
         var coverUri: String? = null
         var coverRank = Int.MAX_VALUE
+        // "song" -> uri of song.lrc (preferred) or song.txt
+        val lyricsFiles = HashMap<String, String>()
 
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, directoryId)
         val projection = arrayOf(
@@ -56,6 +58,13 @@ class FolderSource(private val context: Context) {
                     when {
                         mime == DocumentsContract.Document.MIME_TYPE_DIR -> subdirectories += id
                         isAudio(name, mime) -> audioFiles += Entry(id, name, size)
+                        isLyrics(name) -> {
+                            val base = name.substringBeforeLast('.').lowercase(Locale.ROOT)
+                            val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id).toString()
+                            if (name.endsWith(".lrc", ignoreCase = true) || base !in lyricsFiles) {
+                                lyricsFiles[base] = uri
+                            }
+                        }
                         else -> {
                             // Same fallback names, in the same priority, as the desktop app.
                             val rank = COVER_NAMES.indexOf(name.lowercase(Locale.ROOT))
@@ -76,14 +85,15 @@ class FolderSource(private val context: Context) {
         for (entry in audioFiles) {
             currentCoroutineContext().ensureActive()
             val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.id)
-            out += readTrack(documentUri, entry, treeKey, coverUri)
+            val lyricsUri = lyricsFiles[entry.name.substringBeforeLast('.').lowercase(Locale.ROOT)]
+            out += readTrack(documentUri, entry, treeKey, coverUri, lyricsUri)
         }
         for (subdirectory in subdirectories) {
             scanDirectory(treeUri, treeKey, subdirectory, out)
         }
     }
 
-    private fun readTrack(uri: Uri, entry: Entry, treeKey: String, coverUri: String?): Track {
+    private fun readTrack(uri: Uri, entry: Entry, treeKey: String, coverUri: String?, lyricsUri: String?): Track {
         val base = Track(
             uri = uri.toString(),
             title = entry.name.substringBeforeLast('.'),
@@ -91,6 +101,7 @@ class FolderSource(private val context: Context) {
             sizeBytes = entry.size,
             sourceFolder = treeKey,
             folderCoverUri = coverUri,
+            sidecarLyricsUri = lyricsUri,
         )
         return try {
             MediaMetadataRetriever().use { retriever ->
@@ -132,6 +143,9 @@ class FolderSource(private val context: Context) {
             "album.jpg", "album.jpeg", "album.png",
             "front.jpg", "front.jpeg", "front.png",
         )
+
+        fun isLyrics(name: String): Boolean =
+            name.endsWith(".lrc", ignoreCase = true) || name.endsWith(".txt", ignoreCase = true)
 
         fun isAudio(name: String, mime: String): Boolean =
             name.substringAfterLast('.', "").lowercase(Locale.ROOT) in AUDIO_EXTENSIONS ||

@@ -26,8 +26,24 @@ data class AppSettings(
     val playlists: List<Playlist> = emptyList(),
     /** Names of hidden LibraryTab entries. */
     val hiddenTabs: Set<String> = emptySet(),
+    /** 0-200: above 100 is the desktop's volume boost. */
     val volumePercent: Int = 100,
-)
+    val replayGainEnabled: Boolean = true,
+    val crossfadeEnabled: Boolean = false,
+    val crossfadeSeconds: Int = 5,
+    val eqEnabled: Boolean = false,
+    /** One per band, see EqualizerSettings.FREQUENCIES_HZ. */
+    val eqBandGainsDb: List<Float> = List(EQ_BAND_COUNT) { 0f },
+    val eqPostGainDb: Float = 0f,
+    /** Encrypted with a key in the Android Keystore -- see SecretBox. */
+    val musixmatchKeyEncrypted: String = "",
+) {
+    companion object {
+        const val EQ_BAND_COUNT = 10
+        const val MAX_VOLUME_PERCENT = 200
+        val CROSSFADE_SECONDS_RANGE = 2..15
+    }
+}
 
 /**
  * Settings + playlists, kept in memory as a [StateFlow] and saved to
@@ -66,7 +82,14 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                     )
                 },
                 hiddenTabs = root.optJSONArray("hiddenTabs").toStringList().toSet(),
-                volumePercent = root.optInt("volumePercent", 100).coerceIn(0, 100),
+                volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
+                replayGainEnabled = root.optBoolean("replayGainEnabled", true),
+                crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
+                crossfadeSeconds = root.optInt("crossfadeSeconds", 5).coerceIn(AppSettings.CROSSFADE_SECONDS_RANGE),
+                eqEnabled = root.optBoolean("eqEnabled", false),
+                eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
+                eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
+                musixmatchKeyEncrypted = root.optString("musixmatchKeyEncrypted", ""),
             )
         } catch (e: Exception) {
             // A corrupt file shouldn't stop the app from starting.
@@ -83,6 +106,13 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))
             .put("hiddenTabs", JSONArray(settings.hiddenTabs.toList()))
+            .put("replayGainEnabled", settings.replayGainEnabled)
+            .put("crossfadeEnabled", settings.crossfadeEnabled)
+            .put("crossfadeSeconds", settings.crossfadeSeconds)
+            .put("eqEnabled", settings.eqEnabled)
+            .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
+            .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
+            .put("musixmatchKeyEncrypted", settings.musixmatchKeyEncrypted)
             .put("playlists", JSONArray(settings.playlists.map { playlist ->
                 JSONObject()
                     .put("id", playlist.id)
@@ -112,3 +142,7 @@ private fun JSONArray?.toStringList(): List<String> =
 
 private fun JSONArray?.toObjects(): List<JSONObject> =
     if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
+
+/** Exactly [count] values, 0 dB for any missing ones. */
+private fun JSONArray?.toFloatList(count: Int): List<Float> =
+    List(count) { index -> this?.optDouble(index, 0.0)?.toFloat()?.takeUnless { it.isNaN() } ?: 0f }

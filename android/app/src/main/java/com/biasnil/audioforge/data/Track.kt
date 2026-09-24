@@ -23,4 +23,6 @@ data class Track(
     val sourceFolder: String? = null,
     /** cover.jpg / folder.jpg / ... next to the file (added folders only) -- used when there's no embedded art. */
     val folderCoverUri: String? = null,
+    /** Same-name .lrc (or .txt) next to the file (added folders only) -- the desktop's sidecar lyrics. */
+    val sidecarLyricsUri: String? = null,
 )

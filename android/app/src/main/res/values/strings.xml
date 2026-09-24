@@ -84,4 +84,30 @@
     <string name="mode_off">Off</string>
     <string name="volume">Volume</string>
     <string name="error_cannot_play">Couldn\'t play %1$s</string>
+    <!-- Equalizer -->
+    <string name="eq_preset">Preset: %1$s</string>
+    <string name="eq_preset_custom">Custom</string>
+    <string name="eq_post_gain">Post-gain</string>
+    <string name="eq_post_gain_explanation">Overall level after the equalizer. Turn it down if boosted bands make loud tracks distort.</string>
+    <string name="eq_reset">Reset equalizer</string>
+
+    <!-- Settings: playback -->
+    <string name="settings_playback">Playback</string>
+    <string name="settings_replaygain">ReplayGain</string>
+    <string name="settings_replaygain_explanation">Evens out loudness between tracks using their ReplayGain tags (MP3, FLAC, OGG, Opus, M4A).</string>
+    <string name="settings_crossfade">Crossfade between tracks</string>
+    <string name="settings_crossfade_duration">Crossfade duration: %1$d s</string>
+
+    <!-- Settings: lyrics -->
+    <string name="settings_lyrics">Lyrics (Musixmatch)</string>
+    <string name="settings_lyrics_explanation">Lyrics come from LRCLIB (free, no key needed), then Musixmatch if you add an API key from musixmatch.com (free keys only return a snippet), then a same-name .lrc or .txt file next to the track in an added folder. The key is stored encrypted on this phone.</string>
+    <string name="settings_musixmatch_key_hint">Musixmatch API key (optional)</string>
+    <string name="settings_musixmatch_key_clear">Remove key</string>
+    <string name="save">Save</string>
+
+    <!-- Now Playing: lyrics -->
+    <string name="show_lyrics">Lyrics</string>
+    <string name="show_cover">Cover</string>
+    <string name="lyrics_loading">Loading lyrics…</string>
+    <string name="lyrics_not_found">No lyrics found.</string>
 </resources>

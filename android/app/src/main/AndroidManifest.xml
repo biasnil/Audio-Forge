@@ -4,6 +4,8 @@
     <!-- The phone's music library (MediaStore). Added folders don't need it:
          the folder picker grants access to each one. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Lyrics lookups (LRCLIB, Musixmatch). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Background playback: a media-playback foreground service, and
          keeping the CPU awake while playing with the screen off. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

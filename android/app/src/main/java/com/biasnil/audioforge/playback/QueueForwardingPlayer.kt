@@ -6,9 +6,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 
 /**
- * ExoPlayer only ever holds the current track (the queue lives in
- * [PlaybackQueue]), so on its own it would tell the media session there's
- * no next/previous track and the notification would hide those buttons.
+ * Wraps whichever of PlaybackManager's two players is active. ExoPlayer
+ * only ever holds the current track (the queue lives in [PlaybackQueue]),
+ * so on its own it would tell the media session there's no next/previous
+ * track and the notification would hide those buttons.
  * This wrapper advertises them and routes them -- from the notification,
  * lock screen, headphones, Bluetooth, etc. -- through [PlaybackManager].
  */
@@ -31,6 +32,12 @@ class QueueForwardingPlayer(
     override fun seekToPrevious() = manager.previous()
 
     override fun seekToPreviousMediaItem() = manager.previous()
+
+    // Lock-screen / notification scrubbing: through the manager, so a seek
+    // during a crossfade drops the fade instead of moving one track only.
+    override fun seekTo(positionMs: Long) = manager.seekTo(positionMs)
+
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) = manager.seekTo(positionMs)
 
     private companion object {
         val QUEUE_COMMANDS = intArrayOf(

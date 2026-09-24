@@ -16,8 +16,8 @@ android {
         // it runs unchanged on both 4 KB and 16 KB memory page size devices.
         minSdk = 34
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {

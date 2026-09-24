@@ -98,9 +98,14 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
    added folders, the Tracks/Albums/Artists/Folders/Playlists/Settings tabs,
    background playback with notification and lock-screen controls, and the
    desktop's shuffle, repeat and history logic.
-3. Crossfade, equalizer, ReplayGain.
+3. Crossfade, equalizer, ReplayGain. **Done:** two-player crossfade (2–15 s),
+   the desktop's 10-band EQ with presets and post-gain (applied in the audio
+   pipeline, so it's the same on every phone), ReplayGain from MP3, FLAC,
+   OGG/Opus and M4A tags, and volume up to 200%.
 4. Tag and cover editing.
-5. Lyrics.
+5. Lyrics. **Done:** cache, then LRCLIB, then Musixmatch (with an API key,
+   stored encrypted with the Android Keystore), then a same-name .lrc/.txt
+   next to the track in an added folder; synced highlighting and tap-to-seek.
 6. Video wallpapers and settings.
 
 Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native

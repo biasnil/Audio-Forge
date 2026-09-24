@@ -14,19 +14,29 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.AppSettings
+import com.biasnil.audioforge.data.SecretBox
 import com.biasnil.audioforge.data.libraryStats
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsTab() {
@@ -69,6 +79,12 @@ fun SettingsTab() {
         )
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
+        PlaybackSettings()
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+        LyricsSettings()
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
         SectionHeader(stringResource(R.string.settings_visible_tabs))
         LibraryTab.entries.filter { it.hideable }.forEach { tab ->
             val visible = tab.name !in settings.hiddenTabs
@@ -88,6 +104,88 @@ fun SettingsTab() {
             }
         }
         Spacer(Modifier.padding(bottom = 16.dp))
+    }
+}
+
+/** ReplayGain and crossfade (the desktop's ReplayGain button and Crossfade settings). */
+@Composable
+private fun PlaybackSettings() {
+    val store = LocalAppContainer.current.store
+    val settings by store.settings.collectAsStateWithLifecycle()
+
+    SectionHeader(stringResource(R.string.settings_playback))
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_replaygain),
+        checked = settings.replayGainEnabled,
+        onCheckedChange = { on -> store.update { it.copy(replayGainEnabled = on) } },
+    )
+    Text(
+        text = stringResource(R.string.settings_replaygain_explanation),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_crossfade),
+        checked = settings.crossfadeEnabled,
+        onCheckedChange = { on -> store.update { it.copy(crossfadeEnabled = on) } },
+    )
+    val range = AppSettings.CROSSFADE_SECONDS_RANGE
+    Text(
+        text = stringResource(R.string.settings_crossfade_duration, settings.crossfadeSeconds),
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    Slider(
+        value = settings.crossfadeSeconds.toFloat(),
+        onValueChange = { value -> store.update { it.copy(crossfadeSeconds = value.roundToInt().coerceIn(range)) } },
+        valueRange = range.first.toFloat()..range.last.toFloat(),
+        steps = range.last - range.first - 1, // whole seconds
+        enabled = settings.crossfadeEnabled,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+}
+
+/**
+ * Musixmatch API key. Held only in memory while editing (not in saved UI
+ * state), and stored encrypted.
+ */
+@Composable
+private fun LyricsSettings() {
+    val store = LocalAppContainer.current.store
+    val settings by store.settings.collectAsStateWithLifecycle()
+    val savedKey = remember(settings.musixmatchKeyEncrypted) { SecretBox.decrypt(settings.musixmatchKeyEncrypted) }
+    var keyText by remember(savedKey) { mutableStateOf(savedKey) }
+
+    SectionHeader(stringResource(R.string.settings_lyrics))
+    Text(
+        text = stringResource(R.string.settings_lyrics_explanation),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    OutlinedTextField(
+        value = keyText,
+        onValueChange = { keyText = it },
+        placeholder = { Text(stringResource(R.string.settings_musixmatch_key_hint)) },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+    Row(Modifier.padding(horizontal = 8.dp)) {
+        TextButton(
+            enabled = keyText.trim() != savedKey,
+            onClick = {
+                val encrypted = SecretBox.encrypt(keyText.trim())
+                store.update { it.copy(musixmatchKeyEncrypted = encrypted) }
+            },
+        ) { Text(stringResource(R.string.save)) }
+        if (savedKey.isNotEmpty()) {
+            TextButton(onClick = { store.update { it.copy(musixmatchKeyEncrypted = "") } }) {
+                Text(stringResource(R.string.settings_musixmatch_key_clear))
+            }
+        }
     }
 }
 

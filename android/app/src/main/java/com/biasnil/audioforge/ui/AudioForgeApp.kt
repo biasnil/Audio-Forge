@@ -175,8 +175,9 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     )
                     LibraryTab.Folders -> FoldersTab(onRequestAudioPermission)
                     LibraryTab.Playlists -> PlaylistsTab(onOpenPage)
+                    LibraryTab.Equalizer -> EqualizerTab()
                     LibraryTab.Settings -> SettingsTab()
-                    LibraryTab.Equalizer, LibraryTab.Wallpapers -> ComingInStage(selectedTab)
+                    LibraryTab.Wallpapers -> ComingInStage(selectedTab)
                 }
             }
         }

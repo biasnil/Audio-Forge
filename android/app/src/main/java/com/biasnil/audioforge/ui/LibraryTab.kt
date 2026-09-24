@@ -14,7 +14,7 @@ enum class LibraryTab(@StringRes val title: Int, val hideable: Boolean, val comi
     Artists(R.string.tab_artists, hideable = true),
     Folders(R.string.tab_folders, hideable = true),
     Playlists(R.string.tab_playlists, hideable = true),
-    Equalizer(R.string.tab_equalizer, hideable = false, comingInStage = 3),
+    Equalizer(R.string.tab_equalizer, hideable = false),
     Wallpapers(R.string.tab_wallpapers, hideable = false, comingInStage = 6),
     Settings(R.string.tab_settings, hideable = false),
 }
