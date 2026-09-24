@@ -53,7 +53,8 @@ class LyricsRepository(
     init {
         scope.launch {
             playback.state
-                .distinctUntilChangedBy { it.current?.uri }
+                // Title/artist too: after a tag edit the lookup runs again with the new names.
+                .distinctUntilChangedBy { state -> state.current?.let { Triple(it.uri, it.title, it.artist) } }
                 .collectLatest { playbackState ->
                     val track = playbackState.current
                     if (track == null) {
@@ -86,27 +87,38 @@ class LyricsRepository(
 
     // --- LRCLIB (no key needed) ------------------------------------------
 
-    /** (text, isSynced), or null if nothing usable came back. */
+    /**
+     * (text, isSynced), or null if nothing usable came back. Tries several
+     * searches (see [lrclibQueries]) and prefers a result the same length
+     * as the song (see [pickLyrics]).
+     */
     private fun fetchFromLrclib(track: Track): Pair<String, Boolean>? {
-        val url = Uri.parse("https://lrclib.net/api/search").buildUpon()
-            .appendQueryParameter("track_name", track.title)
-            .apply { if (track.artist.isNotBlank()) appendQueryParameter("artist_name", track.artist) }
-            .build()
-            .toString()
-        val body = httpGet(url) ?: return null
-        return try {
-            val best = JSONArray(body).optJSONObject(0) ?: return null
-            val synced = best.stringOrEmpty("syncedLyrics")
-            val plain = best.stringOrEmpty("plainLyrics")
-            when {
-                synced.isNotBlank() -> synced to true
-                plain.isNotBlank() -> plain to false
-                else -> null
+        for (query in lrclibQueries(track.title, track.artist, track.fileName)) {
+            val url = Uri.parse("https://lrclib.net/api/search").buildUpon()
+                .apply {
+                    query.trackName?.let { appendQueryParameter("track_name", it) }
+                    query.artistName?.let { appendQueryParameter("artist_name", it) }
+                    query.query?.let { appendQueryParameter("q", it) }
+                }
+                .build()
+                .toString()
+            val body = httpGet(url) ?: return null // offline or LRCLIB down: the other searches would fail too
+            val candidates = try {
+                val results = JSONArray(body)
+                (0 until results.length()).mapNotNull { results.optJSONObject(it) }.map { result ->
+                    LyricsCandidate(
+                        durationSeconds = if (result.isNull("duration")) null else result.optDouble("duration"),
+                        synced = result.stringOrEmpty("syncedLyrics"),
+                        plain = result.stringOrEmpty("plainLyrics"),
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Unexpected LRCLIB reply", e)
+                continue
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Unexpected LRCLIB reply", e)
-            null
+            pickLyrics(candidates, track.durationMs)?.let { return it }
         }
+        return null
     }
 
     // --- Musixmatch (needs the user's API key; free keys return a snippet) --

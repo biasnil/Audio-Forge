@@ -33,7 +33,7 @@ import com.biasnil.audioforge.data.searchTracks
 import com.biasnil.audioforge.data.sortTracks
 
 @Composable
-fun TracksTab(onRequestAudioPermission: () -> Unit) {
+fun TracksTab(onRequestAudioPermission: () -> Unit, onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
     val playback by container.playback.state.collectAsStateWithLifecycle()
@@ -79,6 +79,7 @@ fun TracksTab(onRequestAudioPermission: () -> Unit) {
                         isCurrent = track.uri == playback.current?.uri,
                         // Queue = the list as shown (searched + sorted), like the desktop table.
                         onClick = { container.playback.playQueue(shown, index) },
+                        onLongClick = { onOpenPage(Page.EditTags(track.uri)) },
                     )
                 }
             }

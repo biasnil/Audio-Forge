@@ -86,19 +86,22 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
     val container = LocalAppContainer.current
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
     when (page) {
-        Page.NowPlaying -> NowPlayingScreen(onBack = onBack)
+        Page.NowPlaying -> NowPlayingScreen(onBack = onBack, onOpenPage = onOpenPage)
         is Page.AlbumDetail -> GroupPage(
             title = page.name.ifEmpty { stringResource(R.string.unknown_album) },
             tracks = remember(tracks, page.name) { tracksInAlbum(tracks, page.name) },
             onBack = onBack,
+            onOpenPage = onOpenPage,
         )
         is Page.ArtistDetail -> GroupPage(
             title = page.name.ifEmpty { stringResource(R.string.unknown_artist) },
             tracks = remember(tracks, page.name) { tracksByArtist(tracks, page.name) },
             onBack = onBack,
+            onOpenPage = onOpenPage,
         )
         is Page.PlaylistDetail -> PlaylistPage(page.id, onBack = onBack, onOpenPage = onOpenPage)
         is Page.AddTracks -> AddTracksPage(page.playlistId, onBack = onBack)
+        is Page.EditTags -> TagEditorPage(page.trackUri, onBack = onBack)
     }
 }
 
@@ -160,7 +163,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     .fillMaxWidth()
             ) {
                 when (selectedTab) {
-                    LibraryTab.Tracks -> TracksTab(onRequestAudioPermission)
+                    LibraryTab.Tracks -> TracksTab(onRequestAudioPermission, onOpenPage)
                     LibraryTab.Albums -> GroupsTab(
                         groups = remember(tracks) { albumGroups(tracks) },
                         unknownName = R.string.unknown_album,

@@ -77,3 +77,69 @@ fun lyricsStateFor(text: String, maybeSynced: Boolean): LyricsState {
     val plain = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
     return if (plain.isEmpty()) LyricsState.NotFound else LyricsState.Plain(plain)
 }
+
+// --- LRCLIB search planning ------------------------------------------------
+
+/** One LRCLIB search: by track/artist name, or LRCLIB's general [query] ("q") search. */
+data class LyricsQuery(val trackName: String? = null, val artistName: String? = null, val query: String? = null)
+
+private val LEADING_TRACK_NUMBER = Regex("""^\d{1,3}\s*[-._)]?\s+""")
+// "(Live)", "[Remastered 2011]", "（伴奏版）", "【MV】"... -- ASCII and full-width brackets
+private val BRACKETED = Regex("""\s*[(\[（【][^)\]）】]*[)\]）】]""")
+private val FEATURING = Regex("""\s+(?:feat\.?|ft\.?|featuring)\s+.*$""", RegexOption.IGNORE_CASE)
+
+/**
+ * The searches to try, most specific first, stopping at the first that
+ * finds lyrics:
+ *  1. title + artist as tagged (the desktop's only search);
+ *  2. the title without "(Live)"/"[Remastered]"/"feat. X" decorations;
+ *  3. LRCLIB's general search over title + artist together;
+ *  4. for an untagged file (title is just the file name), "01 - Artist - Title"
+ *     split into artist and title.
+ */
+fun lrclibQueries(title: String, artist: String, fileName: String): List<LyricsQuery> {
+    val cleanTitle = title.trim()
+    val cleanArtist = artist.trim()
+    val queries = LinkedHashSet<LyricsQuery>()
+    if (cleanTitle.isNotEmpty()) {
+        queries += LyricsQuery(trackName = cleanTitle, artistName = cleanArtist.ifEmpty { null })
+        val undecorated = cleanTitle.replace(BRACKETED, "").replace(FEATURING, "").trim()
+        if (undecorated.isNotEmpty() && undecorated != cleanTitle) {
+            queries += LyricsQuery(trackName = undecorated, artistName = cleanArtist.ifEmpty { null })
+        }
+        queries += LyricsQuery(query = listOf(undecorated.ifEmpty { cleanTitle }, cleanArtist).filter { it.isNotEmpty() }.joinToString(" "))
+    }
+    val fromFileName = cleanArtist.isEmpty() && cleanTitle == fileName.substringBeforeLast('.').trim()
+    if (fromFileName) {
+        val name = cleanTitle.replace(LEADING_TRACK_NUMBER, "")
+        val parts = name.split(" - ", limit = 2).map { it.trim() }
+        if (parts.size == 2 && parts.all { it.isNotEmpty() }) {
+            queries += LyricsQuery(trackName = parts[1], artistName = parts[0])
+        } else if (name.isNotEmpty() && name != cleanTitle) {
+            queries += LyricsQuery(trackName = name)
+        }
+    }
+    return queries.toList()
+}
+
+/** One LRCLIB search result, as far as choosing between them goes. */
+data class LyricsCandidate(val durationSeconds: Double?, val synced: String, val plain: String)
+
+/**
+ * Picks the best result: among those whose length is within 5 s of the
+ * song's (when both are known -- this weeds out live versions and covers),
+ * synced lyrics first, then plain. Falls back to any result with lyrics if
+ * none match the length. Returns (text, isSynced) or null.
+ */
+fun pickLyrics(candidates: List<LyricsCandidate>, trackDurationMs: Long): Pair<String, Boolean>? {
+    val withLyrics = candidates.filter { it.synced.isNotBlank() || it.plain.isNotBlank() }
+    if (withLyrics.isEmpty()) return null
+    val durationMatched = if (trackDurationMs > 0) {
+        withLyrics.filter { c -> c.durationSeconds != null && kotlin.math.abs(c.durationSeconds * 1000 - trackDurationMs) <= 5_000 }
+    } else emptyList()
+    for (pool in listOf(durationMatched, withLyrics)) {
+        pool.firstOrNull { it.synced.isNotBlank() }?.let { return it.synced to true }
+        pool.firstOrNull { it.plain.isNotBlank() }?.let { return it.plain to false }
+    }
+    return null
+}

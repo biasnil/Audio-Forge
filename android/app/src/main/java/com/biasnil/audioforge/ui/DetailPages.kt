@@ -42,7 +42,7 @@ import com.biasnil.audioforge.data.sortTracks
 /** Top bar with a back arrow, shared by every detail page. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
+internal fun DetailTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
     TopAppBar(
         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
@@ -56,7 +56,7 @@ private fun DetailTopBar(title: String, onBack: () -> Unit, actions: @Composable
 
 /** An album's or artist's tracks (the desktop's track list dialog). Tapping one plays the group from there. */
 @Composable
-fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit) {
+fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val playback = LocalAppContainer.current.playback
     val state by playback.state.collectAsStateWithLifecycle()
 
@@ -72,6 +72,7 @@ fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit) {
                     track = track,
                     isCurrent = track.uri == state.current?.uri,
                     onClick = { playback.playQueue(tracks, index) },
+                    onLongClick = { onOpenPage(Page.EditTags(track.uri)) },
                 )
             }
         }
@@ -137,6 +138,7 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                             onClick = {
                                 container.playback.playQueue(playable, entries.take(index).count { it.second != null })
                             },
+                            onLongClick = { onOpenPage(Page.EditTags(track.uri)) },
                             trailing = remove,
                         )
                     } else {

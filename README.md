@@ -102,10 +102,17 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
    the desktop's 10-band EQ with presets and post-gain (applied in the audio
    pipeline, so it's the same on every phone), ReplayGain from MP3, FLAC,
    OGG/Opus and M4A tags, and volume up to 200%.
-4. Tag and cover editing.
+4. Tag and cover editing. **Manual tag editor done:** long-press a song (or
+   "Edit tags" on Now Playing) to edit any field; changes are written into
+   the file with jaudiotagger (MP3, FLAC, OGG Vorbis, M4A, WAV). Android asks
+   before changing phone-library songs; added folders need write access once.
+   MusicBrainz lookup and cover-art changes are still to come.
 5. Lyrics. **Done:** cache, then LRCLIB, then Musixmatch (with an API key,
    stored encrypted with the Android Keystore), then a same-name .lrc/.txt
    next to the track in an added folder; synced highlighting and tap-to-seek.
+   LRCLIB is tried with several searches (exact, without "(Live)"-style
+   suffixes, general search, artist/title split from the file name) and the
+   result matching the song's length is preferred.
 6. Video wallpapers and settings.
 
 Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native

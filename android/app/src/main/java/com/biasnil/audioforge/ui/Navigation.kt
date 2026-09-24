@@ -14,6 +14,7 @@ sealed interface Page {
     data class ArtistDetail(val name: String) : Page
     data class PlaylistDetail(val id: String) : Page
     data class AddTracks(val playlistId: String) : Page
+    data class EditTags(val trackUri: String) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -21,6 +22,7 @@ sealed interface Page {
         is ArtistDetail -> "artist:$name"
         is PlaylistDetail -> "playlist:$id"
         is AddTracks -> "add:$playlistId"
+        is EditTags -> "tags:$trackUri"
     }
 
     companion object {
@@ -30,6 +32,7 @@ sealed interface Page {
             value.startsWith("artist:") -> ArtistDetail(value.removePrefix("artist:"))
             value.startsWith("playlist:") -> PlaylistDetail(value.removePrefix("playlist:"))
             value.startsWith("add:") -> AddTracks(value.removePrefix("add:"))
+            value.startsWith("tags:") -> EditTags(value.removePrefix("tags:"))
             else -> null
         }
     }

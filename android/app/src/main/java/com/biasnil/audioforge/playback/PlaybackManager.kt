@@ -196,6 +196,39 @@ class PlaybackManager(
         store.update { it.copy(volumePercent = percent) }
     }
 
+    // --- Tag edits ------------------------------------------------------------
+
+    /** Where playback was when a file was taken away for a tag edit. */
+    class FileEditHold internal constructor(val positionMs: Long, val playWhenReady: Boolean)
+
+    /**
+     * Stops reading [uri] while its file is rewritten (like the desktop's
+     * writeTrackFile()): returns a hold if it was the playing track, to pass
+     * to [resumeAfterFileEdit]; a crossfade into it is just dropped.
+     */
+    fun releaseFileForEdit(uri: String): FileEditHold? {
+        if (crossfading && incoming.track?.uri == uri) abortCrossfade() // the queue keeps its pick
+        if (active.track?.uri != uri) return null
+        abortCrossfade()
+        val hold = FileEditHold(active.player.currentPosition, active.player.playWhenReady)
+        active.player.stop()
+        active.player.clearMediaItems()
+        return hold
+    }
+
+    /** Puts the edited track's new tags into the queue and, if it was playing, reloads it where it was. */
+    fun resumeAfterFileEdit(updated: Track, hold: FileEditHold?) {
+        queue.updateItems { if (it.uri == updated.uri) updated else it }
+        if (hold != null) {
+            val slot = active
+            slot.track = updated
+            slot.player.setMediaItem(updated.toMediaItem(), hold.positionMs)
+            slot.player.prepare()
+            slot.player.playWhenReady = hold.playWhenReady
+        }
+        publish()
+    }
+
     // --- Internals ---------------------------------------------------------
 
     private fun advance(fromAutoAdvance: Boolean) {

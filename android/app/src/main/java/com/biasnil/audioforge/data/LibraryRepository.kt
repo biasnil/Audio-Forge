@@ -87,29 +87,66 @@ class LibraryRepository(
     fun addFolder(treeUri: Uri): Boolean {
         val key = treeUri.toString()
         if (key in store.settings.value.folders) return false
-        try {
-            context.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (e: SecurityException) {
-            Log.w(TAG, "Couldn't persist access to $treeUri", e)
-        }
+        persistFolderAccess(treeUri)
         store.update { it.copy(folders = it.folders + key) }
         refresh()
         return true
     }
 
     fun removeFolder(treeUriString: String) {
-        try {
-            context.contentResolver.releasePersistableUriPermission(
-                Uri.parse(treeUriString), Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        } catch (e: SecurityException) {
-            // Already gone -- nothing to release.
+        val uri = Uri.parse(treeUriString)
+        for (flags in listOf(READ_WRITE, Intent.FLAG_GRANT_READ_URI_PERMISSION)) {
+            try {
+                context.contentResolver.releasePersistableUriPermission(uri, flags)
+                break
+            } catch (e: SecurityException) {
+                // Not held with these flags (or already gone) -- try read-only / nothing to release.
+            }
         }
         store.update { settings -> settings.copy(folders = settings.folders.filterNot { it == treeUriString }) }
         refresh()
     }
 
     fun trackFor(uri: String): Track? = tracksByUri[uri]
+
+    /** Whether tag edits can be saved into files of this added folder (folders added before tag editing existed are read-only). */
+    fun hasFolderWriteAccess(treeUriString: String): Boolean =
+        context.contentResolver.persistedUriPermissions.any { it.uri.toString() == treeUriString && it.isWritePermission }
+
+    /**
+     * After the user re-picks an added folder in the system picker to allow
+     * editing: keeps read + write access. False if they picked a different folder.
+     */
+    fun grantFolderWriteAccess(picked: Uri, treeUriString: String): Boolean {
+        if (picked.toString() != treeUriString) return false
+        persistFolderAccess(picked)
+        return hasFolderWriteAccess(treeUriString)
+    }
+
+    /** Re-reads one track's tags from its file (after an edit) and updates it everywhere in the library. */
+    suspend fun reloadTrack(track: Track): Track {
+        val updated = try {
+            withContext(Dispatchers.IO) { readTags(context, track) }
+        } catch (e: Exception) {
+            Log.w(TAG, "Couldn't re-read ${track.fileName}", e)
+            track
+        }
+        tracksByUri = tracksByUri + (updated.uri to updated)
+        _tracks.value = _tracks.value.map { if (it.uri == updated.uri) updated else it }
+        return updated
+    }
+
+    /** Read + write if the picker granted it (it normally does), else read-only. */
+    private fun persistFolderAccess(treeUri: Uri) {
+        for (flags in listOf(READ_WRITE, Intent.FLAG_GRANT_READ_URI_PERMISSION)) {
+            try {
+                context.contentResolver.takePersistableUriPermission(treeUri, flags)
+                return
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Couldn't persist access ($flags) to $treeUri", e)
+            }
+        }
+    }
 
     // --- Playlists -------------------------------------------------------
 
@@ -143,5 +180,6 @@ class LibraryRepository(
 
     private companion object {
         const val TAG = "LibraryRepository"
+        const val READ_WRITE = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     }
 }

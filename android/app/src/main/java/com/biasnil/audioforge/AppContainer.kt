@@ -5,6 +5,7 @@ import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.lyrics.LyricsRepository
+import com.biasnil.audioforge.tags.TagEditor
 import com.biasnil.audioforge.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,4 +21,5 @@ class AppContainer(context: Context) {
     val coverArt = CoverArtLoader(context)
     val playback = PlaybackManager(context, store, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
+    val tagEditor = TagEditor(context)
 }

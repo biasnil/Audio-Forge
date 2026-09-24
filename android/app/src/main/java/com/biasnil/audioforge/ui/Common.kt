@@ -1,9 +1,10 @@
 package com.biasnil.audioforge.ui
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,12 +64,15 @@ fun trackSubtitle(track: Track): String {
     return if (track.album.isEmpty()) artist else "$artist  •  ${track.album}"
 }
 
+/** One song in a list. Long-press is "edit tags" wherever [onLongClick] is given. */
+@OptIn(ExperimentalFoundationApi::class) // combinedClickable, on older Compose versions
 @Composable
 fun TrackRow(
     track: Track,
     isCurrent: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     ListItem(
@@ -91,7 +95,7 @@ fun TrackRow(
                 Text(formatTime(track.durationMs), style = MaterialTheme.typography.labelMedium)
             }
         },
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     )
 }
 

@@ -129,6 +129,11 @@ class PlaybackQueue<T>(private val random: Random = Random.Default) {
         history += currentIndex
     }
 
+    /** Replaces queued items in place (same positions, e.g. after a tag edit). */
+    fun updateItems(transform: (T) -> T) {
+        queue = queue.map(transform)
+    }
+
     fun cancelPendingNext() {
         pendingNextIndex = -1
     }

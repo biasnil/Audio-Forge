@@ -76,7 +76,7 @@ import kotlin.math.roundToInt
  */
 @OptIn(ExperimentalFoundationApi::class) // basicMarquee, on older Compose versions
 @Composable
-fun NowPlayingScreen(onBack: () -> Unit) {
+fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val playback = LocalAppContainer.current.playback
     val state by playback.state.collectAsStateWithLifecycle()
     val track = state.current
@@ -110,6 +110,9 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                     Text(stringResource(R.string.back))
                 }
                 Spacer(Modifier.weight(1f))
+                TextButton(onClick = { onOpenPage(Page.EditTags(track.uri)) }) {
+                    Text(stringResource(R.string.tags_edit))
+                }
                 TextButton(onClick = { showLyrics = !showLyrics }) {
                     Text(stringResource(if (showLyrics) R.string.show_cover else R.string.show_lyrics))
                 }

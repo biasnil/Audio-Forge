@@ -57,6 +57,12 @@ fun SettingsTab() {
             text = stringResource(R.string.settings_stats, stats.tracks, stats.albums, stats.artists, stats.genres),
             modifier = Modifier.padding(horizontal = 16.dp),
         )
+        Text(
+            text = stringResource(R.string.tags_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        )
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
