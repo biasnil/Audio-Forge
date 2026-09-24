@@ -40,6 +40,14 @@ class LibraryRepository(
     private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
 
+    /** Every phone-library folder with songs, hidden ones included (so they can be shown again). */
+    private val _phoneFolders = MutableStateFlow<List<LibraryFolder>>(emptyList())
+    val phoneFolders: StateFlow<List<LibraryFolder>> = _phoneFolders.asStateFlow()
+
+    // The last scan, before hiding folders -- so hiding/showing one is instant, no rescan.
+    private var phoneTracks: List<Track> = emptyList()
+    private var addedFolderTracks: List<Track> = emptyList()
+
     private var tracksByUri: Map<String, Track> = emptyMap()
     private var scanJob: Job? = null
     private var scanGeneration = 0
@@ -54,13 +62,13 @@ class LibraryRepository(
                 val settings = store.settings.value
                 val hasPermission = checkAudioPermission()
                 _hasAudioPermission.value = hasPermission
-                val merged = withContext(Dispatchers.IO) {
+                val (phone, folders) = withContext(Dispatchers.IO) {
                     val phone = if (settings.includePhoneLibrary && hasPermission) mediaStore.queryMusic() else emptyList()
-                    val folders = settings.folders.flatMap { folderSource.scan(it) }
-                    mergeSources(phone, folders)
+                    phone to settings.folders.flatMap { folderSource.scan(it) }
                 }
-                tracksByUri = merged.associateBy { it.uri }
-                _tracks.value = merged
+                phoneTracks = phone
+                addedFolderTracks = folders
+                publish()
             } catch (e: CancellationException) {
                 throw e // superseded by a newer refresh()
             } catch (e: Exception) {
@@ -109,6 +117,23 @@ class LibraryRepository(
 
     fun trackFor(uri: String): Track? = tracksByUri[uri]
 
+    /** Hides (or shows again) a phone-library folder's songs, subfolders included. */
+    fun setFolderHidden(folderKey: String, hidden: Boolean) {
+        if (folderKey.isEmpty()) return
+        store.update { settings ->
+            settings.copy(hiddenFolders = if (hidden) settings.hiddenFolders + folderKey else settings.hiddenFolders - folderKey)
+        }
+        publish()
+    }
+
+    /** The library as shown: phone tracks minus hidden folders, then added folders, de-duplicated. */
+    private fun publish() {
+        val merged = mergeSources(excludeFolders(phoneTracks, store.settings.value.hiddenFolders), addedFolderTracks)
+        tracksByUri = merged.associateBy { it.uri }
+        _tracks.value = merged
+        _phoneFolders.value = folderCounts(phoneTracks)
+    }
+
     /** Whether tag edits can be saved into files of this added folder (folders added before tag editing existed are read-only). */
     fun hasFolderWriteAccess(treeUriString: String): Boolean =
         context.contentResolver.persistedUriPermissions.any { it.uri.toString() == treeUriString && it.isWritePermission }
@@ -131,8 +156,11 @@ class LibraryRepository(
             Log.w(TAG, "Couldn't re-read ${track.fileName}", e)
             track
         }
+        val replace: (Track) -> Track = { if (it.uri == updated.uri) updated else it }
+        phoneTracks = phoneTracks.map(replace)
+        addedFolderTracks = addedFolderTracks.map(replace)
         tracksByUri = tracksByUri + (updated.uri to updated)
-        _tracks.value = _tracks.value.map { if (it.uri == updated.uri) updated else it }
+        _tracks.value = _tracks.value.map(replace)
         return updated
     }
 

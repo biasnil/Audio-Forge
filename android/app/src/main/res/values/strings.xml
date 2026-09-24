@@ -150,4 +150,12 @@
     <string name="settings_wallpaper">Video wallpaper</string>
     <string name="settings_wallpaper_enabled">Show video wallpapers</string>
     <string name="settings_wallpaper_opacity">Wallpaper opacity: %1$d%%</string>
+    <!-- Hiding phone-library folders -->
+    <string name="folders_phone_folders">Folders in the phone library</string>
+    <string name="folders_phone_folders_explanation">Switch a folder off to hide its songs, including its subfolders. Useful for WhatsApp voice notes, recordings or ringtones that Android counts as music.</string>
+    <string name="folders_phone_folders_none">No songs found in the phone library yet.</string>
+    <string name="folder_hide">Hide folder “%1$s”</string>
+    <string name="folder_hidden">Hid the “%1$s” folder. Show it again in the Folders tab.</string>
+    <string name="undo">Undo</string>
 </resources>
+
