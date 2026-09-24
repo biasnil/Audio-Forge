@@ -93,8 +93,11 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
 
 `android/` is a Kotlin port of the desktop app, being built in stages:
 
-1. Project setup. **Done:** an app shell with the desktop's tabs and dark/light themes.
-2. Playback, library, queue, playlists.
+1. Project setup. **Done.**
+2. Playback, library, queue, playlists. **Done:** the phone's music library plus
+   added folders, the Tracks/Albums/Artists/Folders/Playlists/Settings tabs,
+   background playback with notification and lock-screen controls, and the
+   desktop's shuffle, repeat and history logic.
 3. Crossfade, equalizer, ReplayGain.
 4. Tag and cover editing.
 5. Lyrics.
