@@ -1,0 +1,7 @@
+<resources>
+    <!-- Desktop dark palette's window color (DarkPalette() in player_window.cpp);
+         shown before Compose draws its first frame. -->
+    <color name="window_background">#FF1E1F22</color>
+    <!-- The logo's own square background -->
+    <color name="ic_launcher_background">#FF19181D</color>
+</resources>

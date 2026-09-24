@@ -1,0 +1,153 @@
+<resources>
+    <string name="app_name">AudioForge</string>
+
+    <!-- Same tabs, same order as the desktop app -->
+    <string name="tab_albums">Albums</string>
+    <string name="tab_tracks">Tracks</string>
+    <string name="tab_artists">Artists</string>
+    <string name="tab_folders">Folders</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_equalizer">Equalizer</string>
+    <string name="tab_wallpapers">Wallpapers</string>
+    <string name="tab_settings">Settings</string>
+
+    <plurals name="track_count">
+        <item quantity="one">%d track</item>
+        <item quantity="other">%d tracks</item>
+    </plurals>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="unknown_artist">Unknown Artist</string>
+
+    <!-- Library -->
+    <string name="library_scanning">Scanning your music…</string>
+    <string name="library_needs_permission">AudioForge needs access to your music to show the phone\'s music library.</string>
+    <string name="library_empty">No music found. Add a folder in the Folders tab, or check that your music is on this phone.</string>
+    <string name="allow_access">Allow access</string>
+    <string name="refresh_library">Refresh library</string>
+
+    <!-- Tracks tab -->
+    <string name="search_hint">Search your music…</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_no_results">No tracks match your search.</string>
+    <string name="sort_by">Sort: %1$s</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_artist">Artist</string>
+    <string name="sort_album">Album</string>
+    <string name="sort_year">Year</string>
+
+    <!-- Folders tab -->
+    <string name="folders_phone_library">Phone music library</string>
+    <string name="folders_include_phone_library">Include music from the phone\'s library</string>
+    <string name="folders_added">Added folders</string>
+    <string name="folders_none">No folders added.</string>
+    <string name="folders_add">Add folder</string>
+    <string name="folders_explanation">Added folders are scanned including subfolders, like the desktop app. Use them for music the phone\'s library doesn\'t pick up, such as folders on an SD card.</string>
+    <string name="folders_internal_storage">Internal storage</string>
+    <string name="remove">Remove</string>
+
+    <!-- Playlists -->
+    <string name="playlists_empty">No playlists yet.</string>
+    <string name="playlist_new">New playlist</string>
+    <string name="playlist_name_hint">Enter name for the playlist</string>
+    <string name="playlist_create">Create</string>
+    <string name="playlist_add_tracks">Add tracks</string>
+    <string name="playlist_add_to">Add to %1$s</string>
+    <string name="playlist_add_count">Add (%1$d)</string>
+    <string name="playlist_nothing_to_add">Every track in your library is already in this playlist.</string>
+    <string name="playlist_is_empty">This playlist is empty. Use Add tracks to fill it.</string>
+    <string name="playlist_delete">Delete</string>
+    <string name="playlist_delete_confirm">Delete \"%1$s\"? This can\'t be undone.</string>
+    <string name="playlist_track_unavailable">Not in your library any more</string>
+    <string name="playlist_unknown_track">Unavailable track</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Settings -->
+    <string name="settings_library">Library</string>
+    <string name="settings_stats">Tracks: %1$d\nAlbums: %2$d\nArtists: %3$d\nGenres: %4$d</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_dark_theme">Dark theme</string>
+    <string name="settings_visible_tabs">Visible tabs</string>
+
+    <!-- Playback -->
+    <string name="back">Back</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="shuffle_random">Random</string>
+    <string name="shuffle_smart">Smart</string>
+    <string name="repeat">Repeat</string>
+    <string name="repeat_all">All</string>
+    <string name="repeat_one">One</string>
+    <string name="mode_off">Off</string>
+    <string name="volume">Volume</string>
+    <string name="error_cannot_play">Couldn\'t play %1$s</string>
+    <!-- Equalizer -->
+    <string name="eq_preset">Preset: %1$s</string>
+    <string name="eq_preset_custom">Custom</string>
+    <string name="eq_post_gain">Post-gain</string>
+    <string name="eq_post_gain_explanation">Overall level after the equalizer. Turn it down if boosted bands make loud tracks distort.</string>
+    <string name="eq_reset">Reset equalizer</string>
+
+    <!-- Settings: playback -->
+    <string name="settings_playback">Playback</string>
+    <string name="settings_replaygain">ReplayGain</string>
+    <string name="settings_replaygain_explanation">Evens out loudness between tracks using their ReplayGain tags (MP3, FLAC, OGG, Opus, M4A).</string>
+    <string name="settings_crossfade">Crossfade between tracks</string>
+    <string name="settings_crossfade_duration">Crossfade duration: %1$d s</string>
+
+    <!-- Settings: lyrics -->
+    <string name="settings_lyrics">Lyrics (Musixmatch)</string>
+    <string name="settings_lyrics_explanation">Lyrics come from LRCLIB (free, no key needed), then Musixmatch if you add an API key from musixmatch.com (free keys only return a snippet), then a same-name .lrc or .txt file next to the track in an added folder. The key is stored encrypted on this phone.</string>
+    <string name="settings_musixmatch_key_hint">Musixmatch API key (optional)</string>
+    <string name="settings_musixmatch_key_clear">Remove key</string>
+    <string name="save">Save</string>
+
+    <!-- Now Playing: lyrics -->
+    <string name="show_lyrics">Lyrics</string>
+    <string name="show_cover">Cover</string>
+    <string name="lyrics_loading">Loading lyrics…</string>
+    <string name="lyrics_not_found">No lyrics found.</string>
+    <!-- Tag editor -->
+    <string name="tags_edit">Edit tags</string>
+    <string name="tags_title">Edit tags</string>
+    <string name="tags_loading">Reading tags…</string>
+    <string name="tags_add_field">+ Add field</string>
+    <string name="tags_add_field_filter">Filter fields</string>
+    <string name="tags_remove_field">Remove field</string>
+    <string name="tags_hint">Tip: long-press a song in any list to edit its tags.</string>
+    <string name="tags_folder_access_title">Allow editing in this folder</string>
+    <string name="tags_folder_access_text">This folder was added before AudioForge could edit tags, so it only has permission to read it. In the next screen, choose the same folder again and tap \"Use this folder\" to allow saving tags into its files. This is only needed once per folder.</string>
+    <string name="tags_folder_access_continue">Continue</string>
+    <string name="tags_error_wrong_folder">That was a different folder. Pick the same folder the song is in to allow editing.</string>
+    <string name="tags_error_unsupported">This file type can\'t be edited (Opus files aren\'t supported yet).</string>
+    <string name="tags_error_not_a_number">%1$s must be a whole number.</string>
+    <string name="tags_error_permission">AudioForge wasn\'t allowed to change this file.</string>
+    <string name="tags_error_io">Couldn\'t read or write the file. It may have been moved or deleted.</string>
+    <string name="tags_error_write">Couldn\'t save the tags.</string>
+    <!-- Cover art -->
+    <string name="cover_change">Change cover</string>
+    <string name="cover_changed">Cover updated.</string>
+    <string name="cover_error_image">Couldn\'t read that image.</string>
+
+    <!-- Wallpapers tab -->
+    <string name="wallpaper_global">Global wallpaper</string>
+    <string name="wallpaper_global_explanation">Plays behind Now Playing for any song that has no wallpaper of its own.</string>
+    <string name="wallpaper_none">None</string>
+    <string name="wallpaper_choose_video">Choose video</string>
+    <string name="wallpaper_clear">Clear</string>
+    <string name="wallpaper_per_song">Song wallpapers</string>
+    <string name="wallpaper_per_song_none">No song wallpapers yet. The first one that includes a song is used for it.</string>
+    <string name="wallpaper_edit_songs">Songs</string>
+    <string name="wallpaper_add">Add wallpaper</string>
+    <string name="wallpaper_remove_title">Remove wallpaper</string>
+    <string name="wallpaper_remove_confirm">Remove this wallpaper assignment? The video file itself isn\'t deleted.</string>
+    <string name="wallpaper_done_count">Done (%1$d)</string>
+    <string name="wallpaper_select_all_shown">Select / clear all shown</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_wallpaper">Video wallpaper</string>
+    <string name="settings_wallpaper_enabled">Show video wallpapers</string>
+    <string name="settings_wallpaper_opacity">Wallpaper opacity: %1$d%%</string>
+</resources>

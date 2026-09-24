@@ -1,0 +1,7 @@
+<resources>
+    <!-- Only the window before Compose takes over; everything visible after
+         that comes from ui/theme/Theme.kt. Dark to match the app's default. -->
+    <style name="Theme.AudioForge" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>
