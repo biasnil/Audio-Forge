@@ -29,9 +29,15 @@ public:
     // opened (bad path, unsupported/corrupt file, etc.).
     bool loadAndPlay(const QString& path);
 
+    // play()/pause() act on BOTH slots while a crossfade is in progress, so
+    // pausing mid-fade doesn't leave the incoming track playing on its own.
     void play();
     void pause();
     void stop(); // also aborts any in-progress crossfade and seeks to 0
+
+    // Aborts any crossfade and releases the active sound (and its file
+    // handle) entirely -- used before rewriting the playing file's tags.
+    void unload();
 
     bool isLoaded() const;
     bool isAtEnd() const;

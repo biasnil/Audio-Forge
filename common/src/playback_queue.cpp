@@ -105,6 +105,14 @@ bool PlaybackQueue::peekNext()
 
     if (m_shuffleMode == ShuffleMode::Random)
     {
+        // Random picks with replacement, so there's no natural "end" --
+        // without Repeat All, stop once a full queue's worth of tracks has
+        // played (m_history holds one entry per track played since
+        // setQueue(), minus any undone by Previous).
+        if (m_repeatMode != RepeatMode::All && m_history.size() >= m_queue.size())
+        {
+            return false;
+        }
         if (m_queue.size() > 1)
         {
             int newIndex;
@@ -127,6 +135,12 @@ bool PlaybackQueue::peekNext()
         }
         if (m_shufflePos + 1 >= m_shuffleOrder.size())
         {
+            // Every track has played once this lap -- only start another
+            // lap with Repeat All, same as sequential mode's wrap-around.
+            if (m_repeatMode != RepeatMode::All)
+            {
+                return false;
+            }
             int justPlayed = m_queueIndex;
             m_shuffleOrder = RandomPermutation(m_queue.size());
             if (m_shuffleOrder.size() > 1 && m_shuffleOrder.first() == justPlayed)
@@ -192,6 +206,11 @@ bool PlaybackQueue::movePrevious()
     if (m_shuffleMode == ShuffleMode::Off && m_queueIndex > 0)
     {
         m_queueIndex--;
+        // Keep history in step with where we actually are -- otherwise a
+        // later Next + Previous would pop back to the stale entry (e.g.
+        // 5 -> Prev 4 -> Prev 3 -> Next 4 -> Prev would land on 5, not 3).
+        m_history.clear();
+        m_history << m_queueIndex;
         return true;
     }
     return false; // nothing earlier to go back to

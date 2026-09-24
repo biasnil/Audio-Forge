@@ -72,12 +72,14 @@ void PlaylistEditDialog::refreshList()
 
 void PlaylistEditDialog::removeSelected()
 {
-    QListWidgetItem* item = m_list->currentItem();
-    if (!item)
+    // By row, not by path -- a track added to the playlist twice should
+    // only lose the one copy that was selected.
+    int row = m_list->currentRow();
+    if (row < 0 || row >= m_playlist.trackPaths.size())
     {
         return;
     }
-    m_playlist.trackPaths.removeAll(item->data(Qt::UserRole).toString());
+    m_playlist.trackPaths.removeAt(row);
     refreshList();
 }
 

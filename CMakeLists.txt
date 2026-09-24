@@ -9,9 +9,12 @@ set(CMAKE_AUTOMOC ON)  # Qt's code generator for signals/slots -- picks up
 set(CMAKE_AUTORCC ON)  # Qt resource compiler -- picks up resources/icons.qrc
                        # so setWindowIcon() works the same on every platform
 
-# Qt6 -- installed via MSYS2's own qt6-base package (matches the ucrt64
-# compiler already in use).
-set(CMAKE_PREFIX_PATH "C:/msys64/ucrt64" ${CMAKE_PREFIX_PATH})
+# Qt6 -- on Windows, installed via MSYS2's own qt6-base package (matches
+# the ucrt64 compiler already in use). Elsewhere, the system packages are
+# found through the default search paths.
+if(WIN32 AND EXISTS "C:/msys64/ucrt64")
+    set(CMAKE_PREFIX_PATH "C:/msys64/ucrt64" ${CMAKE_PREFIX_PATH})
+endif()
 find_package(Qt6 COMPONENTS Widgets Network Multimedia MultimediaWidgets REQUIRED)
 
 # TagLib reads/writes ID3 tags. It only ships a pkg-config file, not a CMake
@@ -26,6 +29,7 @@ add_executable(audioforge WIN32
     common/src/playback_queue.cpp
     common/src/warnings.cpp
     common/src/discord_presence.cpp
+    common/src/secret_store.cpp
 
     qt_player/src/track_metadata.cpp
     qt_player/src/track_metadata_tags.cpp
@@ -79,6 +83,8 @@ target_link_libraries(audioforge PRIVATE Qt6::Widgets Qt6::Network Qt6::Multimed
 if(WIN32)
     # miniaudio (WASAPI device access)
     target_link_libraries(audioforge PRIVATE ole32 winmm)
+    # DPAPI (CryptProtectData) for secret_store.cpp
+    target_link_libraries(audioforge PRIVATE crypt32)
     target_sources(audioforge PRIVATE resources/app_icon.rc)
 elseif(UNIX AND NOT APPLE)
     find_package(Threads REQUIRED)

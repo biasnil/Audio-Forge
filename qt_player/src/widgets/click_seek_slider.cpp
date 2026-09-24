@@ -24,17 +24,24 @@ void ClickSeekSlider::mousePressEvent(QMouseEvent* event)
         // drag start, unchanged.
         if (!handleRect.contains(event->pos()))
         {
+            // Map the click onto the groove the way the style itself does:
+            // the handle's center travels from grooveStart + handleLength/2
+            // to grooveEnd - handleLength/2, so that's the span the value
+            // range is spread over -- not the widget's full width/height.
+            const QRect grooveRect = style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove, this);
             const bool horizontal = orientation() == Qt::Horizontal;
-            const int clickPos = horizontal ? event->pos().x() : event->pos().y();
-            const int span = horizontal ? width() : height();
-            const int value = QStyle::sliderValueFromPosition(minimum(), maximum(), clickPos, span);
+            const int handleLength = horizontal ? handleRect.width() : handleRect.height();
+            const int grooveStart = horizontal ? grooveRect.x() : grooveRect.y();
+            const int grooveLength = horizontal ? grooveRect.width() : grooveRect.height();
+            const int clickPos = (horizontal ? event->pos().x() : event->pos().y()) - grooveStart - handleLength / 2;
+            const int span = qMax(1, grooveLength - handleLength);
+            const int value = QStyle::sliderValueFromPosition(minimum(), maximum(), clickPos, span, opt.upsideDown);
             setValue(value); // emits valueChanged immediately, same as a completed drag would
 
-            // Re-sync the style option now that the value moved, so the base
-            // class's own press handling (called below) computes the handle
-            // grab offset from where the handle now is, not where it was --
-            // that's what lets a click-then-drag continue smoothly from here.
-            event->accept();
+            // The handle is now under the cursor, so the base class's own
+            // press handling below (which builds a fresh style option from
+            // the new value) treats this as grabbing the handle -- a
+            // click-then-drag continues smoothly from here.
         }
     }
     QSlider::mousePressEvent(event);

@@ -10,7 +10,7 @@ class QAudioOutput;
 namespace audioforge {
 
 // Background video layer for the live wallpaper feature (see
-// live_wallpaper_spec.md). Muted, looping, no transport controls -- a
+// WallpaperLibrary). Muted, looping, no transport controls -- a
 // QGraphicsVideoItem inside a QGraphicsView rather than a plain
 // QVideoWidget, because the fill-and-crop scaling needs a transform
 // computed manually (same principle as ScaledCoverArt() in

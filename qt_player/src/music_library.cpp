@@ -23,7 +23,13 @@ void MusicLibrary::removeFolder(const QString& dir)
 {
     m_musicFolders.removeAll(dir);
 
+    // Trailing separator so removing "C:/Music" doesn't also drop tracks
+    // under a sibling folder like "C:/Music2".
     QString prefix = QDir(dir).absolutePath();
+    if (!prefix.endsWith('/'))
+    {
+        prefix += '/';
+    }
     for (int i = m_tracks.size() - 1; i >= 0; --i)
     {
         if (QFileInfo(m_tracks[i].path).absoluteFilePath().startsWith(prefix))
@@ -48,7 +54,7 @@ void MusicLibrary::refreshTrack(const QString& path)
     {
         if (t.path == path)
         {
-            t = ReadTrackInfo(path);
+            t = ReadTrackInfo(path, /*includeCoverArt=*/false);
             return;
         }
     }
@@ -56,22 +62,23 @@ void MusicLibrary::refreshTrack(const QString& path)
 
 void MusicLibrary::scanFolder(const QString& dir)
 {
+    // Set lookup instead of a scan of m_tracks per file -- that was
+    // O(n^2) over the whole library.
+    QSet<QString> knownPaths;
+    knownPaths.reserve(m_tracks.size());
+    for (const TrackInfo& t : m_tracks)
+    {
+        knownPaths.insert(t.path);
+    }
+
     QDirIterator it(dir, QStringList() << "*.mp3", QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext())
     {
         QString path = it.next();
-        bool alreadyKnown = false;
-        for (const TrackInfo& t : m_tracks)
+        if (!knownPaths.contains(path))
         {
-            if (t.path == path)
-            {
-                alreadyKnown = true;
-                break;
-            }
-        }
-        if (!alreadyKnown)
-        {
-            m_tracks << ReadTrackInfo(path);
+            knownPaths.insert(path);
+            m_tracks << ReadTrackInfo(path, /*includeCoverArt=*/false);
         }
     }
 }
@@ -85,7 +92,7 @@ TrackInfo MusicLibrary::findTrackInfo(const QString& path) const
             return t;
         }
     }
-    return ReadTrackInfo(path); // not in the library -- read fresh
+    return ReadTrackInfo(path, /*includeCoverArt=*/false); // not in the library -- read fresh
 }
 
 QVector<TrackInfo> MusicLibrary::buildQueueFromPaths(const QStringList& paths) const
