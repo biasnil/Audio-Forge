@@ -1,7 +1,6 @@
 package com.biasnil.audioforge.lyrics
 
 import android.content.Context
-import android.icu.text.CharsetDetector
 import android.net.Uri
 import android.util.Log
 import com.biasnil.audioforge.data.AppStore
@@ -28,6 +27,7 @@ import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Lyrics for whatever is playing, in the desktop's order: local cache, then
@@ -195,8 +195,8 @@ class LyricsRepository(
 
     /**
      * A sidecar file's text. Like the desktop: a BOM wins; otherwise strict
-     * UTF-8; otherwise ICU's best guess at the encoding (e.g. GBK for older
-     * Chinese .lrc files).
+     * UTF-8; otherwise the legacy encoding for the phone's language (see
+     * [legacyCharset]) -- e.g. GBK for older Chinese .lrc files.
      */
     private fun readText(uri: Uri): String? {
         val bytes = try {
@@ -208,7 +208,7 @@ class LyricsRepository(
             bytes.startsWith(0xEF, 0xBB, 0xBF) -> String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
             bytes.startsWith(0xFF, 0xFE) -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
             bytes.startsWith(0xFE, 0xFF) -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
-            else -> decodeStrictUtf8(bytes) ?: decodeDetected(bytes)
+            else -> decodeStrictUtf8(bytes) ?: String(bytes, legacyCharset())
         }
         return text.replace("\r\n", "\n")
     }
@@ -223,14 +223,20 @@ class LyricsRepository(
         null
     }
 
-    private fun decodeDetected(bytes: ByteArray): String {
-        val name = try {
-            CharsetDetector().setText(bytes).detect()?.name
-        } catch (e: Exception) {
-            null
+    /**
+     * The desktop falls back to Windows' system codepage (QString::fromLocal8Bit).
+     * Android has no such setting, so this picks the legacy encoding that
+     * text files in the phone's language were typically saved in.
+     */
+    private fun legacyCharset(): Charset {
+        val locale = Locale.getDefault()
+        val name = when (locale.language) {
+            "zh" -> if (locale.script == "Hant" || locale.country in setOf("TW", "HK", "MO")) "Big5" else "GB18030"
+            "ja" -> "Shift_JIS"
+            "ko" -> "EUC-KR"
+            else -> "windows-1252"
         }
-        val charset = name?.takeIf { Charset.isSupported(it) }?.let { Charset.forName(it) } ?: Charsets.ISO_8859_1
-        return String(bytes, charset)
+        return if (Charset.isSupported(name)) Charset.forName(name) else Charsets.ISO_8859_1
     }
 
     private companion object {
