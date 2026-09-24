@@ -12,8 +12,8 @@ VideoBackgroundWidget::VideoBackgroundWidget(QWidget* parent) : QGraphicsView(pa
 {
     // This widget is the opaque, bottom-most layer -- it needs to paint
     // normally. Translucency belongs on the *overlay* content that sits on
-    // top of it (see live_wallpaper_spec.md section 5a, done when this is
-    // wired into PlayerWindow), not here.
+    // top of it (the Now Playing page's info box, see
+    // PlayerWindow::buildNowPlayingPage()), not here.
     setStyleSheet("border: none; background: transparent;");
     setFrameShape(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

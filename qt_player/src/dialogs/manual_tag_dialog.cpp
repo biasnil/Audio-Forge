@@ -251,7 +251,8 @@ void ManualTagDialog::trySave()
         }
     }
 
-    if (!WriteAllTags(m_path, tags))
+    const bool saved = m_saveFunction ? m_saveFunction(tags) : WriteAllTags(m_path, tags);
+    if (!saved)
     {
         QMessageBox::warning(this, "Couldn't save tags",
                               "The file's tags couldn't be written. It may be read-only or in use.");

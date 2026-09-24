@@ -8,6 +8,8 @@
 #include "audioforge/lyrics_provider.hpp"
 #include "audioforge/discord_presence.hpp"
 #include <QFont>
+#include <QPointer>
+#include <functional>
 
 class QTabWidget;
 class QStackedWidget;
@@ -83,8 +85,18 @@ private:
     void openTagMusicMenu(); // "Tag Music" button -- offers MusicBrainz vs Manual tagging
     void openManualTagDialog();
     void openChangeCoverDialog();
-    void lookupSelectedTrackOnMusicBrainz();
-    void handleMusicBrainzReply(QNetworkReply* reply);
+    // `targetDialog` non-null = "Fill from internet" inside that manual tag
+    // dialog: the chosen result goes into its fields, never straight to disk.
+    void lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog = nullptr);
+    void handleMusicBrainzReply(QNetworkReply* reply, const QString& path,
+                                bool forManualDialog, QPointer<ManualTagDialog> targetDialog);
+
+    // Runs `write` (a tag/cover write to `path`) with the file released by
+    // the audio engine if it's the playing (or crossfading-in) track, then
+    // reloads it at the same position -- rewriting a file miniaudio is
+    // still streaming from can corrupt playback, or fail outright on Windows.
+    bool writeTrackFile(const QString& path, const std::function<bool()>& write);
+    void afterTrackFileWritten(const QString& path); // refreshes library views + Now Playing
 
     // --- Playlists ---------------------------------------------------------
     void openCreatePlaylistDialog();
@@ -112,7 +124,7 @@ private:
     void applyElidedTitleText(); // sets m_bigTitleLabel to the truncated "..." form, sized to the current viewport
     void applyElidedMiniTitle(); // same idea for the mini player bar's m_titleLabel -- static, no marquee
 
-    // --- Live video wallpaper (live_wallpaper_spec.md) -------------------
+    // --- Live video wallpaper ---------------------------------------------
     void updateWallpaperForTrack(const TrackInfo& info); // called from the end of updateNowPlayingUi(), same hook fetchLyricsFor() uses
     void refreshGlobalWallpaperLabel();
     void chooseGlobalWallpaper();
@@ -126,6 +138,8 @@ private:
     void setupShortcuts();
     void togglePlayPause();
     void seekBySeconds(float deltaSeconds);
+    void seekTo(float seconds); // every seek goes through here -- cancels an in-progress crossfade first
+    void updateDiscordPresence(); // re-sends title + elapsed time; no-op unless enabled and playing
     void adjustVolume(int delta);
     void toggleMute();
     void setControlsEnabled(bool enabled);
@@ -185,14 +199,7 @@ private:
     int m_hoveredLyricsLineIndex = -1; // which synced line the mouse is over right now (-1 = none); only ever set for lines that have a timestamp
 
     QNetworkAccessManager* m_network = nullptr;
-    QString m_pendingLookupPath;
-
-    // Non-null only while a manual-tag dialog's "Fill from internet" lookup
-    // is in flight -- tells handleMusicBrainzReply() to feed its result into
-    // this dialog instead of writing tags straight to disk. Points at a
-    // stack-local ManualTagDialog owned by openManualTagDialog(), so it's
-    // only ever valid while that dialog's exec() is still running.
-    ManualTagDialog* m_activeManualTagDialog = nullptr;
+    bool m_musicBrainzLookupInFlight = false; // one lookup at a time (MusicBrainz rate-limits to ~1 req/s anyway)
 
     QTabWidget* m_tabs = nullptr;
     QStackedWidget* m_stack = nullptr;
@@ -209,6 +216,7 @@ private:
     QListWidget* m_playlistsList = nullptr;
     QLabel* m_globalWallpaperLabel = nullptr;
     QListWidget* m_wallpaperEntriesList = nullptr;
+    QVector<QCheckBox*> m_tabVisibilityCheckboxes; // Settings > Visible Tabs, indexed by tab index (0-4)
 
     QLabel* m_statsLabel = nullptr;
     QCheckBox* m_crossfadeCheckbox = nullptr;

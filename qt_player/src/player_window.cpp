@@ -15,7 +15,9 @@
 #include "audioforge/lyrics_provider.hpp"
 #include "audioforge/cover_art_writer.hpp"
 #include "audioforge/discord_presence.hpp"
+#include "audioforge/secret_store.hpp"
 
+#include <QApplication>
 #include <QVBoxLayout>
 #include <QMenu>
 #include <QShortcut>
@@ -194,7 +196,7 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->addWidget(m_stack);
 
-    // Live video wallpaper (live_wallpaper_spec.md) -- the actual
+    // Live video wallpaper -- the actual
     // VideoBackgroundWidget is created and layered in buildNowPlayingPage()
     // instead of here, since it's scoped to just that page, not the whole
     // window. Library data still needs loading up front either way.
@@ -311,14 +313,25 @@ QWidget* PlayerWindow::buildTracksTab()
     connect(m_tracksTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
         // Queue = every row currently shown, in the table's visual
         // (possibly sorted) order -- so Next/Previous follow what's on
-        // screen rather than some hidden original order.
+        // screen rather than some hidden original order. Rows hidden by
+        // the search filter are left out, so the start index is counted
+        // among visible rows only.
         QVector<TrackInfo> queue;
+        int startIndex = 0;
         for (int r = 0; r < m_tracksTable->rowCount(); ++r)
         {
+            if (m_tracksTable->isRowHidden(r))
+            {
+                continue;
+            }
+            if (r == row)
+            {
+                startIndex = queue.size();
+            }
             QString path = m_tracksTable->item(r, 0)->data(Qt::UserRole).toString();
             queue << m_library.findTrackInfo(path);
         }
-        setQueueAndPlay(queue, row);
+        setQueueAndPlay(queue, startIndex);
     });
 
     l->addWidget(m_tracksTable);
@@ -419,6 +432,7 @@ QWidget* PlayerWindow::buildSettingsTab()
     {
         auto* checkbox = new QCheckBox(entry.first);
         checkbox->setChecked(true);
+        m_tabVisibilityCheckboxes << checkbox; // persisted by saveSettings()
         int tabIndex = entry.second;
         connect(checkbox, &QCheckBox::toggled, this, [this, tabIndex](bool checked) {
             m_tabs->setTabVisible(tabIndex, checked);
@@ -916,7 +930,7 @@ QWidget* PlayerWindow::buildPlayerBar()
 
 QWidget* PlayerWindow::buildNowPlayingPage()
 {
-    // Live video wallpaper (live_wallpaper_spec.md) -- scoped to just this
+    // Live video wallpaper -- scoped to just this
     // page: `page` is a thin shell holding two stacked layers, the video
     // (bottom) and the real content (top, everything below used to attach
     // directly to `page` -- it now attaches to `content` instead, and
@@ -1284,6 +1298,11 @@ void PlayerWindow::refreshTracksTable()
     }
 
     m_tracksTable->setSortingEnabled(true);
+
+    // Rebuilt rows start out visible -- re-apply whatever's still typed in
+    // the search bar so a refresh (tag edit, cover change, rescan) doesn't
+    // silently un-filter the table.
+    applySearchFilter(m_searchBar->text());
 }
 
 void PlayerWindow::refreshAlbumsAndArtists()
@@ -1366,29 +1385,27 @@ void PlayerWindow::openManualTagDialog()
     QString path = m_tracksTable->item(row, 0)->data(Qt::UserRole).toString();
 
     QMap<QString, QString> tags = ReadAllTags(path);
-    TrackInfo info = m_library.findTrackInfo(path);
 
-    ManualTagDialog dialog(path, tags, info.coverArt, this);
+    ManualTagDialog dialog(path, tags, ReadCoverArt(path), this);
+    dialog.setSaveFunction([this, path](const QMap<QString, QString>& newTags) {
+        return writeTrackFile(path, [&]() { return WriteAllTags(path, newTags); });
+    });
 
     // "Fill from internet" reuses the exact same lookup as the "MusicBrainz"
     // menu item -- lookupSelectedTrackOnMusicBrainz() reads whatever row is
     // currently selected, which is still this track's row since selection
-    // doesn't change while this modal dialog is open. Setting
-    // m_activeManualTagDialog tells handleMusicBrainzReply() to feed its
-    // result into this dialog's fields instead of writing straight to disk.
+    // doesn't change while this modal dialog is open. Passing the dialog
+    // tells the reply handler to feed its result into this dialog's fields
+    // instead of writing straight to disk -- and to drop the result if the
+    // dialog has been closed by the time the reply lands.
     connect(&dialog, &ManualTagDialog::fillFromInternetRequested, this, [this, &dialog]() {
-        m_activeManualTagDialog = &dialog;
-        lookupSelectedTrackOnMusicBrainz();
+        lookupSelectedTrackOnMusicBrainz(&dialog);
     });
 
     if (dialog.exec() == QDialog::Accepted)
     {
-        m_library.refreshTrack(path);
-        refreshTracksTable();
-        refreshAlbumsAndArtists();
-        updateStats();
+        afterTrackFileWritten(path);
     }
-    m_activeManualTagDialog = nullptr; // safety net if the dialog closed mid-lookup
 }
 
 void PlayerWindow::openChangeCoverDialog()
@@ -1417,24 +1434,98 @@ void PlayerWindow::openChangeCoverDialog()
     QByteArray imageData = imageFile.readAll();
     QString mimeType = imagePath.toLower().endsWith(".png") ? "image/png" : "image/jpeg";
 
-    if (!WriteCoverArt(path, imageData, mimeType))
+    if (!writeTrackFile(path, [&]() { return WriteCoverArt(path, imageData, mimeType); }))
     {
         ErrorReporter::warn(this, "Couldn't save cover", "The file's cover art couldn't be written to.");
         return;
     }
 
+    afterTrackFileWritten(path);
+}
+
+bool PlayerWindow::writeTrackFile(const QString& path, const std::function<bool()>& write)
+{
+    // The incoming side of a crossfade also holds the file open -- just
+    // drop the fade (the queue keeps its pending pick, so it restarts).
+    if (m_engine.isCrossfading() && m_queue.hasPendingNext() && m_queue.pendingNextTrack().path == path)
+    {
+        m_engine.abortCrossfade();
+        applyVolume();
+    }
+
+    const bool isPlayingTrack = m_engine.isLoaded() && !m_queue.isEmpty() && m_queue.currentTrack().path == path;
+    if (!isPlayingTrack)
+    {
+        return write();
+    }
+
+    const float cursor = m_engine.cursorSeconds();
+    const bool wasPlaying = m_engine.isPlaying();
+    abortCrossfade();
+    m_engine.unload();
+
+    const bool written = write();
+
+    if (m_engine.loadAndPlay(path))
+    {
+        m_engine.seekToSeconds(cursor);
+        applyVolume();
+        if (!wasPlaying)
+        {
+            m_engine.pause();
+        }
+        m_seekSlider->setRange(0, static_cast<int>(m_engine.lengthSeconds()));
+        m_wasAtEnd = false;
+    }
+    else
+    {
+        ErrorReporter::warn(this, "Failed to reload track", "Could not reload: " + QFileInfo(path).fileName());
+        setControlsEnabled(false);
+    }
+    return written;
+}
+
+void PlayerWindow::afterTrackFileWritten(const QString& path)
+{
+    // Re-read the file so the in-memory library reflects exactly what was
+    // actually saved.
     m_library.refreshTrack(path);
     refreshTracksTable();
     refreshAlbumsAndArtists();
+    updateStats();
 
     if (!m_queue.isEmpty() && m_queue.currentTrack().path == path)
     {
-        updateNowPlayingUi(m_library.findTrackInfo(path)); // repaints mini bar + Now Playing cover with the new art
+        updateNowPlayingUi(m_library.findTrackInfo(path)); // repaints titles + cover art with what was just written
     }
 }
 
-void PlayerWindow::lookupSelectedTrackOnMusicBrainz()
+namespace {
+
+// Inside a Lucene quoted phrase only `"` and `\` are special -- escaping
+// those and quoting the whole value keeps titles like "AC/DC: Live (1992)"
+// from being parsed as field names / grouping / operators.
+QString LucenePhrase(const QString& value)
 {
+    QString escaped = value;
+    escaped.replace("\\", "\\\\");
+    escaped.replace("\"", "\\\"");
+    return "\"" + escaped + "\"";
+}
+
+// MusicBrainz asks for an identifying User-Agent with a way to reach the
+// app's maintainer (a project URL is accepted); LRCLIB asks the same.
+const char* kUserAgent = "AudioForge/1.0 ( https://github.com/biasnil/Audio-Forge )";
+
+} // namespace
+
+void PlayerWindow::lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog)
+{
+    if (m_musicBrainzLookupInFlight)
+    {
+        return; // e.g. "Fill from internet" clicked again before the first reply landed
+    }
+
     QTableWidgetItem* item = m_tracksTable->currentItem();
     if (!item)
     {
@@ -1445,16 +1536,11 @@ void PlayerWindow::lookupSelectedTrackOnMusicBrainz()
     QString title = m_tracksTable->item(row, 0)->text();
     QString artist = m_tracksTable->item(row, 1)->text();
 
-    m_pendingLookupPath = path;
-
-    // MusicBrainz's recording search endpoint. Their usage policy asks for
-    // an identifying User-Agent on every request; a generic one is used
-    // here, but for real/frequent use it should name the app and include a
-    // contact (see musicbrainz.org/doc/MusicBrainz_API).
-    QString query = title;
+    // MusicBrainz's recording search endpoint (Lucene query syntax).
+    QString query = "recording:" + LucenePhrase(title);
     if (!artist.isEmpty())
     {
-        query += " AND artist:\"" + artist + "\"";
+        query += " AND artist:" + LucenePhrase(artist);
     }
 
     QUrl url("https://musicbrainz.org/ws/2/recording/");
@@ -1465,20 +1551,36 @@ void PlayerWindow::lookupSelectedTrackOnMusicBrainz()
     url.setQuery(urlQuery);
 
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "AudioForge/1.0 ( no-contact-set )");
+    request.setHeader(QNetworkRequest::UserAgentHeader, kUserAgent);
 
+    m_musicBrainzLookupInFlight = true;
     m_musicBrainzButton->setEnabled(false);
     m_musicBrainzButton->setText("Looking up...");
 
+    // QPointer goes null if the (stack-local) manual tag dialog is closed
+    // while this request is in flight; forManualDialog remembers that the
+    // lookup was for a dialog at all, so a closed one means "discard", not
+    // "write to disk".
+    const bool forManualDialog = targetDialog != nullptr;
+    QPointer<ManualTagDialog> target(targetDialog);
     QNetworkReply* reply = m_network->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() { handleMusicBrainzReply(reply); });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, path, forManualDialog, target]() {
+        handleMusicBrainzReply(reply, path, forManualDialog, target);
+    });
 }
 
-void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply)
+void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply, const QString& path,
+                                          bool forManualDialog, QPointer<ManualTagDialog> targetDialog)
 {
     reply->deleteLater();
+    m_musicBrainzLookupInFlight = false;
     m_musicBrainzButton->setText("Tag Music");
     m_musicBrainzButton->setEnabled(!m_tracksTable->selectedItems().isEmpty());
+
+    if (forManualDialog && !targetDialog)
+    {
+        return; // the manual tag dialog was closed mid-lookup -- nothing to fill in, and never write directly
+    }
 
     if (reply->error() != QNetworkReply::NoError)
     {
@@ -1525,14 +1627,12 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply)
     MusicBrainzResultDialog dialog(candidates, this);
     if (dialog.exec() != QDialog::Accepted)
     {
-        m_activeManualTagDialog = nullptr; // consume even on cancel
         return;
     }
 
     int idx = dialog.selectedIndex();
     if (idx < 0 || idx >= candidates.size())
     {
-        m_activeManualTagDialog = nullptr;
         return;
     }
 
@@ -1541,26 +1641,22 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply)
     // Triggered via "Fill from internet" inside the manual tag dialog --
     // hand the candidate to that dialog's fields for review instead of
     // writing to disk here; the dialog's own Save button does the write.
-    if (m_activeManualTagDialog)
+    if (forManualDialog)
     {
-        m_activeManualTagDialog->applyLookupResult(chosen.title, chosen.artist, chosen.album, chosen.year);
-        m_activeManualTagDialog = nullptr;
+        if (targetDialog)
+        {
+            targetDialog->applyLookupResult(chosen.title, chosen.artist, chosen.album, chosen.year);
+        }
         return;
     }
 
-    if (!WriteBasicTags(m_pendingLookupPath, chosen.title, chosen.artist, chosen.album, chosen.year))
+    if (!writeTrackFile(path, [&]() { return WriteBasicTags(path, chosen.title, chosen.artist, chosen.album, chosen.year); }))
     {
         ErrorReporter::warn(this, "Couldn't save tags", "The file's tags could not be written to.");
         return;
     }
 
-    // Re-read the file so the in-memory library reflects exactly what was
-    // actually saved (also picks up cover art / audio properties untouched
-    // by this write).
-    m_library.refreshTrack(m_pendingLookupPath);
-    refreshTracksTable();
-    refreshAlbumsAndArtists();
-    updateStats();
+    afterTrackFileWritten(path);
 }
 
 // --- Lyrics (Musixmatch API, then local .lrc/.txt, then nothing) -------
@@ -1598,9 +1694,9 @@ void PlayerWindow::fetchFromLrclib(const TrackInfo& info, const QString& path)
     url.setQuery(query);
 
     // LRCLIB needs no API key -- it asks (doesn't require) an identifying
-    // User-Agent, same courtesy as the existing MusicBrainz request below.
+    // User-Agent, same courtesy as the MusicBrainz request above.
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "AudioForge/1.0 ( no-contact-set )");
+    request.setHeader(QNetworkRequest::UserAgentHeader, kUserAgent);
 
     QNetworkReply* reply = m_network->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, path, info]() {
@@ -1912,7 +2008,7 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
             int index = item ? m_lyricsList->row(item) : -1;
             if (index >= 0 && index < m_syncedLyrics.size())
             {
-                m_engine.seekToSeconds(m_syncedLyrics[index].seconds);
+                seekTo(m_syncedLyrics[index].seconds);
                 // no manual UI push needed -- the next updatePlayback() tick
                 // (m_seeking is false here) picks up the new cursor and
                 // moves both seek sliders + the highlighted line itself
@@ -2048,8 +2144,9 @@ void PlayerWindow::next(bool fromAutoAdvance)
 
     if (fromAutoAdvance && m_queue.repeatMode() == RepeatMode::One)
     {
-        m_engine.seekToSeconds(0);
+        seekTo(0);
         m_engine.play();
+        updateDiscordPresence();
         return;
     }
 
@@ -2211,7 +2308,37 @@ void PlayerWindow::seekBySeconds(float deltaSeconds)
         return;
     }
     float target = qBound(0.0f, m_engine.cursorSeconds() + deltaSeconds, m_engine.lengthSeconds());
-    m_engine.seekToSeconds(target);
+    seekTo(target);
+}
+
+void PlayerWindow::seekTo(float seconds)
+{
+    // A seek mid-crossfade used to move only the outgoing track: seeking
+    // back left the incoming one running silently at volume 0 (so it was
+    // already partway through once the fade restarted). Drop the fade
+    // instead -- the queue keeps its pending pick, so if the new position
+    // is still inside the crossfade window the next tick restarts the fade
+    // into the same track, from its beginning.
+    if (m_engine.isCrossfading())
+    {
+        m_engine.abortCrossfade();
+        applyVolume(); // the fade had turned the outgoing track down
+    }
+    m_engine.seekToSeconds(seconds);
+    m_wasAtEnd = false;
+    updateDiscordPresence(); // its elapsed-time counter would otherwise keep the pre-seek position
+}
+
+void PlayerWindow::updateDiscordPresence()
+{
+    if (!m_discordPresenceEnabled || m_queue.isEmpty() || !m_engine.isPlaying())
+    {
+        return;
+    }
+    const TrackInfo& info = m_queue.currentTrack();
+    m_discordPresence.setNowPlaying(
+        info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
+        info.artist, static_cast<int>(m_engine.cursorSeconds()), static_cast<int>(m_engine.lengthSeconds()));
 }
 
 void PlayerWindow::adjustVolume(int delta)
@@ -2291,10 +2418,13 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
     m_bigSubtitleLabel->setText(subtitle);
     m_bigFormatLabel->setText(FormatAudioInfo(info));
 
-    if (!info.coverArt.isEmpty())
+    // Library TrackInfos don't carry cover art (memory) -- read it now, for
+    // just the one track being shown.
+    const QByteArray coverArt = info.coverArt.isEmpty() ? ReadCoverArt(info.path) : info.coverArt;
+    if (!coverArt.isEmpty())
     {
-        QPixmap miniCover = ScaledCoverArt(info.coverArt, m_coverArtLabel->size());
-        QPixmap bigCover = ScaledCoverArt(info.coverArt, m_bigCoverArtLabel->size());
+        QPixmap miniCover = ScaledCoverArt(coverArt, m_coverArtLabel->size());
+        QPixmap bigCover = ScaledCoverArt(coverArt, m_bigCoverArtLabel->size());
         if (!miniCover.isNull() && !bigCover.isNull())
         {
             m_coverArtLabel->setPixmap(miniCover);
@@ -2316,19 +2446,16 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
     // dominant color, the way several music apps do -- scoped to just
     // this bounded panel now, not the whole page (a page-wide translucent
     // tint was producing a visible seam artifact at the label boundaries).
-    QColor bg = AverageColor(info.coverArt);
+    QColor bg = AverageColor(coverArt);
     m_infoBox->setStyleSheet(
         QString("background-color: rgba(%1, %2, %3, 190); border-radius: 8px;").arg(bg.red()).arg(bg.green()).arg(bg.blue()));
 
     fetchLyricsFor(info);
     updateWallpaperForTrack(info);
 
-    if (m_discordPresenceEnabled)
-    {
-        m_discordPresence.setNowPlaying(
-            info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
-            info.artist, 0, static_cast<int>(m_engine.lengthSeconds()));
-    }
+    // Uses the real cursor, not 0 -- after a crossfade the new track is
+    // already crossfadeSeconds in by the time it becomes "current".
+    updateDiscordPresence();
 }
 
 void PlayerWindow::resetTitleMarquee(const QString& title)
@@ -2524,13 +2651,7 @@ void PlayerWindow::removeSelectedWallpaperEntry()
 void PlayerWindow::play()
 {
     m_engine.play();
-    if (m_discordPresenceEnabled && !m_queue.isEmpty())
-    {
-        const TrackInfo& info = m_queue.currentTrack();
-        m_discordPresence.setNowPlaying(
-            info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
-            info.artist, static_cast<int>(m_engine.cursorSeconds()), static_cast<int>(m_engine.lengthSeconds()));
-    }
+    updateDiscordPresence();
 }
 
 void PlayerWindow::pause()
@@ -2573,7 +2694,7 @@ void PlayerWindow::toggleTheme()
 
 void PlayerWindow::seekToSliderValue()
 {
-    m_engine.seekToSeconds(static_cast<float>(m_seekSlider->value()));
+    seekTo(static_cast<float>(m_seekSlider->value()));
     m_seeking = false;
 }
 
@@ -2740,7 +2861,7 @@ void PlayerWindow::loadSettings()
     m_videoWallpaperOpacitySlider->setEnabled(m_videoWallpaperEnabled);
     m_wallpaperWidget->setOpacity(m_videoWallpaperOpacityPercent / 100.0);
 
-    m_musixmatchApiKey = settings.value("musixmatchApiKey").toString();
+    m_musixmatchApiKey = UnprotectSecret(settings.value("musixmatchApiKey").toString());
     m_musixmatchApiKeyEdit->setText(m_musixmatchApiKey);
 
     m_discordPresenceEnabled = settings.value("discordPresenceEnabled", false).toBool();
@@ -2781,6 +2902,34 @@ void PlayerWindow::loadSettings()
     refreshTracksTable();
     refreshAlbumsAndArtists();
     updateStats();
+
+    // Playlists store paths only, so a track whose folder has since gone
+    // missing just shows by filename in the playlist (see
+    // PlaylistEditDialog::labelFor) rather than the playlist being dropped.
+    int playlistCount = settings.beginReadArray("playlists");
+    for (int i = 0; i < playlistCount; ++i)
+    {
+        settings.setArrayIndex(i);
+        PlaylistData playlist;
+        playlist.name = settings.value("name").toString();
+        playlist.trackPaths = settings.value("trackPaths").toStringList();
+        if (!playlist.name.isEmpty())
+        {
+            m_library.addPlaylist(playlist);
+        }
+    }
+    settings.endArray();
+    refreshPlaylistsList();
+
+    QList<QVariant> hiddenTabs = settings.value("hiddenTabs").toList();
+    for (const QVariant& tab : hiddenTabs)
+    {
+        int tabIndex = tab.toInt();
+        if (tabIndex >= 0 && tabIndex < m_tabVisibilityCheckboxes.size())
+        {
+            m_tabVisibilityCheckboxes[tabIndex]->setChecked(false); // fires the toggled lambda -> setTabVisible()
+        }
+    }
 }
 
 void PlayerWindow::saveSettings()
@@ -2793,7 +2942,7 @@ void PlayerWindow::saveSettings()
     settings.setValue("crossfadeSeconds", m_crossfadeSeconds);
     settings.setValue("videoWallpaperEnabled", m_videoWallpaperEnabled);
     settings.setValue("videoWallpaperOpacity", m_videoWallpaperOpacityPercent);
-    settings.setValue("musixmatchApiKey", m_musixmatchApiKey);
+    settings.setValue("musixmatchApiKey", ProtectSecret(m_musixmatchApiKey));
     settings.setValue("discordPresenceEnabled", m_discordPresenceEnabled);
     settings.setValue("discordClientId", m_discordClientId);
 
@@ -2810,6 +2959,29 @@ void PlayerWindow::saveSettings()
     }
 
     settings.setValue("musicFolders", m_library.folders());
+
+    // Rewritten in full each time (remove first) so deleted playlists don't
+    // linger as stale array entries.
+    settings.remove("playlists");
+    const QVector<PlaylistData>& playlists = m_library.playlists();
+    settings.beginWriteArray("playlists", playlists.size());
+    for (int i = 0; i < playlists.size(); ++i)
+    {
+        settings.setArrayIndex(i);
+        settings.setValue("name", playlists[i].name);
+        settings.setValue("trackPaths", playlists[i].trackPaths);
+    }
+    settings.endArray();
+
+    QList<QVariant> hiddenTabs;
+    for (int i = 0; i < m_tabVisibilityCheckboxes.size(); ++i)
+    {
+        if (!m_tabVisibilityCheckboxes[i]->isChecked())
+        {
+            hiddenTabs << i;
+        }
+    }
+    settings.setValue("hiddenTabs", hiddenTabs);
 }
 
 } // namespace audioforge
