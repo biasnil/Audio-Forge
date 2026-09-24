@@ -89,6 +89,43 @@ cmake -B build && cmake --build build
 ```
 The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
 
+## Android app
+
+`android/` is a Kotlin port of the desktop app, built in stages:
+
+1. Project setup. **Done.**
+2. Playback, library, queue, playlists. **Done:** the phone's music library plus
+   added folders, the Tracks/Albums/Artists/Folders/Playlists/Settings tabs,
+   background playback with notification and lock-screen controls, and the
+   desktop's shuffle, repeat and history logic.
+3. Crossfade, equalizer, ReplayGain. **Done:** two-player crossfade (2–15 s),
+   the desktop's 10-band EQ with presets and post-gain (applied in the audio
+   pipeline, so it's the same on every phone), ReplayGain from MP3, FLAC,
+   OGG/Opus and M4A tags, and volume up to 200%.
+4. Tag and cover editing. **Done:** long-press a song (in any list, or the
+   cover on Now Playing) for **Edit tags** / **Change cover**. Both are written
+   into the file with jaudiotagger (MP3, FLAC, OGG Vorbis, M4A, WAV); covers
+   over 1200 px are scaled down first. Android asks before changing
+   phone-library songs; added folders need write access once. (The desktop's
+   MusicBrainz lookup wasn't ported.)
+5. Lyrics. **Done:** cache, then LRCLIB, then Musixmatch (with an API key,
+   stored encrypted with the Android Keystore), then a same-name .lrc/.txt
+   next to the track in an added folder; synced highlighting and tap-to-seek.
+   LRCLIB is tried with several searches (exact, without "(Live)"-style
+   suffixes, general search, artist/title split from the file name) and the
+   result matching the song's length is preferred.
+6. Video wallpapers and settings. **Done:** a global video plus per-song
+   videos behind Now Playing (first matching assignment wins, like the
+   desktop), muted and looping, paused in the background; on/off and opacity
+   in Settings.
+
+Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native
+code, so it runs on both 4 KB and 16 KB memory page size devices.
+
+To build, open the `android/` folder in Android Studio (**File → Open**), let
+Gradle sync, then run the `app` configuration. It uses Kotlin, Jetpack Compose,
+Gradle 8.14.3 (through the included wrapper) and Android Gradle Plugin 8.11.1.
+
 ## Settings
 
 Stored at `%APPDATA%\AudioForge\AudioForge.ini` (on Linux,
