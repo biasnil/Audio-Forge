@@ -56,8 +56,9 @@ internal fun DetailTopBar(title: String, onBack: () -> Unit, actions: @Composabl
 
 /** An album's or artist's tracks (the desktop's track list dialog). Tapping one plays the group from there. */
 @Composable
-fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
+fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit) {
     val playback = LocalAppContainer.current.playback
+    val trackActions = LocalTrackActions.current
     val state by playback.state.collectAsStateWithLifecycle()
 
     Scaffold(topBar = { DetailTopBar(title, onBack) }) { innerPadding ->
@@ -72,7 +73,7 @@ fun GroupPage(title: String, tracks: List<Track>, onBack: () -> Unit, onOpenPage
                     track = track,
                     isCurrent = track.uri == state.current?.uri,
                     onClick = { playback.playQueue(tracks, index) },
-                    onLongClick = { onOpenPage(Page.EditTags(track.uri)) },
+                    onLongClick = { trackActions.showMenu(track) },
                 )
             }
         }
@@ -85,6 +86,7 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
     val settings by container.store.settings.collectAsStateWithLifecycle()
     val libraryTracks by container.library.tracks.collectAsStateWithLifecycle()
     val state by container.playback.state.collectAsStateWithLifecycle()
+    val trackActions = LocalTrackActions.current
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
 
     val playlist = settings.playlists.firstOrNull { it.id == playlistId }
@@ -138,7 +140,7 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                             onClick = {
                                 container.playback.playQueue(playable, entries.take(index).count { it.second != null })
                             },
-                            onLongClick = { onOpenPage(Page.EditTags(track.uri)) },
+                            onLongClick = { trackActions.showMenu(track) },
                             trailing = remove,
                         )
                     } else {

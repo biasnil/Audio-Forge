@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -78,6 +79,7 @@ import kotlin.math.roundToInt
 @Composable
 fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val playback = LocalAppContainer.current.playback
+    val trackActions = LocalTrackActions.current
     val state by playback.state.collectAsStateWithLifecycle()
     val track = state.current
     if (track == null) {
@@ -95,153 +97,186 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
         var showLyrics by rememberSaveable { mutableStateOf(false) }
         val shownPositionMs = dragPositionMs?.toLong() ?: position
 
-        Column(
-            modifier = Modifier
+        // Live video wallpaper: the song's own video, else the global one (see WallpaperRepository).
+        val settings by LocalAppContainer.current.store.settings.collectAsStateWithLifecycle()
+        val wallpapers = LocalAppContainer.current.wallpapers
+        val videoUri = if (settings.videoWallpaperEnabled) wallpapers.resolveVideoFor(track.uri, settings) else null
+        var videoFailed by remember(videoUri) { mutableStateOf(false) }
+        val showVideo = videoUri != null && !videoFailed
+
+        Box(
+            Modifier
                 .fillMaxSize()
                 .background(Brush.verticalGradient(listOf(tint, MaterialTheme.colorScheme.background)))
-                .systemBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) {
-                    Icon(AppIcons.Back, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.back))
-                }
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { onOpenPage(Page.EditTags(track.uri)) }) {
-                    Text(stringResource(R.string.tags_edit))
-                }
-                TextButton(onClick = { showLyrics = !showLyrics }) {
-                    Text(stringResource(if (showLyrics) R.string.show_cover else R.string.show_lyrics))
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // Cover art or lyrics, in the same square -- tap "Lyrics"/"Cover" to switch.
-            val squareModifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .widthIn(max = 360.dp)
-                .fillMaxWidth()
-                .aspectRatio(1f)
-            if (showLyrics) {
-                LyricsPanel(positionMs = position, onSeek = playback::seekTo, modifier = squareModifier)
-            } else {
-                CoverImage(track = track, decodeSize = 360.dp, cornerRadius = 8.dp, modifier = squareModifier)
-            }
-            Spacer(Modifier.height(24.dp))
-
-            // Long titles scroll instead of wrapping (the desktop's title marquee).
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .basicMarquee(),
-            )
-            Text(
-                text = trackSubtitle(track),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .basicMarquee(),
-            )
-            val audioInfo = formatAudioInfo(track)
-            if (audioInfo.isNotEmpty()) {
-                Text(
-                    text = audioInfo,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (showVideo && videoUri != null) {
+                VideoWallpaper(
+                    videoUri = videoUri,
+                    opacity = settings.videoWallpaperOpacityPercent / 100f,
+                    onFailed = { videoFailed = true },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // Keeps the text readable over any video.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.45f))
                 )
             }
-            Spacer(Modifier.height(16.dp))
 
-            Slider(
-                value = shownPositionMs.toFloat().coerceIn(0f, state.durationMs.toFloat().coerceAtLeast(1f)),
-                onValueChange = { dragPositionMs = it },
-                onValueChangeFinished = {
-                    dragPositionMs?.let { playback.seekTo(it.toLong()) }
-                    dragPositionMs = null
-                },
-                valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(shownPositionMs), style = MaterialTheme.typography.labelMedium)
-                Text(formatTime(state.durationMs), style = MaterialTheme.typography.labelMedium)
-            }
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
             ) {
-                ModeButton(
-                    icon = AppIcons.Shuffle,
-                    active = state.shuffleMode != ShuffleMode.Off,
-                    label = stringResource(
-                        when (state.shuffleMode) {
-                            ShuffleMode.Off -> R.string.mode_off
-                            ShuffleMode.Random -> R.string.shuffle_random
-                            ShuffleMode.Smart -> R.string.shuffle_smart
-                        }
-                    ),
-                    description = stringResource(R.string.shuffle),
-                    onClick = playback::cycleShuffleMode,
-                )
-                IconButton(onClick = playback::previous, modifier = Modifier.size(56.dp)) {
-                    Icon(AppIcons.SkipPrevious, stringResource(R.string.previous), Modifier.size(36.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onBack) {
+                        Icon(AppIcons.Back, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.back))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { onOpenPage(Page.EditTags(track.uri)) }) {
+                        Text(stringResource(R.string.tags_edit))
+                    }
+                    TextButton(onClick = { showLyrics = !showLyrics }) {
+                        Text(stringResource(if (showLyrics) R.string.show_cover else R.string.show_lyrics))
+                    }
                 }
-                FilledIconButton(onClick = playback::togglePlayPause, modifier = Modifier.size(72.dp)) {
-                    Icon(
-                        imageVector = if (state.isPlaying) AppIcons.Pause else AppIcons.Play,
-                        contentDescription = stringResource(if (state.isPlaying) R.string.pause else R.string.play),
-                        modifier = Modifier.size(40.dp),
+                Spacer(Modifier.height(16.dp))
+
+                // Cover art or lyrics, in the same square -- tap "Lyrics"/"Cover" to switch.
+                val squareModifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                if (showLyrics) {
+                    LyricsPanel(positionMs = position, onSeek = playback::seekTo, modifier = squareModifier)
+                } else {
+                    // Long-press the cover: Edit tags / Change cover, like a song in a list.
+                    CoverImage(
+                        track = track,
+                        decodeSize = 360.dp,
+                        cornerRadius = 8.dp,
+                        modifier = squareModifier.combinedClickable(onClick = {}, onLongClick = { trackActions.showMenu(track) }),
                     )
                 }
-                IconButton(onClick = playback::next, modifier = Modifier.size(56.dp)) {
-                    Icon(AppIcons.SkipNext, stringResource(R.string.next), Modifier.size(36.dp))
-                }
-                ModeButton(
-                    icon = if (state.repeatMode == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
-                    active = state.repeatMode != RepeatMode.Off,
-                    label = stringResource(
-                        when (state.repeatMode) {
-                            RepeatMode.Off -> R.string.mode_off
-                            RepeatMode.All -> R.string.repeat_all
-                            RepeatMode.One -> R.string.repeat_one
-                        }
-                    ),
-                    description = stringResource(R.string.repeat),
-                    onClick = playback::cycleRepeatMode,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
-            // Up to 200%, like the desktop: above 100% boosts (and can clip loud tracks).
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.volume), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.width(16.dp))
-                Slider(
-                    value = state.volumePercent.toFloat(),
-                    onValueChange = { playback.setVolume(it.roundToInt()) },
-                    onValueChangeFinished = playback::saveVolume,
-                    valueRange = 0f..AppSettings.MAX_VOLUME_PERCENT.toFloat(),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(12.dp))
+                // Long titles scroll instead of wrapping (the desktop's title marquee).
                 Text(
-                    text = "${state.volumePercent}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(48.dp),
+                    text = track.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .basicMarquee(),
                 )
+                Text(
+                    text = trackSubtitle(track),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .basicMarquee(),
+                )
+                val audioInfo = formatAudioInfo(track)
+                if (audioInfo.isNotEmpty()) {
+                    Text(
+                        text = audioInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+
+                Slider(
+                    value = shownPositionMs.toFloat().coerceIn(0f, state.durationMs.toFloat().coerceAtLeast(1f)),
+                    onValueChange = { dragPositionMs = it },
+                    onValueChangeFinished = {
+                        dragPositionMs?.let { playback.seekTo(it.toLong()) }
+                        dragPositionMs = null
+                    },
+                    valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(formatTime(shownPositionMs), style = MaterialTheme.typography.labelMedium)
+                    Text(formatTime(state.durationMs), style = MaterialTheme.typography.labelMedium)
+                }
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ModeButton(
+                        icon = AppIcons.Shuffle,
+                        active = state.shuffleMode != ShuffleMode.Off,
+                        label = stringResource(
+                            when (state.shuffleMode) {
+                                ShuffleMode.Off -> R.string.mode_off
+                                ShuffleMode.Random -> R.string.shuffle_random
+                                ShuffleMode.Smart -> R.string.shuffle_smart
+                            }
+                        ),
+                        description = stringResource(R.string.shuffle),
+                        onClick = playback::cycleShuffleMode,
+                    )
+                    IconButton(onClick = playback::previous, modifier = Modifier.size(56.dp)) {
+                        Icon(AppIcons.SkipPrevious, stringResource(R.string.previous), Modifier.size(36.dp))
+                    }
+                    FilledIconButton(onClick = playback::togglePlayPause, modifier = Modifier.size(72.dp)) {
+                        Icon(
+                            imageVector = if (state.isPlaying) AppIcons.Pause else AppIcons.Play,
+                            contentDescription = stringResource(if (state.isPlaying) R.string.pause else R.string.play),
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
+                    IconButton(onClick = playback::next, modifier = Modifier.size(56.dp)) {
+                        Icon(AppIcons.SkipNext, stringResource(R.string.next), Modifier.size(36.dp))
+                    }
+                    ModeButton(
+                        icon = if (state.repeatMode == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
+                        active = state.repeatMode != RepeatMode.Off,
+                        label = stringResource(
+                            when (state.repeatMode) {
+                                RepeatMode.Off -> R.string.mode_off
+                                RepeatMode.All -> R.string.repeat_all
+                                RepeatMode.One -> R.string.repeat_one
+                            }
+                        ),
+                        description = stringResource(R.string.repeat),
+                        onClick = playback::cycleRepeatMode,
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+
+                // Up to 200%, like the desktop: above 100% boosts (and can clip loud tracks).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.volume), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.width(16.dp))
+                    Slider(
+                        value = state.volumePercent.toFloat(),
+                        onValueChange = { playback.setVolume(it.roundToInt()) },
+                        onValueChangeFinished = playback::saveVolume,
+                        valueRange = 0f..AppSettings.MAX_VOLUME_PERCENT.toFloat(),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "${state.volumePercent}%",
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(48.dp),
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }

@@ -17,6 +17,9 @@ import java.io.File
 
 data class Playlist(val id: String, val name: String, val trackUris: List<String>)
 
+/** One video assigned to a set of songs (the desktop's WallpaperEntry). */
+data class WallpaperEntry(val id: String, val videoUri: String, val trackUris: List<String>)
+
 /** Everything the app remembers between launches (the desktop's AudioForge.ini). */
 data class AppSettings(
     val darkTheme: Boolean = true,
@@ -37,6 +40,12 @@ data class AppSettings(
     val eqPostGainDb: Float = 0f,
     /** Encrypted with a key in the Android Keystore -- see SecretBox. */
     val musixmatchKeyEncrypted: String = "",
+    val videoWallpaperEnabled: Boolean = true,
+    /** 0-100; 100 = fully visible. */
+    val videoWallpaperOpacityPercent: Int = 100,
+    /** Used when the playing song has no wallpaper of its own; "" = none. */
+    val globalWallpaperUri: String = "",
+    val wallpapers: List<WallpaperEntry> = emptyList(),
 ) {
     companion object {
         const val EQ_BAND_COUNT = 10
@@ -90,6 +99,16 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
                 eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
                 musixmatchKeyEncrypted = root.optString("musixmatchKeyEncrypted", ""),
+                videoWallpaperEnabled = root.optBoolean("videoWallpaperEnabled", true),
+                videoWallpaperOpacityPercent = root.optInt("videoWallpaperOpacityPercent", 100).coerceIn(0, 100),
+                globalWallpaperUri = root.optString("globalWallpaperUri", ""),
+                wallpapers = root.optJSONArray("wallpapers").toObjects().map { obj ->
+                    WallpaperEntry(
+                        id = obj.getString("id"),
+                        videoUri = obj.optString("videoUri"),
+                        trackUris = obj.optJSONArray("tracks").toStringList(),
+                    )
+                },
             )
         } catch (e: Exception) {
             // A corrupt file shouldn't stop the app from starting.
@@ -113,6 +132,15 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
             .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
             .put("musixmatchKeyEncrypted", settings.musixmatchKeyEncrypted)
+            .put("videoWallpaperEnabled", settings.videoWallpaperEnabled)
+            .put("videoWallpaperOpacityPercent", settings.videoWallpaperOpacityPercent)
+            .put("globalWallpaperUri", settings.globalWallpaperUri)
+            .put("wallpapers", JSONArray(settings.wallpapers.map { entry ->
+                JSONObject()
+                    .put("id", entry.id)
+                    .put("videoUri", entry.videoUri)
+                    .put("tracks", JSONArray(entry.trackUris))
+            }))
             .put("playlists", JSONArray(settings.playlists.map { playlist ->
                 JSONObject()
                     .put("id", playlist.id)

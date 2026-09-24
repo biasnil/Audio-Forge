@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ import com.biasnil.audioforge.data.albumGroups
 import com.biasnil.audioforge.data.artistGroups
 import com.biasnil.audioforge.data.tracksByArtist
 import com.biasnil.audioforge.data.tracksInAlbum
+import kotlinx.coroutines.launch
 
 @Composable
 fun AudioForgeApp(container: AppContainer) {
@@ -53,30 +55,36 @@ fun AudioForgeApp(container: AppContainer) {
         val requestAudioPermission = rememberAudioPermissionRequest()
         val snackbarHostState = remember { SnackbarHostState() }
         val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val trackActions = rememberTrackActions(onOpenPage = openPage) { message ->
+            scope.launch { snackbarHostState.showSnackbar(message) }
+        }
         LaunchedEffect(Unit) {
             container.playback.errors.collect { fileName ->
                 snackbarHostState.showSnackbar(context.getString(R.string.error_cannot_play, fileName))
             }
         }
 
-        Box(Modifier.fillMaxSize()) {
-            // The library stays composed underneath the pages, so its tab,
-            // search text and scroll position are still there on the way back.
-            LibraryScreen(onOpenPage = openPage, onRequestAudioPermission = requestAudioPermission)
+        CompositionLocalProvider(LocalTrackActions provides trackActions) {
+            Box(Modifier.fillMaxSize()) {
+                // The library stays composed underneath the pages, so its tab,
+                // search text and scroll position are still there on the way back.
+                LibraryScreen(onOpenPage = openPage, onRequestAudioPermission = requestAudioPermission)
 
-            stack.lastOrNull()?.let { page ->
-                Surface(Modifier.fillMaxSize()) {
-                    PageContent(page, onOpenPage = openPage, onBack = closePage)
+                stack.lastOrNull()?.let { page ->
+                    Surface(Modifier.fillMaxSize()) {
+                        PageContent(page, onOpenPage = openPage, onBack = closePage)
+                    }
                 }
-            }
 
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 72.dp), // above the mini player bar
-            )
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 72.dp), // above the mini player bar
+                )
+            }
         }
     }
 }
@@ -91,17 +99,16 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
             title = page.name.ifEmpty { stringResource(R.string.unknown_album) },
             tracks = remember(tracks, page.name) { tracksInAlbum(tracks, page.name) },
             onBack = onBack,
-            onOpenPage = onOpenPage,
         )
         is Page.ArtistDetail -> GroupPage(
             title = page.name.ifEmpty { stringResource(R.string.unknown_artist) },
             tracks = remember(tracks, page.name) { tracksByArtist(tracks, page.name) },
             onBack = onBack,
-            onOpenPage = onOpenPage,
         )
         is Page.PlaylistDetail -> PlaylistPage(page.id, onBack = onBack, onOpenPage = onOpenPage)
         is Page.AddTracks -> AddTracksPage(page.playlistId, onBack = onBack)
         is Page.EditTags -> TagEditorPage(page.trackUri, onBack = onBack)
+        is Page.WallpaperTracks -> WallpaperTracksPage(page.entryId, page.newVideoUri, onBack = onBack)
     }
 }
 
@@ -163,7 +170,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     .fillMaxWidth()
             ) {
                 when (selectedTab) {
-                    LibraryTab.Tracks -> TracksTab(onRequestAudioPermission, onOpenPage)
+                    LibraryTab.Tracks -> TracksTab(onRequestAudioPermission)
                     LibraryTab.Albums -> GroupsTab(
                         groups = remember(tracks) { albumGroups(tracks) },
                         unknownName = R.string.unknown_album,
@@ -180,22 +187,10 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     LibraryTab.Playlists -> PlaylistsTab(onOpenPage)
                     LibraryTab.Equalizer -> EqualizerTab()
                     LibraryTab.Settings -> SettingsTab()
-                    LibraryTab.Wallpapers -> ComingInStage(selectedTab)
+                    LibraryTab.Wallpapers -> WallpapersTab(onOpenPage)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ComingInStage(tab: LibraryTab) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        CenteredText(stringResource(R.string.tab_coming_in_stage, stringResource(tab.title), tab.comingInStage ?: 0))
     }
 }
 

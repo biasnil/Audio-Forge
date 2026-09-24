@@ -4,6 +4,7 @@ import android.content.Context
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
 import com.biasnil.audioforge.data.LibraryRepository
+import com.biasnil.audioforge.data.WallpaperRepository
 import com.biasnil.audioforge.lyrics.LyricsRepository
 import com.biasnil.audioforge.tags.TagEditor
 import com.biasnil.audioforge.playback.PlaybackManager
@@ -22,4 +23,5 @@ class AppContainer(context: Context) {
     val playback = PlaybackManager(context, store, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
+    val wallpapers = WallpaperRepository(context, store)
 }

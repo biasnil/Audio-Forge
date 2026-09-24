@@ -10,7 +10,6 @@
     <string name="tab_equalizer">Equalizer</string>
     <string name="tab_wallpapers">Wallpapers</string>
     <string name="tab_settings">Settings</string>
-    <string name="tab_coming_in_stage">%1$s arrives in stage %2$d.</string>
 
     <plurals name="track_count">
         <item quantity="one">%d track</item>
@@ -127,4 +126,28 @@
     <string name="tags_error_permission">AudioForge wasn't allowed to change this file.</string>
     <string name="tags_error_io">Couldn't read or write the file. It may have been moved or deleted.</string>
     <string name="tags_error_write">Couldn't save the tags.</string>
+    <!-- Cover art -->
+    <string name="cover_change">Change cover</string>
+    <string name="cover_changed">Cover updated.</string>
+    <string name="cover_error_image">Couldn't read that image.</string>
+
+    <!-- Wallpapers tab -->
+    <string name="wallpaper_global">Global wallpaper</string>
+    <string name="wallpaper_global_explanation">Plays behind Now Playing for any song that has no wallpaper of its own.</string>
+    <string name="wallpaper_none">None</string>
+    <string name="wallpaper_choose_video">Choose video</string>
+    <string name="wallpaper_clear">Clear</string>
+    <string name="wallpaper_per_song">Song wallpapers</string>
+    <string name="wallpaper_per_song_none">No song wallpapers yet. The first one that includes a song is used for it.</string>
+    <string name="wallpaper_edit_songs">Songs</string>
+    <string name="wallpaper_add">Add wallpaper</string>
+    <string name="wallpaper_remove_title">Remove wallpaper</string>
+    <string name="wallpaper_remove_confirm">Remove this wallpaper assignment? The video file itself isn't deleted.</string>
+    <string name="wallpaper_done_count">Done (%1$d)</string>
+    <string name="wallpaper_select_all_shown">Select / clear all shown</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_wallpaper">Video wallpaper</string>
+    <string name="settings_wallpaper_enabled">Show video wallpapers</string>
+    <string name="settings_wallpaper_opacity">Wallpaper opacity: %1$d%%</string>
 </resources>

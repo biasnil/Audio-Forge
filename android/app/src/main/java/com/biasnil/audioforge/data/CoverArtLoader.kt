@@ -7,6 +7,9 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.util.Collections
 
@@ -23,7 +26,19 @@ class CoverArtLoader(private val context: Context) {
     /** Tracks known to have no art, so they aren't re-read on every recomposition. */
     private val missing: MutableSet<String> = Collections.synchronizedSet(HashSet())
 
+    private val _version = MutableStateFlow(0)
+    /** Bumped when a cover changes, so anything showing art reloads it. */
+    val version: StateFlow<Int> = _version.asStateFlow()
+
     fun cached(track: Track, sizePx: Int): Bitmap? = cache.get(key(track, sizePx))
+
+    /** Forgets everything cached for [uri] (after its cover was changed). */
+    fun invalidate(uri: String) {
+        val prefix = "$uri@"
+        cache.snapshot().keys.filter { it.startsWith(prefix) }.forEach { cache.remove(it) }
+        synchronized(missing) { missing.removeAll { it.startsWith(prefix) } }
+        _version.value++
+    }
 
     suspend fun load(track: Track, sizePx: Int): Bitmap? {
         val key = key(track, sizePx)

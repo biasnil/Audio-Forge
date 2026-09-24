@@ -15,6 +15,8 @@ sealed interface Page {
     data class PlaylistDetail(val id: String) : Page
     data class AddTracks(val playlistId: String) : Page
     data class EditTags(val trackUri: String) : Page
+    /** Songs for a wallpaper video: an existing assignment ([entryId]) or a new one ([newVideoUri]). */
+    data class WallpaperTracks(val entryId: String?, val newVideoUri: String?) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -23,6 +25,7 @@ sealed interface Page {
         is PlaylistDetail -> "playlist:$id"
         is AddTracks -> "add:$playlistId"
         is EditTags -> "tags:$trackUri"
+        is WallpaperTracks -> if (entryId != null) "wall:$entryId" else "wallnew:${newVideoUri.orEmpty()}"
     }
 
     companion object {
@@ -33,6 +36,8 @@ sealed interface Page {
             value.startsWith("playlist:") -> PlaylistDetail(value.removePrefix("playlist:"))
             value.startsWith("add:") -> AddTracks(value.removePrefix("add:"))
             value.startsWith("tags:") -> EditTags(value.removePrefix("tags:"))
+            value.startsWith("wallnew:") -> WallpaperTracks(entryId = null, newVideoUri = value.removePrefix("wallnew:"))
+            value.startsWith("wall:") -> WallpaperTracks(entryId = value.removePrefix("wall:"), newVideoUri = null)
             else -> null
         }
     }

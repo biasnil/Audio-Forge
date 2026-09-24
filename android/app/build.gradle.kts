@@ -16,8 +16,8 @@ android {
         // it runs unchanged on both 4 KB and 16 KB memory page size devices.
         minSdk = 34
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.media3.ui) // PlayerView, for the video wallpaper
     // Tag editing (the desktop uses TagLib; this is the pure-Java equivalent).
     implementation(libs.jaudiotagger)
     implementation(libs.androidx.activity.compose)

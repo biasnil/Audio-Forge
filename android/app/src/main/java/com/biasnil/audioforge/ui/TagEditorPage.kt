@@ -1,11 +1,5 @@
 package com.biasnil.audioforge.ui
 
-import android.app.Activity
-import android.net.Uri
-import android.provider.MediaStore
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -49,7 +42,6 @@ import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.Track
 import com.biasnil.audioforge.tags.TagEditException
 import com.biasnil.audioforge.tags.TagFileEditor
-import kotlinx.coroutines.launch
 import java.io.IOException
 
 /** Ordered (field key, value) pairs; saved as "KEY\u0000value" strings so edits survive rotation. */
@@ -71,7 +63,6 @@ private val FieldListSaver = listSaver<List<Pair<String, String>>?, String>(
 fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val track: Track? = remember(trackUri) {
         container.library.trackFor(trackUri)
             ?: container.playback.state.value.current?.takeIf { it.uri == trackUri }
@@ -88,7 +79,6 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
     var loadError by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
-    var askFolderAccess by remember { mutableStateOf(false) }
     var addingField by remember { mutableStateOf(false) }
 
     LaunchedEffect(trackUri) {
@@ -102,50 +92,22 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
         }
     }
 
-    val performSave: () -> Unit = {
+    val writeFile = rememberTrackFileWriter()
+    val trackActions = LocalTrackActions.current
+    val startSave: () -> Unit = {
         val baseline = original
         val edited = fields
         if (baseline != null && edited != null && !saving) {
             saving = true
             saveError = null
-            scope.launch {
-                // Like the desktop: the playing song is released while its file is rewritten.
-                val hold = container.playback.releaseFileForEdit(track.uri)
-                val result = runCatching { container.tagEditor.write(track, baseline, edited.toMap()) }
-                val updated = container.library.reloadTrack(track)
-                container.playback.resumeAfterFileEdit(updated, hold)
+            writeFile(track, { container.tagEditor.write(track, baseline, edited.toMap()) }) { error ->
                 saving = false
-                result.onSuccess { onBack() }
-                    .onFailure { saveError = errorMessage(context, it) }
+                when (error) {
+                    null -> onBack()
+                    WriteCancelled -> Unit
+                    else -> saveError = errorMessage(context, error)
+                }
             }
-        }
-    }
-
-    // Phone-library songs: Android's "Allow AudioForge to modify this audio file?" prompt.
-    val writeRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) performSave()
-    }
-    // Added folders from before tag editing existed: re-pick the folder once to grant write access.
-    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
-        val folder = track.sourceFolder
-        if (picked != null && folder != null) {
-            if (container.library.grantFolderWriteAccess(picked, folder)) {
-                performSave()
-            } else {
-                saveError = context.getString(R.string.tags_error_wrong_folder)
-            }
-        }
-    }
-
-    val startSave: () -> Unit = {
-        val folder = track.sourceFolder
-        when {
-            folder == null -> {
-                val request = MediaStore.createWriteRequest(context.contentResolver, listOf(Uri.parse(track.uri)))
-                writeRequest.launch(IntentSenderRequest.Builder(request.intentSender).build())
-            }
-            !container.library.hasFolderWriteAccess(folder) -> askFolderAccess = true
-            else -> performSave()
         }
     }
 
@@ -185,13 +147,18 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             CoverImage(track, decodeSize = 72.dp, modifier = Modifier.size(72.dp))
                             Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = track.fileName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = track.fileName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                TextButton(onClick = { trackActions.changeCover(track) }, enabled = !saving) {
+                                    Text(stringResource(R.string.cover_change))
+                                }
+                            }
                         }
                     }
                     items(currentFields, key = { it.first }) { (key, value) ->
@@ -214,23 +181,6 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                 }
             }
         }
-    }
-
-    if (askFolderAccess) {
-        AlertDialog(
-            onDismissRequest = { askFolderAccess = false },
-            title = { Text(stringResource(R.string.tags_folder_access_title)) },
-            text = { Text(stringResource(R.string.tags_folder_access_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    askFolderAccess = false
-                    folderPicker.launch(track.sourceFolder?.let(Uri::parse))
-                }) { Text(stringResource(R.string.tags_folder_access_continue)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { askFolderAccess = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
     }
 
     if (addingField) {
@@ -321,7 +271,8 @@ private fun AddFieldDialog(keys: List<String>, onDismiss: () -> Unit, onAdd: (St
     )
 }
 
-private fun errorMessage(context: android.content.Context, error: Throwable): String = when (error) {
+/** A message for a failed tag/cover read or write. */
+fun errorMessage(context: android.content.Context, error: Throwable): String = when (error) {
     is TagEditException -> when (error.kind) {
         TagEditException.Kind.UnsupportedFormat -> context.getString(R.string.tags_error_unsupported)
         TagEditException.Kind.InvalidValue -> context.getString(
@@ -330,6 +281,7 @@ private fun errorMessage(context: android.content.Context, error: Throwable): St
         )
         TagEditException.Kind.WriteFailed -> context.getString(R.string.tags_error_write)
     }
+    is WrongFolderPicked -> context.getString(R.string.tags_error_wrong_folder)
     is SecurityException -> context.getString(R.string.tags_error_permission)
     is IOException -> context.getString(R.string.tags_error_io)
     else -> context.getString(R.string.tags_error_write)

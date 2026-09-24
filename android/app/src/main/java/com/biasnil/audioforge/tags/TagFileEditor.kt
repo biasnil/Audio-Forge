@@ -8,7 +8,14 @@ import org.jaudiotagger.tag.FieldDataInvalidException
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.TagOptionSingleton
+import org.jaudiotagger.tag.flac.FlacTag
+import org.jaudiotagger.tag.vorbiscomment.VorbisCommentFieldKey
+import org.jaudiotagger.tag.vorbiscomment.VorbisCommentTag
+import org.jaudiotagger.audio.flac.metadatablock.MetadataBlockDataPicture
+import org.jaudiotagger.tag.images.ArtworkFactory
+import org.jaudiotagger.tag.reference.PictureTypes
 import java.io.File
+import java.util.Base64
 import java.util.Locale
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -121,6 +128,85 @@ object TagFileEditor {
             throw TagEditException(TagEditException.Kind.WriteFailed, cause = e)
         }
     }
+
+    /**
+     * Replaces the embedded cover art with [imageData] -- a full replace, not
+     * an add, so the file doesn't end up with two front covers (the
+     * desktop's WriteCoverArt()). [mimeType] must match the bytes
+     * ("image/jpeg" or "image/png").
+     */
+    fun writeCover(file: File, imageData: ByteArray, mimeType: String) {
+        val audioFile = open(file)
+        val tag = audioFile.tagOrCreateAndSetDefault
+        try {
+            when (tag) {
+                // FLAC and Ogg store a FLAC picture block. jaudiotagger's generic
+                // path would decode the image to measure it, which its Android
+                // mode can't do -- so the block is built here, with the size
+                // read from the image header.
+                is FlacTag -> {
+                    tag.deleteArtworkField()
+                    tag.setField(pictureBlock(imageData, mimeType))
+                }
+                is VorbisCommentTag -> {
+                    tag.deleteArtworkField()
+                    val encoded = Base64.getEncoder().encodeToString(pictureBlock(imageData, mimeType).rawContent)
+                    tag.setField(tag.createField(VorbisCommentFieldKey.METADATA_BLOCK_PICTURE, encoded))
+                }
+                else -> { // MP3/WAV (ID3 APIC), M4A (covr)
+                    val artwork = ArtworkFactory.getNew() // AndroidArtwork in Android mode
+                    artwork.binaryData = imageData
+                    artwork.mimeType = mimeType
+                    artwork.pictureType = PictureTypes.DEFAULT_ID // front cover
+                    tag.deleteArtworkField()
+                    tag.setField(artwork)
+                }
+            }
+        } catch (e: Exception) {
+            throw TagEditException(TagEditException.Kind.UnsupportedFormat, cause = e)
+        }
+        try {
+            audioFile.commit()
+        } catch (e: CannotWriteException) {
+            throw TagEditException(TagEditException.Kind.WriteFailed, cause = e)
+        }
+    }
+
+    private fun pictureBlock(imageData: ByteArray, mimeType: String): MetadataBlockDataPicture {
+        val (width, height) = imageDimensions(imageData) ?: (0 to 0)
+        return MetadataBlockDataPicture(imageData, PictureTypes.DEFAULT_ID, mimeType, "", width, height, 0, 0)
+    }
+
+    /** Width x height from a PNG or JPEG header, without decoding the image. */
+    internal fun imageDimensions(bytes: ByteArray): Pair<Int, Int>? {
+        fun u8(i: Int) = bytes[i].toInt() and 0xFF
+        fun u16(i: Int) = (u8(i) shl 8) or u8(i + 1)
+        fun u32(i: Int) = (u16(i) shl 16) or u16(i + 2)
+        // PNG: 8-byte signature, then the IHDR chunk with width/height.
+        if (bytes.size >= 24 && u8(0) == 0x89 && u8(1) == 'P'.code && u8(2) == 'N'.code && u8(3) == 'G'.code) {
+            return u32(16) to u32(20)
+        }
+        // JPEG: walk the segments to the first start-of-frame marker.
+        if (bytes.size >= 4 && u8(0) == 0xFF && u8(1) == 0xD8) {
+            var i = 2
+            while (i + 9 < bytes.size) {
+                if (u8(i) != 0xFF) return null
+                val marker = u8(i + 1)
+                if (marker == 0xD8 || marker in 0xD0..0xD7 || marker == 0x01 || marker == 0xFF) {
+                    i += if (marker == 0xFF) 1 else 2
+                    continue
+                }
+                if (marker in 0xC0..0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
+                    return u16(i + 7) to u16(i + 5)
+                }
+                i += 2 + u16(i + 2)
+            }
+        }
+        return null
+    }
+
+    /** The embedded front cover's bytes, or null if there is none. */
+    fun readCover(file: File): ByteArray? = open(file).tag?.firstArtwork?.binaryData
 
     /** Whether the editor should offer a number keyboard (and save rejects non-digits). */
     fun isNumeric(keyName: String): Boolean = keyName in NUMERIC_KEYS

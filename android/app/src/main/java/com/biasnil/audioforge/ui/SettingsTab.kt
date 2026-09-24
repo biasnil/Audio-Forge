@@ -88,6 +88,9 @@ fun SettingsTab() {
         PlaybackSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
+        WallpaperSettings()
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
         LyricsSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
@@ -147,6 +150,31 @@ private fun PlaybackSettings() {
         valueRange = range.first.toFloat()..range.last.toFloat(),
         steps = range.last - range.first - 1, // whole seconds
         enabled = settings.crossfadeEnabled,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+}
+
+/** The desktop's Video Wallpaper settings: on/off and opacity. Videos are chosen in the Wallpapers tab. */
+@Composable
+private fun WallpaperSettings() {
+    val store = LocalAppContainer.current.store
+    val settings by store.settings.collectAsStateWithLifecycle()
+
+    SectionHeader(stringResource(R.string.settings_wallpaper))
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_wallpaper_enabled),
+        checked = settings.videoWallpaperEnabled,
+        onCheckedChange = { on -> store.update { it.copy(videoWallpaperEnabled = on) } },
+    )
+    Text(
+        text = stringResource(R.string.settings_wallpaper_opacity, settings.videoWallpaperOpacityPercent),
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    Slider(
+        value = settings.videoWallpaperOpacityPercent.toFloat(),
+        onValueChange = { value -> store.update { it.copy(videoWallpaperOpacityPercent = value.roundToInt().coerceIn(0, 100)) } },
+        valueRange = 0f..100f,
+        enabled = settings.videoWallpaperEnabled, // dimming a wallpaper that's off is meaningless
         modifier = Modifier.padding(horizontal = 16.dp),
     )
 }

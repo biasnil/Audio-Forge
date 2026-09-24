@@ -137,7 +137,8 @@ fun CoverImage(
 fun rememberCoverArt(track: Track, decodeSize: Dp): State<Bitmap?> {
     val loader = LocalAppContainer.current.coverArt
     val sizePx = with(LocalDensity.current) { decodeSize.roundToPx() }
-    return produceState(initialValue = loader.cached(track, sizePx), track.uri, sizePx) {
+    val version by loader.version.collectAsStateWithLifecycle() // reload after a cover change
+    return produceState(initialValue = loader.cached(track, sizePx), track.uri, sizePx, version) {
         value = loader.load(track, sizePx)
     }
 }
