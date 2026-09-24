@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">AudioForge</string>
+
+    <string name="theme_switch_to_light">Light mode</string>
+    <string name="theme_switch_to_dark">Dark mode</string>
+
+    <!-- Same tabs, same order as the desktop app -->
+    <string name="tab_albums">Albums</string>
+    <string name="tab_tracks">Tracks</string>
+    <string name="tab_artists">Artists</string>
+    <string name="tab_folders">Folders</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_equalizer">Equalizer</string>
+    <string name="tab_wallpapers">Wallpapers</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="tab_coming_in_stage">%1$s arrives in stage %2$d.</string>
+</resources>
