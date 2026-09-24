@@ -46,6 +46,8 @@ data class AppSettings(
     /** Used when the playing song has no wallpaper of its own; "" = none. */
     val globalWallpaperUri: String = "",
     val wallpapers: List<WallpaperEntry> = emptyList(),
+    /** Phone-library folders whose songs are hidden (Track.folderKey values; subfolders included). */
+    val hiddenFolders: Set<String> = emptySet(),
 ) {
     companion object {
         const val EQ_BAND_COUNT = 10
@@ -102,6 +104,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 videoWallpaperEnabled = root.optBoolean("videoWallpaperEnabled", true),
                 videoWallpaperOpacityPercent = root.optInt("videoWallpaperOpacityPercent", 100).coerceIn(0, 100),
                 globalWallpaperUri = root.optString("globalWallpaperUri", ""),
+                hiddenFolders = root.optJSONArray("hiddenFolders").toStringList().toSet(),
                 wallpapers = root.optJSONArray("wallpapers").toObjects().map { obj ->
                     WallpaperEntry(
                         id = obj.getString("id"),
@@ -135,6 +138,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("videoWallpaperEnabled", settings.videoWallpaperEnabled)
             .put("videoWallpaperOpacityPercent", settings.videoWallpaperOpacityPercent)
             .put("globalWallpaperUri", settings.globalWallpaperUri)
+            .put("hiddenFolders", JSONArray(settings.hiddenFolders.toList()))
             .put("wallpapers", JSONArray(settings.wallpapers.map { entry ->
                 JSONObject()
                     .put("id", entry.id)

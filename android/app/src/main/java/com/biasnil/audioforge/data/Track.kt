@@ -25,4 +25,10 @@ data class Track(
     val folderCoverUri: String? = null,
     /** Same-name .lrc (or .txt) next to the file (added folders only) -- the desktop's sidecar lyrics. */
     val sidecarLyricsUri: String? = null,
+    /**
+     * Phone-library tracks only: "<volume>|<folder path>/", e.g.
+     * "external_primary|Music/Rock/" -- what the folder hide list matches on.
+     * Empty for added-folder tracks (those folders were chosen on purpose).
+     */
+    val folderKey: String = "",
 )

@@ -43,6 +43,38 @@ fun tracksByArtist(tracks: List<Track>, artist: String): List<Track> =
                 .thenBy(nameOrder) { it.title }
         )
 
+/** A folder in the phone's music library, with how many songs it holds (for the Folders tab's hide list). */
+data class LibraryFolder(val key: String, val trackCount: Int) {
+    /** "Music/Rock" (plus the storage volume if it isn't the internal one). */
+    val path: String get() = folderPath(key)
+    /** "Rock" */
+    val name: String get() = path.substringAfterLast('/').ifEmpty { path }
+}
+
+/** "external_primary|Music/Rock/" -> "Music/Rock"; other volumes (SD cards) keep their id in front. */
+fun folderPath(folderKey: String): String {
+    val volume = folderKey.substringBefore('|', "")
+    val path = folderKey.substringAfter('|').trimEnd('/')
+    return if (volume.isEmpty() || volume == "external_primary") path else "$volume/$path"
+}
+
+/** Whether [folderKey] is [hidden] itself or inside it (keys end with '/', so "Music/" doesn't match "Music2/"). */
+fun isInFolder(folderKey: String, hidden: String): Boolean =
+    folderKey.isNotEmpty() && folderKey.startsWith(hidden)
+
+/** Drops tracks whose folder is hidden, or inside a hidden folder. */
+fun excludeFolders(tracks: List<Track>, hiddenFolders: Set<String>): List<Track> =
+    if (hiddenFolders.isEmpty()) tracks
+    else tracks.filter { track -> hiddenFolders.none { isInFolder(track.folderKey, it) } }
+
+/** Every phone-library folder that directly holds songs, A-Z by path. */
+fun folderCounts(tracks: List<Track>): List<LibraryFolder> =
+    tracks.filter { it.folderKey.isNotEmpty() }
+        .groupingBy { it.folderKey }
+        .eachCount()
+        .map { (key, count) -> LibraryFolder(key, count) }
+        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.path })
+
 fun libraryStats(tracks: List<Track>) = LibraryStats(
     tracks = tracks.size,
     albums = tracks.map { it.album.trim() }.toSet().size,
