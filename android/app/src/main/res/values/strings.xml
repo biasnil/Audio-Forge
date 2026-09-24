@@ -118,18 +118,18 @@
     <string name="tags_remove_field">Remove field</string>
     <string name="tags_hint">Tip: long-press a song in any list to edit its tags.</string>
     <string name="tags_folder_access_title">Allow editing in this folder</string>
-    <string name="tags_folder_access_text">This folder was added before AudioForge could edit tags, so it only has permission to read it. In the next screen, choose the same folder again and tap "Use this folder" to allow saving tags into its files. This is only needed once per folder.</string>
+    <string name="tags_folder_access_text">This folder was added before AudioForge could edit tags, so it only has permission to read it. In the next screen, choose the same folder again and tap \"Use this folder\" to allow saving tags into its files. This is only needed once per folder.</string>
     <string name="tags_folder_access_continue">Continue</string>
     <string name="tags_error_wrong_folder">That was a different folder. Pick the same folder the song is in to allow editing.</string>
-    <string name="tags_error_unsupported">This file type can't be edited (Opus files aren't supported yet).</string>
+    <string name="tags_error_unsupported">This file type can\'t be edited (Opus files aren\'t supported yet).</string>
     <string name="tags_error_not_a_number">%1$s must be a whole number.</string>
-    <string name="tags_error_permission">AudioForge wasn't allowed to change this file.</string>
-    <string name="tags_error_io">Couldn't read or write the file. It may have been moved or deleted.</string>
-    <string name="tags_error_write">Couldn't save the tags.</string>
+    <string name="tags_error_permission">AudioForge wasn\'t allowed to change this file.</string>
+    <string name="tags_error_io">Couldn\'t read or write the file. It may have been moved or deleted.</string>
+    <string name="tags_error_write">Couldn\'t save the tags.</string>
     <!-- Cover art -->
     <string name="cover_change">Change cover</string>
     <string name="cover_changed">Cover updated.</string>
-    <string name="cover_error_image">Couldn't read that image.</string>
+    <string name="cover_error_image">Couldn\'t read that image.</string>
 
     <!-- Wallpapers tab -->
     <string name="wallpaper_global">Global wallpaper</string>
@@ -142,7 +142,7 @@
     <string name="wallpaper_edit_songs">Songs</string>
     <string name="wallpaper_add">Add wallpaper</string>
     <string name="wallpaper_remove_title">Remove wallpaper</string>
-    <string name="wallpaper_remove_confirm">Remove this wallpaper assignment? The video file itself isn't deleted.</string>
+    <string name="wallpaper_remove_confirm">Remove this wallpaper assignment? The video file itself isn\'t deleted.</string>
     <string name="wallpaper_done_count">Done (%1$d)</string>
     <string name="wallpaper_select_all_shown">Select / clear all shown</string>
 
