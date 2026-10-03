@@ -36,11 +36,14 @@ a sleep timer and resuming the last song on launch.
 1. iOS App template, SwiftUI, Swift. Supported Destinations: iPhone only (not Mac).
 2. Add every .swift file in this folder to the app target. (With Xcode 16+'s folder-synced
    groups, files dropped into the group are added automatically.)
-3. Signing & Capabilities: Background Modes -> "Audio, AirPlay, and Picture in Picture".
-4. Info tab keys (both YES):
+3. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
+   the one in your project's Assets). It's a single 1024×1024 image made from the Android
+   launcher icon; Xcode makes the other sizes.
+4. Signing & Capabilities: Background Modes -> "Audio, AirPlay, and Picture in Picture".
+5. Info tab keys (both YES):
    - UIFileSharingEnabled (Application supports iTunes file sharing)
    - LSSupportsOpeningDocumentsInPlace (Supports opening documents in place)
-5. The project uses default MainActor isolation (Xcode 26 default), so background-safe
+6. The project uses default MainActor isolation (Xcode 26 default), so background-safe
    types are marked `nonisolated`. `import Combine` is required where @Published is used.
 
 No permission prompts are needed: photos and videos are picked with the system picker,
