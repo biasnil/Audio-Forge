@@ -10,6 +10,7 @@ struct NowPlayingView: View {
     @State private var lyrics: LyricsContent = .none
     @State private var showLyrics = false
     @State private var videoFailed = false
+    @State private var backdrop: (key: String, image: UIImage)?
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -24,7 +25,7 @@ struct NowPlayingView: View {
         VStack(spacing: 18) {
             if lyricsMode {
                 HStack(spacing: 12) {
-                    ArtworkView(data: player.currentSong?.artworkData, size: 56)
+                    ArtworkView(data: player.currentSong?.artworkData, size: 56, cacheKey: player.currentSong?.key)
                     titleBlock(alignment: .leading, large: false)
                     Spacer()
                 }
@@ -34,13 +35,14 @@ struct NowPlayingView: View {
                     .frame(maxHeight: .infinity)
             } else {
                 Spacer(minLength: 16)
-                ArtworkView(data: player.currentSong?.artworkData, size: 300)
+                ArtworkView(data: player.currentSong?.artworkData, size: 300, cacheKey: player.currentSong?.key,
+                            cornerRadius: 10)
                     .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
                     .contextMenu { coverMenu }                  // long-press the cover
                 titleBlock(alignment: .center, large: true)
             }
 
-            progress
+            ProgressSlider(remaining: true, timeFont: .caption.monospacedDigit())
             controls
             volume
             extras
@@ -61,6 +63,14 @@ struct NowPlayingView: View {
             if !Task.isCancelled { lyrics = found }
         }
         .onChange(of: player.currentSong?.key) { _, _ in videoFailed = false }
+        .task(id: player.currentSong?.key) {
+            guard let song = player.currentSong, let data = song.artworkData else {
+                backdrop = nil
+                return
+            }
+            let image = await Task.detached(priority: .utility) { ImageTools.backdrop(data) }.value
+            if let image, !Task.isCancelled { backdrop = (song.key, image) }
+        }
     }
 
     /// Title/artist too: after a tag edit the lookup runs again with the new names.
@@ -83,11 +93,11 @@ struct NowPlayingView: View {
                     let playable = (try? await AVURLAsset(url: url).load(.isPlayable)) ?? false
                     if !playable { videoFailed = true }
                 }
-        } else if let data = player.currentSong?.artworkData, let image = UIImage(data: data) {
-            Image(uiImage: image)
+        } else if let backdrop, backdrop.key == player.currentSong?.key {
+            // Blurred once per song, in the background (see backdropTask).
+            Image(uiImage: backdrop.image)
                 .resizable()
                 .scaledToFill()
-                .blur(radius: 60)
                 .opacity(0.35)
                 .ignoresSafeArea()
         }
@@ -119,22 +129,6 @@ struct NowPlayingView: View {
                 .font(large ? .body : .subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-        }
-    }
-
-    private var progress: some View {
-        VStack(spacing: 4) {
-            Slider(
-                value: Binding(get: { player.currentTime }, set: { player.seek(to: $0) }),
-                in: 0...max(player.duration, 1)
-            )
-            HStack {
-                Text(formatTime(player.currentTime))
-                Spacer()
-                Text("-" + formatTime(max(player.duration - player.currentTime, 0)))
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
         }
     }
 

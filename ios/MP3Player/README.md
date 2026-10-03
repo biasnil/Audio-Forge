@@ -31,23 +31,48 @@ a sleep timer and resuming the last song on launch.
 - NowPlayingView.swift  – Full-screen player (controls, volume/AirPlay, speed, lyrics, sleep timer)
 - LyricsView.swift      – .lrc parser (UTF-8/UTF-16/GB18030), synced and plain lyrics views
 - LyricsFinder.swift    – Lyrics lookup: cache, LRCLIB, Musixmatch, then the local .lrc/.txt
+- Artwork.swift         – PlaybackClock (playback position), thumbnail cache, ArtworkView,
+                          background image downsampling and the Now Playing backdrop blur
 
 ## Xcode project setup
-1. iOS App template, SwiftUI, Swift. Supported Destinations: iPhone only (not Mac).
-2. Add every .swift file in this folder to the app target. (With Xcode 16+'s folder-synced
+1. iOS App template, SwiftUI, Swift.
+2. **iPhone only.** General → Supported Destinations: remove **Mac** (select it, click −).
+   If the project was created as Multiplatform, also delete **App Sandbox** in Signing &
+   Capabilities (trash icon on its row) — it's macOS-only, and while the target is a Mac
+   target the iPhone settings below don't show up.
+3. Add every .swift file in this folder to the app target. (With Xcode 16+'s folder-synced
    groups, files dropped into the group are added automatically.)
-3. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
+4. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
    the one in your project's Assets). It's a single 1024×1024 image made from the Android
    launcher icon; Xcode makes the other sizes.
-4. Signing & Capabilities: Background Modes -> "Audio, AirPlay, and Picture in Picture".
-5. Info tab keys (both YES):
-   - UIFileSharingEnabled (Application supports iTunes file sharing)
-   - LSSupportsOpeningDocumentsInPlace (Supports opening documents in place)
-6. The project uses default MainActor isolation (Xcode 26 default), so background-safe
+5. **Background audio (required)** — without it music stops when you leave the app or lock
+   the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
+   **Background Modes** → tick **Audio, AirPlay, and Picture in Picture**. (This adds
+   `UIBackgroundModes = audio` to Info.plist.) The app shows a "Background Audio Is Off"
+   alert at launch, and a warning in Settings, until this is on.
+6. **Show songs in the Files app** — Info tab, hover a row, click **+**, and add (both YES):
+   - Application supports iTunes file sharing (`UIFileSharingEnabled`)
+   - Supports opening documents in place (`LSSupportsOpeningDocumentsInPlace`)
+
+   If the Info tab won't add them, set them in Build Settings instead: search
+   `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, set both to Yes.
+7. Rebuild and run on the iPhone (delete the old app first if the icon doesn't update).
+8. The project uses default MainActor isolation (Xcode 26 default), so background-safe
    types are marked `nonisolated`. `import Combine` is required where @Published is used.
 
 No permission prompts are needed: photos and videos are picked with the system picker,
-and folders with the Files picker.
+folders with the Files picker, and lyrics lookups work with the default network settings.
+
+## Performance notes
+- Test speed with a **Release** build (Edit Scheme → Run → Build Configuration → Release, or
+  TestFlight). Debug builds with the debugger attached are several times slower in SwiftUI.
+- The playback position is published by `PlaybackClock`, not `PlayerManager`, so only the
+  progress bars and lyrics redraw while music plays. Seek bars seek once, when released.
+- Cover art is kept at ≤900 px; list rows decode small thumbnails in the background and
+  cache them. The Now Playing backdrop is blurred once per song.
+- Lists, album/artist/folder groups and stats are computed when the library changes, not on
+  every redraw. Returning to the app only rescans if Documents changed or 10 minutes passed
+  (pull to refresh always rescans).
 
 ## Where things are stored
 - Songs you import: the app's Documents folder (visible in Files and Finder).

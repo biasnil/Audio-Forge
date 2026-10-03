@@ -1,11 +1,14 @@
 import SwiftUI
+import Combine
 
-// MARK: - Grouping
+// MARK: - Grouping (computed once per library change, in LibraryManager)
 
 struct AlbumGroup: Identifiable {
     let name: String
     let artist: String
     let artwork: Data?
+    /// Key of the song the artwork came from (for the thumbnail cache).
+    let artworkKey: String?
     var id: String { name }
 
     static func make(from songs: [Song]) -> [AlbumGroup] {
@@ -13,10 +16,12 @@ struct AlbumGroup: Identifiable {
             .map { name, items in
                 let albumArtist = items.first { !$0.albumArtist.isEmpty }?.albumArtist
                 let artists = Set(items.map(\.artist))
+                let withArt = items.first { $0.artworkData != nil }
                 return AlbumGroup(
                     name: name,
                     artist: albumArtist ?? (artists.count == 1 ? items[0].artist : "Various Artists"),
-                    artwork: items.first { $0.artworkData != nil }?.artworkData
+                    artwork: withArt?.artworkData,
+                    artworkKey: withArt?.key
                 )
             }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -28,16 +33,19 @@ struct ArtistGroup: Identifiable {
     let songCount: Int
     let albumCount: Int
     let artwork: Data?
+    let artworkKey: String?
     var id: String { name }
 
     static func make(from songs: [Song]) -> [ArtistGroup] {
         Dictionary(grouping: songs, by: \.artist)
             .map { name, items in
-                ArtistGroup(
+                let withArt = items.first { $0.artworkData != nil }
+                return ArtistGroup(
                     name: name,
                     songCount: items.count,
                     albumCount: Set(items.map(\.album)).count,
-                    artwork: items.first { $0.artworkData != nil }?.artworkData
+                    artwork: withArt?.artworkData,
+                    artworkKey: withArt?.key
                 )
             }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -53,7 +61,7 @@ struct AlbumsView: View {
                            GridItem(.flexible(), spacing: 16)]
 
     var body: some View {
-        let albums = AlbumGroup.make(from: library.songs)
+        let albums = library.albums
 
         NavigationStack {
             ScrollView {
@@ -61,7 +69,7 @@ struct AlbumsView: View {
                     ForEach(albums) { album in
                         NavigationLink(value: album.name) {
                             VStack(alignment: .leading, spacing: 4) {
-                                SquareArtwork(data: album.artwork)
+                                SquareArtwork(data: album.artwork, cacheKey: album.artworkKey)
                                 Text(album.name)
                                     .font(.subheadline.weight(.medium))
                                     .lineLimit(1)
@@ -96,14 +104,13 @@ struct ArtistsView: View {
     @EnvironmentObject private var library: LibraryManager
 
     var body: some View {
-        let artists = ArtistGroup.make(from: library.songs)
+        let artists = library.artists
 
         NavigationStack {
             List(artists) { artist in
                 NavigationLink(value: artist.name) {
                     HStack(spacing: 12) {
-                        SquareArtwork(data: artist.artwork, cornerRadius: 22)
-                            .frame(width: 44, height: 44)
+                        ArtworkView(data: artist.artwork, size: 44, cacheKey: artist.artworkKey, cornerRadius: 22)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(artist.name).lineLimit(1)
                             Text("\(artist.songCount) song\(artist.songCount == 1 ? "" : "s") · "
@@ -129,7 +136,7 @@ struct ArtistsView: View {
     }
 }
 
-// MARK: - Songs of one album / artist
+// MARK: - Songs of one album / artist / folder
 
 struct SongCollectionView: View {
     let title: String
@@ -138,19 +145,21 @@ struct SongCollectionView: View {
 
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var player: PlayerManager
+    /// Filtered and sorted only when the library changes, not on every redraw.
+    @State private var songs: [Song] = []
 
     /// Album pages in disc/track order; artist pages by album, then track.
-    private var songs: [Song] {
-        sortSongs(library.songs.filter(match), by: sortByAlbum ? .artist : .album)
+    private func compute(_ all: [Song]) -> [Song] {
+        sortSongs(all.filter(match), by: sortByAlbum ? .artist : .album)
     }
 
     var body: some View {
-        let songs = self.songs
+        let header = songs.first { $0.artworkData != nil }
 
         List {
             Section {
                 VStack(spacing: 12) {
-                    SquareArtwork(data: songs.first { $0.artworkData != nil }?.artworkData)
+                    SquareArtwork(data: header?.artworkData, cacheKey: header?.key, expectedSize: 220)
                         .frame(width: 220)
                         .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
                     Text("\(songs.count) song\(songs.count == 1 ? "" : "s")")
@@ -190,27 +199,7 @@ struct SongCollectionView: View {
         .listStyle(.plain)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Flexible square artwork
-
-struct SquareArtwork: View {
-    let data: Data?
-    var cornerRadius: CGFloat = 8
-
-    var body: some View {
-        Color.gray.opacity(0.2)
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                if let data, let image = UIImage(data: data) {
-                    Image(uiImage: image).resizable().scaledToFill()
-                } else {
-                    Image(systemName: "music.note")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .onAppear { songs = compute(library.songs) }
+        .onReceive(library.$songs.dropFirst()) { songs = compute($0) }
     }
 }

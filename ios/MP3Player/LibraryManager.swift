@@ -8,7 +8,16 @@ struct FolderGroup: Identifiable, Hashable {
     let name: String
     let detail: String
     let songCount: Int
+    let isHidden: Bool
     var id: String { key }
+}
+
+/// What happened when a folder was picked to link.
+enum LinkResult {
+    case linked
+    /// The folder (or one containing it) is already in the library.
+    case alreadyIncluded
+    case noAccess
 }
 
 /// A place songs are read from: the app's Documents folder or a linked folder.
@@ -22,8 +31,18 @@ nonisolated struct LibraryRoot: Sendable {
 /// folders linked from the Files app, which are read in place.
 @MainActor
 final class LibraryManager: ObservableObject {
+    /// The library without songs in hidden folders (what every tab shows).
     @Published private(set) var songs: [Song] = []
+    /// Every song found, hidden folders included (for the Folders tab).
+    @Published private(set) var allSongs: [Song] = [] {
+        didSet { applyHiddenFolders(settings.settings.hiddenFolders) }
+    }
     @Published private(set) var isScanning = false
+    /// Grouped once per library change (not on every redraw of the tabs).
+    @Published private(set) var albums: [AlbumGroup] = []
+    @Published private(set) var artists: [ArtistGroup] = []
+    @Published private(set) var folders: [FolderGroup] = []
+    @Published private(set) var stats = LibraryStats([])
 
     nonisolated static let audioExtensions: Set<String> = ["mp3", "m4a", "m4b", "aac", "wav", "aiff", "aif",
                                                            "flac", "caf"]
@@ -32,9 +51,38 @@ final class LibraryManager: ObservableObject {
     /// Linked folders whose security scope is open (kept open while the app runs).
     private var openFolders: [UUID: URL] = [:]
     private var reloadTask: Task<Void, Never>?
+    /// Display names of the roots from the last scan ("docs" -> "On This iPhone", ...).
+    private var rootNames: [String: String] = [:]
+    private var cancellables = Set<AnyCancellable>()
 
     init(settings: SettingsStore) {
         self.settings = settings
+        settings.$settings
+            .map(\.hiddenFolders)
+            .removeDuplicates()
+            .sink { [weak self] hidden in self?.applyHiddenFolders(hidden) }
+            .store(in: &cancellables)
+    }
+
+    private func applyHiddenFolders(_ hidden: Set<String>) {
+        let visible = hidden.isEmpty ? allSongs : allSongs.filter { !Self.isHidden($0.folderKey, by: hidden) }
+        songs = visible
+        albums = AlbumGroup.make(from: visible)
+        artists = ArtistGroup.make(from: visible)
+        stats = LibraryStats(visible)
+        folders = folderGroups(hidden: hidden)
+    }
+
+    nonisolated static func isHidden(_ folderKey: String, by hidden: Set<String>) -> Bool {
+        hidden.contains { folderKey == $0 || folderKey.hasPrefix($0 + "/") }
+    }
+
+    func hideFolder(_ key: String) {
+        settings.update { $0.hiddenFolders.insert(key) }
+    }
+
+    func showFolder(_ key: String) {
+        settings.update { $0.hiddenFolders.remove(key) }
     }
 
     var documents: URL {
@@ -42,6 +90,21 @@ final class LibraryManager: ObservableObject {
     }
 
     // MARK: - Scanning
+
+    private var lastScan: Date?
+    private var lastDocumentsChange: Date?
+
+    /// Rescans when coming back to the app, but only if something may have changed:
+    /// files were added to / removed from Documents (e.g. through Finder), or it's been
+    /// a while (linked folders can change elsewhere). Pull to refresh always rescans.
+    func reloadIfStale() async {
+        let documentsChange = (try? documents.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate
+        if let lastScan, Date().timeIntervalSince(lastScan) < 600, documentsChange == lastDocumentsChange {
+            return
+        }
+        await reload()
+    }
 
     /// Rescans everything. Unchanged files are taken from the previous scan, so this is quick.
     func reload() async {
@@ -58,16 +121,20 @@ final class LibraryManager: ObservableObject {
     private func performReload() async {
         isScanning = true
         defer { isScanning = false }
-        let roots = [LibraryRoot(prefix: "docs", url: documents, name: "On This iPhone")] + openLinkedFolders()
-        let previous = Dictionary(songs.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        lastScan = Date()
+        lastDocumentsChange = (try? documents.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate
+        let scanRoots = roots()
+        rootNames = Dictionary(scanRoots.map { ($0.prefix, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let previous = Dictionary(allSongs.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
         let scanned = await Task.detached(priority: .userInitiated) {
-            await Self.scan(roots: roots, previous: previous)
+            await Self.scan(roots: scanRoots, previous: previous)
         }.value
-        songs = scanned.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        allSongs = scanned.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
     func song(forKey key: String) -> Song? {
-        songs.first { $0.key == key }
+        allSongs.first { $0.key == key }
     }
 
     /// Re-reads one file (after its tags were edited) and returns the updated song.
@@ -77,8 +144,8 @@ final class LibraryManager: ObservableObject {
         let updated = await Task.detached(priority: .userInitiated) {
             await Self.scan(roots: [root], previous: [:], only: song.url)
         }.value.first
-        if let updated, let index = songs.firstIndex(where: { $0.key == song.key }) {
-            songs[index] = updated
+        if let updated, let index = allSongs.firstIndex(where: { $0.key == song.key }) {
+            allSongs[index] = updated
         }
         return updated
     }
@@ -88,6 +155,8 @@ final class LibraryManager: ObservableObject {
         let keys: [URLResourceKey] = [.isRegularFileKey, .addedToDirectoryDateKey, .creationDateKey,
                                       .contentModificationDateKey, .fileSizeKey]
         var result: [Song] = []
+        // The same file can be reachable twice (a linked folder containing another): keep the first.
+        var seenPaths = Set<String>()
 
         for root in roots {
             let rootPath = root.url.resolvingSymlinksInPath().path
@@ -115,6 +184,7 @@ final class LibraryManager: ObservableObject {
 
                 for url in files where audioExtensions.contains(url.pathExtension.lowercased()) {
                     if let only, only.standardizedFileURL != url.standardizedFileURL { continue }
+                    guard seenPaths.insert(url.resolvingSymlinksInPath().path).inserted else { continue }
                     let fileName = url.lastPathComponent
                     let key = relativeFolder.isEmpty ? "\(root.prefix)/\(fileName)"
                         : "\(root.prefix)/\(relativeFolder)/\(fileName)"
@@ -153,10 +223,11 @@ final class LibraryManager: ObservableObject {
                         song.bitrateKbps = Int(Double(song.fileSize) * 8 / song.duration / 1000)
                     }
                     if let artwork = tags.artwork {
-                        song.artworkData = artwork
+                        // Kept at Now Playing size (≤900 px), not the file's full size.
+                        song.artworkData = ImageTools.shrinkCover(artwork) ?? artwork
                     } else if let coverURL {
                         if !coverLoaded {
-                            folderCover = try? Data(contentsOf: coverURL)
+                            folderCover = (try? Data(contentsOf: coverURL)).map { ImageTools.shrinkCover($0) ?? $0 }
                             coverLoaded = true
                         }
                         song.artworkData = folderCover
@@ -191,40 +262,61 @@ final class LibraryManager: ObservableObject {
     /// Resolves every linked folder's bookmark and opens its security scope (once).
     private func openLinkedFolders() -> [LibraryRoot] {
         var roots: [LibraryRoot] = []
+        var usedPaths = [documents.resolvingSymlinksInPath().path]
+        var duplicates: [UUID] = []
         for folder in settings.settings.linkedFolders {
-            if let url = openFolders[folder.id] {
-                roots.append(LibraryRoot(prefix: "link:\(folder.id.uuidString)", url: url, name: folder.name))
-                continue
-            }
-            var stale = false
-            guard let url = try? URL(resolvingBookmarkData: folder.bookmark, options: [],
-                                     relativeTo: nil, bookmarkDataIsStale: &stale) else { continue }
-            guard url.startAccessingSecurityScopedResource() else { continue }
-            openFolders[folder.id] = url
-            if stale, let fresh = try? url.bookmarkData() {
-                settings.update { settings in
-                    if let i = settings.linkedFolders.firstIndex(where: { $0.id == folder.id }) {
-                        settings.linkedFolders[i].bookmark = fresh
+            let url: URL
+            if let open = openFolders[folder.id] {
+                url = open
+            } else {
+                var stale = false
+                guard let resolved = try? URL(resolvingBookmarkData: folder.bookmark, options: [],
+                                              relativeTo: nil, bookmarkDataIsStale: &stale),
+                      resolved.startAccessingSecurityScopedResource() else { continue }
+                openFolders[folder.id] = resolved
+                if stale, let fresh = try? resolved.bookmarkData() {
+                    settings.update { settings in
+                        if let i = settings.linkedFolders.firstIndex(where: { $0.id == folder.id }) {
+                            settings.linkedFolders[i].bookmark = fresh
+                        }
                     }
                 }
+                url = resolved
             }
+            // Linked twice, or inside a folder that's already included: drop it.
+            let path = url.resolvingSymlinksInPath().path
+            if usedPaths.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
+                duplicates.append(folder.id)
+                continue
+            }
+            usedPaths.append(path)
             roots.append(LibraryRoot(prefix: "link:\(folder.id.uuidString)", url: url, name: folder.name))
+        }
+        if !duplicates.isEmpty {
+            for id in duplicates { openFolders.removeValue(forKey: id)?.stopAccessingSecurityScopedResource() }
+            settings.update { $0.linkedFolders.removeAll { duplicates.contains($0.id) } }
         }
         return roots
     }
 
     /// Links a folder picked in the Files app; its songs are read where they are.
-    func linkFolder(_ url: URL) async -> Bool {
-        guard url.startAccessingSecurityScopedResource() else { return false }
+    func linkFolder(_ url: URL) async -> LinkResult {
+        let path = url.resolvingSymlinksInPath().path
+        let included = [documents.resolvingSymlinksInPath().path]
+            + openFolders.values.map { $0.resolvingSymlinksInPath().path }
+        if included.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
+            return .alreadyIncluded
+        }
+        guard url.startAccessingSecurityScopedResource() else { return .noAccess }
         guard let bookmark = try? url.bookmarkData() else {
             url.stopAccessingSecurityScopedResource()
-            return false
+            return .noAccess
         }
         let folder = LinkedFolder(name: url.lastPathComponent, bookmark: bookmark)
         openFolders[folder.id] = url
         settings.update { $0.linkedFolders.append(folder) }
         await reload()
-        return true
+        return .linked
     }
 
     func unlinkFolder(_ id: UUID) async {
@@ -234,9 +326,8 @@ final class LibraryManager: ObservableObject {
     }
 
     /// The folders songs were found in, sorted by name.
-    func folderGroups() -> [FolderGroup] {
-        let rootNames = Dictionary(uniqueKeysWithValues: roots().map { ($0.prefix, $0.name) })
-        return Dictionary(grouping: songs, by: \.folderKey)
+    private func folderGroups(hidden: Set<String>) -> [FolderGroup] {
+        return Dictionary(grouping: allSongs, by: \.folderKey)
             .map { key, items in
                 let prefix = key.split(separator: "/", maxSplits: 1).first.map(String.init) ?? key
                 let path = key.count > prefix.count ? String(key.dropFirst(prefix.count + 1)) : ""
@@ -244,7 +335,8 @@ final class LibraryManager: ObservableObject {
                 return FolderGroup(key: key,
                                    name: path.isEmpty ? rootName : (path as NSString).lastPathComponent,
                                    detail: path.isEmpty ? "" : "\(rootName)/\(path)",
-                                   songCount: items.count)
+                                   songCount: items.count,
+                                   isHidden: Self.isHidden(key, by: hidden))
             }
             .sorted { $0.detail.localizedStandardCompare($1.detail) == .orderedAscending }
     }

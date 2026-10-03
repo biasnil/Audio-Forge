@@ -24,6 +24,7 @@ struct MP3PlayerApp: App {
                 .environmentObject(settings)
                 .environmentObject(library)
                 .environmentObject(player)
+                .environmentObject(player.clock)
                 .environmentObject(playlists)
                 .environmentObject(editor)
         }

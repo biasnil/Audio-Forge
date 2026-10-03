@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showNowPlaying = false
     @State private var coverItem: PhotosPickerItem?
+    @State private var showBackgroundWarning = false
     @AppStorage("selectedTab") private var selectedTab: AppTab = .songs
 
     private var visibleTabs: [AppTab] {
@@ -52,15 +53,22 @@ struct ContentView: View {
         } message: {
             Text(editor.message ?? "")
         }
+        .alert("Background Audio Is Off", isPresented: $showBackgroundWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Music will stop when you leave the app. In Xcode, add the Background Modes capability "
+                 + "and tick \"Audio, AirPlay, and Picture in Picture\".")
+        }
         .task {
+            if !BackgroundAudio.isEnabled { showBackgroundWarning = true }
             await library.reload()
             player.restoreIfNeeded(from: library.songs)     // resume last song (paused)
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                // Rescan when returning (e.g. after adding files via Finder).
+                // Rescan when returning, if files may have changed (e.g. added via Finder).
                 Task {
-                    await library.reload()
+                    await library.reloadIfStale()
                     player.restoreIfNeeded(from: library.songs)
                 }
             } else if phase == .background {
@@ -167,15 +175,19 @@ struct SongsView: View {
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
     @State private var songForNewPlaylist: Song?
+    /// Searched + sorted only when the library, search or sort changes, not on every redraw.
+    @State private var songs: [Song] = []
 
     private let importTypes: [UTType] = [
         .audio, UTType(filenameExtension: "lrc") ?? .plainText, .plainText,
     ]
 
+    private func refresh(_ all: [Song]) {
+        songs = sortSongs(searchSongs(all, searchText), by: sort)
+    }
+
     var body: some View {
         // Tapping a song queues exactly this list (searched + sorted).
-        let songs = sortSongs(searchSongs(library.songs, searchText), by: sort)
-
         NavigationStack {
             Group {
                 if library.songs.isEmpty {
@@ -216,6 +228,10 @@ struct SongsView: View {
             }
             .navigationTitle("Songs")
             .searchable(text: $searchText, prompt: "Songs, artists, albums")
+            .onAppear { refresh(library.songs) }
+            .onReceive(library.$songs.dropFirst()) { refresh($0) }
+            .onChange(of: searchText) { _, _ in refresh(library.songs) }
+            .onChange(of: sort) { _, _ in refresh(library.songs) }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if library.isScanning { ProgressView() }
@@ -266,7 +282,7 @@ struct SongRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(data: song.artworkData, size: 44)
+            ArtworkView(data: song.artworkData, size: 44, cacheKey: song.key)
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .lineLimit(1)
@@ -289,26 +305,6 @@ struct SongRow: View {
             }
         }
         .contentShape(Rectangle())
-    }
-}
-
-struct ArtworkView: View {
-    let data: Data?
-    let size: CGFloat
-
-    var body: some View {
-        Group {
-            if let data, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                ZStack {
-                    Color.gray.opacity(0.2)
-                    Image(systemName: "music.note").foregroundStyle(.secondary)
-                }
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
@@ -340,7 +336,7 @@ struct MiniPlayer: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 16) {
-                ArtworkView(data: player.currentSong?.artworkData, size: 48)
+                ArtworkView(data: player.currentSong?.artworkData, size: 48, cacheKey: player.currentSong?.key)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(player.currentSong?.title ?? "").font(.headline).lineLimit(1)
                     Text(player.currentSong?.artist ?? "")
@@ -356,20 +352,46 @@ struct MiniPlayer: View {
                 Button { player.next() } label: { Image(systemName: "forward.fill") }
             }
 
-            Slider(
-                value: Binding(get: { player.currentTime }, set: { player.seek(to: $0) }),
-                in: 0...max(player.duration, 1)
-            )
-
-            HStack {
-                Text(formatTime(player.currentTime))
-                Spacer()
-                Text(formatTime(player.duration))
-            }
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
+            ProgressSlider(remaining: false, timeFont: .caption2.monospacedDigit())
         }
         .padding()
         .background(.regularMaterial)
+    }
+}
+
+/// The seek bar and times. The only part of the players that redraws 5 times a second;
+/// it seeks once when you let go instead of on every movement.
+struct ProgressSlider: View {
+    /// Right-hand label: "-remaining" instead of the total length.
+    let remaining: Bool
+    let timeFont: Font
+
+    @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var clock: PlaybackClock
+    @State private var scrubbing: TimeInterval?
+
+    var body: some View {
+        let time = scrubbing ?? clock.time
+        let duration = player.duration
+
+        VStack(spacing: 4) {
+            Slider(
+                value: Binding(get: { min(time, max(duration, 1)) }, set: { scrubbing = $0 }),
+                in: 0...max(duration, 1),
+                onEditingChanged: { editing in
+                    if !editing, let target = scrubbing {
+                        player.seek(to: target)
+                        scrubbing = nil
+                    }
+                }
+            )
+            HStack {
+                Text(formatTime(time))
+                Spacer()
+                Text(remaining ? "-" + formatTime(max(duration - time, 0)) : formatTime(duration))
+            }
+            .font(timeFont)
+            .foregroundStyle(.secondary)
+        }
     }
 }

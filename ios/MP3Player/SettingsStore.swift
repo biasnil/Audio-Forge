@@ -66,6 +66,8 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
     var globalWallpaperFile = ""
     var wallpapers: [WallpaperEntry] = []
     var linkedFolders: [LinkedFolder] = []
+    /// Folder keys (Song.folderKey) whose songs are hidden, subfolders included.
+    var hiddenFolders: Set<String> = []
 
     init() {}
 
@@ -93,6 +95,7 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
             ?? d.globalWallpaperFile
         wallpapers = (try? c.decodeIfPresent([WallpaperEntry].self, forKey: .wallpapers)) ?? d.wallpapers
         linkedFolders = (try? c.decodeIfPresent([LinkedFolder].self, forKey: .linkedFolders)) ?? d.linkedFolders
+        hiddenFolders = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenFolders)) ?? d.hiddenFolders
     }
 }
 
