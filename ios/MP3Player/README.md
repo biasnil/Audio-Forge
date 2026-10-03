@@ -33,21 +33,33 @@ a sleep timer and resuming the last song on launch.
 - LyricsFinder.swift    – Lyrics lookup: cache, LRCLIB, Musixmatch, then the local .lrc/.txt
 
 ## Xcode project setup
-1. iOS App template, SwiftUI, Swift. Supported Destinations: iPhone only (not Mac).
-2. Add every .swift file in this folder to the app target. (With Xcode 16+'s folder-synced
+1. iOS App template, SwiftUI, Swift.
+2. **iPhone only.** General → Supported Destinations: remove **Mac** (select it, click −).
+   If the project was created as Multiplatform, also delete **App Sandbox** in Signing &
+   Capabilities (trash icon on its row) — it's macOS-only, and while the target is a Mac
+   target the iPhone settings below don't show up.
+3. Add every .swift file in this folder to the app target. (With Xcode 16+'s folder-synced
    groups, files dropped into the group are added automatically.)
-3. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
+4. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
    the one in your project's Assets). It's a single 1024×1024 image made from the Android
    launcher icon; Xcode makes the other sizes.
-4. Signing & Capabilities: Background Modes -> "Audio, AirPlay, and Picture in Picture".
-5. Info tab keys (both YES):
-   - UIFileSharingEnabled (Application supports iTunes file sharing)
-   - LSSupportsOpeningDocumentsInPlace (Supports opening documents in place)
-6. The project uses default MainActor isolation (Xcode 26 default), so background-safe
+5. **Background audio (required)** — without it music stops when you leave the app or lock
+   the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
+   **Background Modes** → tick **Audio, AirPlay, and Picture in Picture**. (This adds
+   `UIBackgroundModes = audio` to Info.plist.) The app shows a "Background Audio Is Off"
+   alert at launch, and a warning in Settings, until this is on.
+6. **Show songs in the Files app** — Info tab, hover a row, click **+**, and add (both YES):
+   - Application supports iTunes file sharing (`UIFileSharingEnabled`)
+   - Supports opening documents in place (`LSSupportsOpeningDocumentsInPlace`)
+
+   If the Info tab won't add them, set them in Build Settings instead: search
+   `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, set both to Yes.
+7. Rebuild and run on the iPhone (delete the old app first if the icon doesn't update).
+8. The project uses default MainActor isolation (Xcode 26 default), so background-safe
    types are marked `nonisolated`. `import Combine` is required where @Published is used.
 
 No permission prompts are needed: photos and videos are picked with the system picker,
-and folders with the Files picker.
+folders with the Files picker, and lyrics lookups work with the default network settings.
 
 ## Where things are stored
 - Songs you import: the app's Documents folder (visible in Files and Finder).
