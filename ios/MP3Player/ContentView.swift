@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showNowPlaying = false
     @State private var coverItem: PhotosPickerItem?
+    @State private var showBackgroundWarning = false
     @AppStorage("selectedTab") private var selectedTab: AppTab = .songs
 
     private var visibleTabs: [AppTab] {
@@ -52,7 +53,14 @@ struct ContentView: View {
         } message: {
             Text(editor.message ?? "")
         }
+        .alert("Background Audio Is Off", isPresented: $showBackgroundWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Music will stop when you leave the app. In Xcode, add the Background Modes capability "
+                 + "and tick \"Audio, AirPlay, and Picture in Picture\".")
+        }
         .task {
+            if !BackgroundAudio.isEnabled { showBackgroundWarning = true }
             await library.reload()
             player.restoreIfNeeded(from: library.songs)     // resume last song (paused)
         }

@@ -14,6 +14,15 @@ struct SettingsView: View {
 
         NavigationStack {
             Form {
+                if !BackgroundAudio.isEnabled {
+                    Section {
+                        Label("Background audio is off", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Music stops when you leave the app. In Xcode: target → Signing & Capabilities → "
+                             + "+ Capability → Background Modes → tick \"Audio, AirPlay, and Picture in Picture\".")
+                            .font(.footnote)
+                    }
+                }
                 Section {
                     LabeledContent("Songs", value: "\(stats.songs)")
                     LabeledContent("Albums", value: "\(stats.albums)")
@@ -126,5 +135,14 @@ struct SettingsView: View {
     private func binding<Value>(_ keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {
         Binding(get: { settings.settings[keyPath: keyPath] },
                 set: { value in settings.update { $0[keyPath: keyPath] = value } })
+    }
+}
+
+/// Whether the app's Info.plist has the "audio" background mode (needed to keep playing
+/// when the app is in the background or the phone is locked).
+enum BackgroundAudio {
+    static var isEnabled: Bool {
+        let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []
+        return modes.contains("audio")
     }
 }
