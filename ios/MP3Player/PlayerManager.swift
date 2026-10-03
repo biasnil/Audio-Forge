@@ -32,8 +32,13 @@ nonisolated private struct LegacyPlayerState: Codable {
 
 /// Playback through AVAudioEngine, so it can crossfade, equalize and boost:
 ///
-///     slot 0: player -> time pitch (speed) -> gain (ReplayGain) -> fader ─┐
-///     slot 1: player -> time pitch (speed) -> gain (ReplayGain) -> fader ─┴> mix -> 10-band EQ -> output
+///     slot 0: player -> fader -> time pitch (speed) -> gain (ReplayGain) ─┐
+///     slot 1: player -> fader -> time pitch (speed) -> gain (ReplayGain) ─┴> mix -> 10-band EQ -> output
+///
+/// Only the player -> fader link uses the song file's own format (the fader is a
+/// mixer, which converts any sample rate / channel count). Everything after it runs
+/// in one fixed format, because the effect units throw (-10868, format not
+/// supported) when reconnected with arbitrary file formats.
 ///
 /// One slot plays the current song; during a crossfade the other fades the
 /// next song in and then becomes the current one (like the desktop/Android app).
@@ -136,17 +141,20 @@ final class PlayerManager: ObservableObject {
     private func buildGraph() {
         engine.attach(mix)
         engine.attach(eq)
-        let defaultFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)
+        let format = processingFormat
         for (index, slot) in slots.enumerated() {
             engine.attach(slot.player)
+            engine.attach(slot.fader)
             engine.attach(slot.timePitch)
             engine.attach(slot.gain)
-            engine.attach(slot.fader)
-            connectChain(slot, format: defaultFormat)
-            engine.connect(slot.fader, to: mix, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+            engine.connect(slot.player, to: slot.fader, format: format)
+            slot.connectedFormat = format
+            engine.connect(slot.fader, to: slot.timePitch, format: format)
+            engine.connect(slot.timePitch, to: slot.gain, format: format)
+            engine.connect(slot.gain, to: mix, fromBus: 0, toBus: AVAudioNodeBus(index), format: format)
         }
-        engine.connect(mix, to: eq, format: nil)
-        engine.connect(eq, to: engine.mainMixerNode, format: nil)
+        engine.connect(mix, to: eq, format: format)
+        engine.connect(eq, to: engine.mainMixerNode, format: format)
 
         for (band, frequency) in zip(eq.bands, EqualizerConfig.frequencies) {
             band.filterType = .parametric
@@ -158,11 +166,14 @@ final class PlayerManager: ObservableObject {
         engine.prepare()
     }
 
-    /// (Re)connects a slot's player and effects in the file's own format.
-    private func connectChain(_ slot: Slot, format: AVAudioFormat?) {
-        engine.connect(slot.player, to: slot.timePitch, format: format)
-        engine.connect(slot.timePitch, to: slot.gain, format: format)
-        engine.connect(slot.gain, to: slot.fader, format: format)
+    /// The fixed format everything after the faders runs in.
+    private let processingFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
+
+    /// Reconnects a slot's player to its fader in the song file's own format
+    /// (the player must be stopped). The fader converts it to `processingFormat`.
+    private func connectPlayer(_ slot: Slot, format: AVAudioFormat) {
+        engine.disconnectNodeOutput(slot.player)
+        engine.connect(slot.player, to: slot.fader, format: format)
         slot.connectedFormat = format
     }
 
@@ -191,7 +202,7 @@ final class PlayerManager: ObservableObject {
             return false
         }
         if slot.connectedFormat != file.processingFormat {
-            connectChain(slot, format: file.processingFormat)
+            connectPlayer(slot, format: file.processingFormat)
         }
         slot.file = file
         slot.song = song
