@@ -1,38 +1,56 @@
 import SwiftUI
 import Combine
+import PhotosUI
 import UniformTypeIdentifiers
 
-/// Root view: Songs / Albums / Artists / Playlists tabs, mini player above the tab bar.
+/// Root view: the library tabs (some can be hidden in Settings), mini player above the tab bar.
 struct ContentView: View {
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var editor: SongEditor
     @Environment(\.scenePhase) private var scenePhase
     @State private var showNowPlaying = false
+    @State private var coverItem: PhotosPickerItem?
+    @AppStorage("selectedTab") private var selectedTab: AppTab = .songs
 
-    // 0.25s keeps synced lyrics responsive.
-    private let ticker = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
+    private var visibleTabs: [AppTab] {
+        AppTab.allCases.filter { !$0.hideable || !settings.settings.hiddenTabs.contains($0) }
+    }
 
     var body: some View {
-        TabView {
-            SongsView()
-                .miniPlayer(showNowPlaying: $showNowPlaying)
-                .tabItem { Label("Songs", systemImage: "music.note") }
-
-            AlbumsView()
-                .miniPlayer(showNowPlaying: $showNowPlaying)
-                .tabItem { Label("Albums", systemImage: "square.stack") }
-
-            ArtistsView()
-                .miniPlayer(showNowPlaying: $showNowPlaying)
-                .tabItem { Label("Artists", systemImage: "music.mic") }
-
-            PlaylistsView()
-                .miniPlayer(showNowPlaying: $showNowPlaying)
-                .tabItem { Label("Playlists", systemImage: "music.note.list") }
+        TabView(selection: $selectedTab) {
+            ForEach(visibleTabs) { tab in
+                tabContent(tab)
+                    .miniPlayer(showNowPlaying: $showNowPlaying)
+                    .tabItem { Label(tab.rawValue, systemImage: tab.systemImage) }
+                    .tag(tab)
+            }
         }
+        .preferredColorScheme(colorScheme)
         .sheet(isPresented: $showNowPlaying) {
             NowPlayingView()
-                .environmentObject(player)
+        }
+        .sheet(item: $editor.editing) { song in
+            TagEditorView(song: song)
+        }
+        .photosPicker(isPresented: $editor.coverPickerShown, selection: $coverItem, matching: .images)
+        .onChange(of: coverItem) { _, item in
+            guard let item else { return }
+            Task {
+                await editor.applyCover(item)
+                coverItem = nil
+            }
+        }
+        .alert("Can't Play", isPresented: playerErrorShown) {
+            Button("OK") { player.errorMessage = nil }
+        } message: {
+            Text(player.errorMessage ?? "")
+        }
+        .alert("Tags", isPresented: editorMessageShown) {
+            Button("OK") { editor.message = nil }
+        } message: {
+            Text(editor.message ?? "")
         }
         .task {
             await library.reload()
@@ -49,7 +67,41 @@ struct ContentView: View {
                 player.saveState()                           // remember position
             }
         }
-        .onReceive(ticker) { _ in player.refreshTime() }
+        .onChange(of: visibleTabs) { _, tabs in
+            if !tabs.contains(selectedTab) { selectedTab = .songs }
+        }
+    }
+
+    @ViewBuilder
+    private func tabContent(_ tab: AppTab) -> some View {
+        switch tab {
+        case .songs: SongsView()
+        case .albums: AlbumsView()
+        case .artists: ArtistsView()
+        case .folders: FoldersView()
+        case .playlists: PlaylistsView()
+        case .equalizer: EqualizerView()
+        case .wallpapers: WallpapersView()
+        case .settings: SettingsView()
+        }
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch settings.settings.appearance {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    private var playerErrorShown: Binding<Bool> {
+        Binding(get: { player.errorMessage != nil },
+                set: { if !$0 { player.errorMessage = nil } })
+    }
+
+    private var editorMessageShown: Binding<Bool> {
+        Binding(get: { editor.message != nil },
+                set: { if !$0 { editor.message = nil } })
     }
 }
 
@@ -58,8 +110,50 @@ struct ContentView: View {
 enum SongSort: String, CaseIterable, Identifiable {
     case title = "Title"
     case artist = "Artist"
+    case album = "Album"
+    case year = "Year"
     case recent = "Recently Added"
     var id: String { rawValue }
+}
+
+/// Same fields the desktop search checks: title, artist, album.
+func searchSongs(_ songs: [Song], _ query: String) -> [Song] {
+    let needle = query.trimmingCharacters(in: .whitespaces)
+    guard !needle.isEmpty else { return songs }
+    return songs.filter {
+        $0.title.localizedCaseInsensitiveContains(needle)
+            || $0.artist.localizedCaseInsensitiveContains(needle)
+            || $0.album.localizedCaseInsensitiveContains(needle)
+    }
+}
+
+func sortSongs(_ songs: [Song], by sort: SongSort) -> [Song] {
+    func order(_ a: String, _ b: String) -> ComparisonResult { a.localizedStandardCompare(b) }
+    func discTrack(_ song: Song) -> Int { song.discNumber * 1000 + song.trackNumber }
+
+    return songs.sorted { a, b in
+        switch sort {
+        case .title:
+            return order(a.title, b.title) == .orderedAscending
+        case .artist:
+            let byArtist = order(a.artist, b.artist)
+            if byArtist != .orderedSame { return byArtist == .orderedAscending }
+            let byAlbum = order(a.album, b.album)
+            if byAlbum != .orderedSame { return byAlbum == .orderedAscending }
+            if discTrack(a) != discTrack(b) { return discTrack(a) < discTrack(b) }
+            return order(a.title, b.title) == .orderedAscending
+        case .album:
+            let byAlbum = order(a.album, b.album)
+            if byAlbum != .orderedSame { return byAlbum == .orderedAscending }
+            if discTrack(a) != discTrack(b) { return discTrack(a) < discTrack(b) }
+            return order(a.title, b.title) == .orderedAscending
+        case .year:
+            if a.year != b.year { return a.year > b.year }
+            return order(a.title, b.title) == .orderedAscending
+        case .recent:
+            return a.dateAdded > b.dateAdded
+        }
+    }
 }
 
 struct SongsView: View {
@@ -74,42 +168,23 @@ struct SongsView: View {
     @State private var newPlaylistName = ""
     @State private var songForNewPlaylist: Song?
 
-    private let importTypes: [UTType] = [.audio, UTType(filenameExtension: "lrc") ?? .plainText]
-
-    /// Search + sort applied. Tapping a song queues exactly this list.
-    private var visibleSongs: [Song] {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        var result = query.isEmpty ? library.songs : library.songs.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-                || $0.artist.localizedCaseInsensitiveContains(query)
-                || $0.album.localizedCaseInsensitiveContains(query)
-        }
-        switch sort {
-        case .title:
-            result.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        case .artist:
-            result.sort { a, b in
-                let byArtist = a.artist.localizedStandardCompare(b.artist)
-                if byArtist != .orderedSame { return byArtist == .orderedAscending }
-                return a.title.localizedStandardCompare(b.title) == .orderedAscending
-            }
-        case .recent:
-            result.sort { $0.dateAdded > $1.dateAdded }
-        }
-        return result
-    }
+    private let importTypes: [UTType] = [
+        .audio, UTType(filenameExtension: "lrc") ?? .plainText, .plainText,
+    ]
 
     var body: some View {
-        let songs = visibleSongs
+        // Tapping a song queues exactly this list (searched + sorted).
+        let songs = sortSongs(searchSongs(library.songs, searchText), by: sort)
 
         NavigationStack {
             Group {
                 if library.songs.isEmpty {
-                    ContentUnavailableView(
-                        "No Songs",
-                        systemImage: "music.note",
-                        description: Text("Tap + to import MP3 files (and .lrc lyrics).")
-                    )
+                    ContentUnavailableView {
+                        Label("No Songs", systemImage: "music.note")
+                    } description: {
+                        Text(library.isScanning ? "Looking for music…"
+                             : "Tap + to import songs (and .lrc lyrics), or link a folder in the Folders tab.")
+                    }
                 } else {
                     List {
                         ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
@@ -118,7 +193,12 @@ struct SongsView: View {
                             } label: {
                                 SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
                             }
-                            .contextMenu { songMenu(for: song) }   // long-press
+                            .contextMenu {                       // long-press
+                                SongMenu(song: song) { song in
+                                    songForNewPlaylist = song
+                                    showNewPlaylist = true
+                                }
+                            }
                         }
                         .onDelete { offsets in
                             let toDelete = offsets.map { songs[$0] }
@@ -126,6 +206,7 @@ struct SongsView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .refreshable { await library.reload() }
                     .overlay {
                         if songs.isEmpty && !searchText.isEmpty {
                             ContentUnavailableView.search(text: searchText)
@@ -137,6 +218,7 @@ struct SongsView: View {
             .searchable(text: $searchText, prompt: "Songs, artists, albums")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    if library.isScanning { ProgressView() }
                     Menu {
                         Picker("Sort By", selection: $sort) {
                             ForEach(SongSort.allCases) { option in
@@ -170,28 +252,6 @@ struct SongsView: View {
         }
     }
 
-    @ViewBuilder
-    private func songMenu(for song: Song) -> some View {
-        Menu {
-            ForEach(playlists.playlists) { playlist in
-                Button(playlist.name) { playlists.add([song], to: playlist.id) }
-            }
-            if !playlists.playlists.isEmpty { Divider() }
-            Button("New Playlist…", systemImage: "plus") {
-                songForNewPlaylist = song
-                showNewPlaylist = true
-            }
-        } label: {
-            Label("Add to Playlist", systemImage: "text.badge.plus")
-        }
-
-        Button(role: .destructive) {
-            Task { await library.delete([song]) }
-        } label: {
-            Label("Delete Song", systemImage: "trash")
-        }
-    }
-
     private func resetNewPlaylist() {
         newPlaylistName = ""
         songForNewPlaylist = nil
@@ -218,8 +278,13 @@ struct SongRow: View {
             }
             Spacer()
             if song.lyricsURL != nil {
-                Image(systemName: "quote.bubble")      // has synced lyrics
+                Image(systemName: "quote.bubble")      // has a lyrics file
                     .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if song.duration > 0 {
+                Text(formatTime(song.duration))
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
@@ -297,19 +362,14 @@ struct MiniPlayer: View {
             )
 
             HStack {
-                Text(format(player.currentTime))
+                Text(formatTime(player.currentTime))
                 Spacer()
-                Text(format(player.duration))
+                Text(formatTime(player.duration))
             }
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.secondary)
         }
         .padding()
         .background(.regularMaterial)
-    }
-
-    private func format(_ time: TimeInterval) -> String {
-        let seconds = Int(time)
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }

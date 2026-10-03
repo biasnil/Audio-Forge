@@ -1,9 +1,37 @@
 import SwiftUI
 
-nonisolated struct LyricLine: Identifiable, Hashable {
+nonisolated struct LyricLine: Identifiable, Hashable, Sendable {
     let id: Int
     let time: TimeInterval
     let text: String
+}
+
+/// What the Now Playing screen shows in its lyrics panel.
+nonisolated enum LyricsContent: Equatable, Sendable {
+    case none
+    case loading
+    case notFound
+    case plain([String])
+    case synced([LyricLine])
+
+    var isAvailable: Bool {
+        switch self {
+        case .plain, .synced: true
+        default: false
+        }
+    }
+
+    /// Synced if the text has valid time tags (and may be synced), else plain lines.
+    static func from(_ text: String, maybeSynced: Bool) -> LyricsContent {
+        if maybeSynced {
+            let lines = LRCParser.parse(text)
+            if !lines.isEmpty { return .synced(lines) }
+        }
+        let plain = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return plain.isEmpty ? .notFound : .plain(plain)
+    }
 }
 
 /// Reads .lrc files: [mm:ss.xx] lines, multiple timestamps per line, [offset:ms],
@@ -14,7 +42,7 @@ nonisolated enum LRCParser {
         return parse(text)
     }
 
-    private static func readText(_ url: URL) -> String? {
+    static func readText(_ url: URL) -> String? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         let bytes = [UInt8](data.prefix(2))
         if bytes == [0xFF, 0xFE] || bytes == [0xFE, 0xFF] {
@@ -117,13 +145,33 @@ struct LyricsView: View {
                 }
             }
         }
-        .mask(
-            LinearGradient(stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .black, location: 0.12),
-                .init(color: .black, location: 0.88),
-                .init(color: .clear, location: 1)
-            ], startPoint: .top, endPoint: .bottom)
-        )
+        .mask(fadeMask)
+    }
+
+    private var fadeMask: some View {
+        LinearGradient(stops: [
+            .init(color: .clear, location: 0),
+            .init(color: .black, location: 0.12),
+            .init(color: .black, location: 0.88),
+            .init(color: .clear, location: 1)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Unsynced lyrics: just scrollable text.
+struct PlainLyricsView: View {
+    let lines: [String]
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.title3.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.vertical, 40)
+        }
     }
 }

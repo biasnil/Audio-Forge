@@ -1,18 +1,27 @@
 import SwiftUI
-import MediaPlayer
+import AVKit
 
 /// Full-screen player, opened by tapping the mini player.
 struct NowPlayingView: View {
     @EnvironmentObject private var player: PlayerManager
-    @State private var lyrics: [LyricLine] = []
+    @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var editor: SongEditor
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var lyrics: LyricsContent = .none
     @State private var showLyrics = false
+    @State private var videoFailed = false
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
-    private var lyricsMode: Bool { showLyrics && !lyrics.isEmpty }
+    private var lyricsMode: Bool { showLyrics && lyrics.isAvailable }
+
+    private var wallpaperURL: URL? {
+        guard let song = player.currentSong, !videoFailed else { return nil }
+        return WallpaperFiles.resolve(songKey: song.key, in: settings.settings)
+    }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 18) {
             if lyricsMode {
                 HStack(spacing: 12) {
                     ArtworkView(data: player.currentSong?.artworkData, size: 56)
@@ -21,45 +30,85 @@ struct NowPlayingView: View {
                 }
                 .padding(.top, 28)
 
-                LyricsView(lines: lyrics)
+                lyricsPanel
                     .frame(maxHeight: .infinity)
             } else {
                 Spacer(minLength: 16)
-                ArtworkView(data: player.currentSong?.artworkData, size: 320)
+                ArtworkView(data: player.currentSong?.artworkData, size: 300)
                     .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                    .contextMenu { coverMenu }                  // long-press the cover
                 titleBlock(alignment: .center, large: true)
             }
 
             progress
             controls
-
-            // System volume + AirPlay button (only shows on a real iPhone).
-            VolumeSlider()
-                .frame(height: 36)
-
+            volume
             extras
 
             if !lyricsMode { Spacer(minLength: 8) }
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 12)
-        .background {
-            if let data = player.currentSong?.artworkData, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: 60)
-                    .opacity(0.35)
-                    .ignoresSafeArea()
-            }
-        }
+        .background { background }
         .presentationDragIndicator(.visible)
-        .task(id: player.currentSong?.id) {
-            lyrics = player.currentSong?.lyricsURL.map { LRCParser.load(from: $0) } ?? []
+        .task(id: lyricsLookupID) {
+            guard let song = player.currentSong else {
+                lyrics = .none
+                return
+            }
+            lyrics = .loading
+            let found = await LyricsFinder.find(for: song)
+            if !Task.isCancelled { lyrics = found }
         }
+        .onChange(of: player.currentSong?.key) { _, _ in videoFailed = false }
+    }
+
+    /// Title/artist too: after a tag edit the lookup runs again with the new names.
+    private var lyricsLookupID: String {
+        guard let song = player.currentSong else { return "" }
+        return "\(song.key)|\(song.title)|\(song.artist)"
     }
 
     // MARK: - Pieces
+
+    @ViewBuilder
+    private var background: some View {
+        if let url = wallpaperURL {
+            VideoWallpaperView(url: url, isActive: scenePhase == .active)
+                .opacity(Double(settings.settings.videoWallpaperOpacityPercent) / 100)
+                .overlay(Color(.systemBackground).opacity(0.25))
+                .ignoresSafeArea()
+                .task(id: url) {
+                    // A deleted or unplayable video falls back to the blurred cover.
+                    let playable = (try? await AVURLAsset(url: url).load(.isPlayable)) ?? false
+                    if !playable { videoFailed = true }
+                }
+        } else if let data = player.currentSong?.artworkData, let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .blur(radius: 60)
+                .opacity(0.35)
+                .ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
+    private var coverMenu: some View {
+        if let song = player.currentSong {
+            Button("Edit Tags", systemImage: "tag") { editor.editing = song }
+            Button("Change Cover", systemImage: "photo") { editor.changeCover(song) }
+        }
+    }
+
+    @ViewBuilder
+    private var lyricsPanel: some View {
+        switch lyrics {
+        case .synced(let lines): LyricsView(lines: lines)
+        case .plain(let lines): PlainLyricsView(lines: lines)
+        default: EmptyView()
+        }
+    }
 
     private func titleBlock(alignment: HorizontalAlignment, large: Bool) -> some View {
         VStack(alignment: alignment, spacing: 4) {
@@ -80,9 +129,9 @@ struct NowPlayingView: View {
                 in: 0...max(player.duration, 1)
             )
             HStack {
-                Text(format(player.currentTime))
+                Text(formatTime(player.currentTime))
                 Spacer()
-                Text("-" + format(max(player.duration - player.currentTime, 0)))
+                Text("-" + formatTime(max(player.duration - player.currentTime, 0)))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
@@ -91,10 +140,14 @@ struct NowPlayingView: View {
 
     private var controls: some View {
         HStack {
-            Button { player.toggleShuffle() } label: {
-                Image(systemName: "shuffle")
-                    .foregroundStyle(player.isShuffled ? Color.accentColor : Color.secondary)
+            Button { player.cycleShuffle() } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "shuffle")
+                    Text(shuffleLabel).font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(player.shuffleMode == .off ? Color.secondary : Color.accentColor)
             }
+            .accessibilityLabel("Shuffle: \(shuffleLabel)")
             Spacer()
             Button { player.previous() } label: {
                 Image(systemName: "backward.fill").font(.title)
@@ -116,6 +169,34 @@ struct NowPlayingView: View {
         }
         .font(.title3)
         .buttonStyle(.plain)
+    }
+
+    private var shuffleLabel: String {
+        switch player.shuffleMode {
+        case .off: "Off"
+        case .random: "Random"
+        case .smart: "Smart"
+        }
+    }
+
+    /// The app's own volume (up to 200%) and the AirPlay / Bluetooth output picker.
+    private var volume: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.fill").font(.caption).foregroundStyle(.secondary)
+            Slider(
+                value: Binding(get: { Double(player.volumePercent) },
+                               set: { player.setVolume(Int($0.rounded())) }),
+                in: 0...Double(AppSettings.maxVolumePercent),
+                onEditingChanged: { editing in if !editing { player.saveVolume() } }
+            )
+            .tint(player.volumePercent > 100 ? Color.orange : Color.accentColor)
+            Text("\(player.volumePercent)%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
+            RoutePicker()
+                .frame(width: 28, height: 28)
+        }
     }
 
     /// Speed, lyrics toggle, sleep timer.
@@ -141,11 +222,16 @@ struct NowPlayingView: View {
             Button {
                 withAnimation { showLyrics.toggle() }
             } label: {
-                Image(systemName: lyricsMode ? "quote.bubble.fill" : "quote.bubble")
-                    .foregroundStyle(lyricsMode ? Color.accentColor : Color.primary)
+                if lyrics == .loading {
+                    ProgressView()
+                } else {
+                    Image(systemName: lyricsMode ? "quote.bubble.fill" : "quote.bubble")
+                        .foregroundStyle(lyricsMode ? Color.accentColor : Color.primary)
+                }
             }
-            .disabled(lyrics.isEmpty)
-            .opacity(lyrics.isEmpty ? 0.3 : 1)
+            .disabled(!lyrics.isAvailable)
+            .opacity(lyrics.isAvailable || lyrics == .loading ? 1 : 0.3)
+            .accessibilityLabel(lyrics == .notFound ? "No lyrics found" : "Lyrics")
 
             Spacer()
 
@@ -184,17 +270,15 @@ struct NowPlayingView: View {
     private func rateText(_ rate: Float) -> String {
         String(format: "%g×", Double(rate))
     }
-
-    private func format(_ time: TimeInterval) -> String {
-        let seconds = Int(time)
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
 }
 
-struct VolumeSlider: UIViewRepresentable {
-    func makeUIView(context: Context) -> MPVolumeView {
-        MPVolumeView(frame: .zero)
+/// AirPlay / Bluetooth output picker (only shows routes on a real iPhone).
+struct RoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.prioritizesVideoDevices = false
+        return view
     }
 
-    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }

@@ -11,10 +11,11 @@ struct AlbumGroup: Identifiable {
     static func make(from songs: [Song]) -> [AlbumGroup] {
         Dictionary(grouping: songs, by: \.album)
             .map { name, items in
+                let albumArtist = items.first { !$0.albumArtist.isEmpty }?.albumArtist
                 let artists = Set(items.map(\.artist))
                 return AlbumGroup(
                     name: name,
-                    artist: artists.count == 1 ? items[0].artist : "Various Artists",
+                    artist: albumArtist ?? (artists.count == 1 ? items[0].artist : "Various Artists"),
                     artwork: items.first { $0.artworkData != nil }?.artworkData
                 )
             }
@@ -138,13 +139,9 @@ struct SongCollectionView: View {
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var player: PlayerManager
 
+    /// Album pages in disc/track order; artist pages by album, then track.
     private var songs: [Song] {
-        library.songs.filter(match).sorted { a, b in
-            if sortByAlbum && a.album != b.album {
-                return a.album.localizedStandardCompare(b.album) == .orderedAscending
-            }
-            return a.title.localizedStandardCompare(b.title) == .orderedAscending
-        }
+        sortSongs(library.songs.filter(match), by: sortByAlbum ? .artist : .album)
     }
 
     var body: some View {
@@ -186,6 +183,7 @@ struct SongCollectionView: View {
                     } label: {
                         SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
                     }
+                    .contextMenu { SongMenu(song: song) }
                 }
             }
         }

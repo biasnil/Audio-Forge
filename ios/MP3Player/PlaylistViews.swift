@@ -98,13 +98,14 @@ struct PlaylistDetailView: View {
         playlists.playlists.first { $0.id == playlistID }
     }
 
-    private var songs: [Song] {
+    private var entries: [PlaylistEntry] {
         guard let playlist else { return [] }
-        return playlists.songs(in: playlist, from: library.songs)
+        return playlists.entries(in: playlist, from: library.songs)
     }
 
     var body: some View {
-        let songs = self.songs
+        let entries = self.entries
+        let songs = entries.compactMap(\.song)
 
         List {
             if !songs.isEmpty {
@@ -128,28 +129,43 @@ struct PlaylistDetailView: View {
             }
 
             Section {
-                ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                    Button {
-                        player.play(songs, startAt: index)
-                    } label: {
-                        SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
+                ForEach(entries) { entry in
+                    if let song = entry.song {
+                        Button {
+                            player.play(songs, startAt: songs.firstIndex { $0.id == song.id } ?? 0)
+                        } label: {
+                            SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
+                        }
+                        .contextMenu { SongMenu(song: song) }
+                    } else {
+                        // The file was deleted, renamed or its folder unlinked.
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .frame(width: 44, height: 44)
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text((entry.key as NSString).lastPathComponent).lineLimit(1)
+                                Text("Unavailable").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .foregroundStyle(.secondary)
                     }
                 }
                 .onDelete { offsets in
-                    var edited = songs
-                    edited.remove(atOffsets: offsets)
-                    playlists.setSongs(edited, for: playlistID)
+                    var keys = entries.map(\.key)
+                    keys.remove(atOffsets: offsets)
+                    playlists.setKeys(keys, for: playlistID)
                 }
                 .onMove { from, to in
-                    var edited = songs
-                    edited.move(fromOffsets: from, toOffset: to)
-                    playlists.setSongs(edited, for: playlistID)
+                    var keys = entries.map(\.key)
+                    keys.move(fromOffsets: from, toOffset: to)
+                    playlists.setKeys(keys, for: playlistID)
                 }
             }
         }
         .listStyle(.plain)
         .overlay {
-            if songs.isEmpty {
+            if entries.isEmpty {
                 ContentUnavailableView("Empty Playlist",
                                        systemImage: "music.note.list",
                                        description: Text("Tap + to add songs."))
@@ -158,7 +174,7 @@ struct PlaylistDetailView: View {
         .navigationTitle(playlist?.name ?? "")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if !songs.isEmpty { EditButton() }   // reorder / remove
+                if !entries.isEmpty { EditButton() }   // reorder / remove
                 Button { showPicker = true } label: { Image(systemName: "plus") }
             }
         }
@@ -179,12 +195,13 @@ struct SongPickerView: View {
 
     @EnvironmentObject private var library: LibraryManager
     @Environment(\.dismiss) private var dismiss
-    @State private var selected: Set<URL> = []
+    @State private var selected: Set<String> = []
+    @State private var query = ""
 
     var body: some View {
         NavigationStack {
-            List(library.songs) { song in
-                let added = alreadyAdded.contains(song.url.lastPathComponent)
+            List(sortSongs(searchSongs(library.songs, query), by: .title)) { song in
+                let added = alreadyAdded.contains(song.key)
                 Button {
                     if selected.contains(song.id) { selected.remove(song.id) }
                     else { selected.insert(song.id) }
@@ -200,6 +217,7 @@ struct SongPickerView: View {
                 .disabled(added)
             }
             .listStyle(.plain)
+            .searchable(text: $query, prompt: "Songs, artists, albums")
             .navigationTitle("Add Songs")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

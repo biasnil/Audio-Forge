@@ -1,11 +1,19 @@
 import Foundation
 import Combine
 
-/// Songs are stored by file name, because the app's folder path can change between launches.
+/// Songs are stored by key ("docs/<path>" or "link:<folder>/<path>"), because the
+/// app's folder path can change between launches. (Older versions stored bare file names.)
 nonisolated struct Playlist: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
     var songFiles: [String] = []
+}
+
+/// One row of a playlist: the song, or the key of a file that's gone.
+struct PlaylistEntry: Identifiable {
+    let key: String
+    let song: Song?
+    var id: String { key }
 }
 
 /// Creates, edits and saves playlists (Application Support/playlists.json).
@@ -51,23 +59,26 @@ final class PlaylistManager: ObservableObject {
         guard let i = index(of: id) else { return }
         var files = playlists[i].songFiles
         for song in songs {
-            let file = song.url.lastPathComponent
-            if !files.contains(file) { files.append(file) }
+            if !files.contains(song.key) { files.append(song.key) }
         }
         playlists[i].songFiles = files
     }
 
-    /// Replaces the playlist's contents (used after reordering or removing songs).
-    func setSongs(_ songs: [Song], for id: UUID) {
+    /// Replaces the playlist's contents (used after reordering or removing entries).
+    func setKeys(_ keys: [String], for id: UUID) {
         guard let i = index(of: id) else { return }
-        playlists[i].songFiles = songs.map { $0.url.lastPathComponent }
+        playlists[i].songFiles = keys
     }
 
-    /// Turns stored file names back into Song objects, skipping deleted files.
+    /// Turns stored keys back into Song objects, skipping files that are gone.
     func songs(in playlist: Playlist, from library: [Song]) -> [Song] {
-        let byFile = Dictionary(library.map { ($0.url.lastPathComponent, $0) },
-                                uniquingKeysWith: { first, _ in first })
-        return playlist.songFiles.compactMap { byFile[$0] }
+        entries(in: playlist, from: library).compactMap(\.song)
+    }
+
+    /// Every stored key, with its song if the file is still there.
+    func entries(in playlist: Playlist, from library: [Song]) -> [PlaylistEntry] {
+        let byKey = Dictionary(library.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        return playlist.songFiles.map { PlaylistEntry(key: $0, song: byKey[$0]) }
     }
 
     private func index(of id: UUID) -> Int? {
@@ -88,6 +99,11 @@ final class PlaylistManager: ObservableObject {
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([Playlist].self, from: data) else { return }
-        playlists = decoded
+        // Older versions stored bare file names from the Documents folder.
+        playlists = decoded.map { playlist in
+            var migrated = playlist
+            migrated.songFiles = playlist.songFiles.map { $0.contains("/") ? $0 : "docs/\($0)" }
+            return migrated
+        }
     }
 }
