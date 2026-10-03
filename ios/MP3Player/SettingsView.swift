@@ -10,7 +10,7 @@ struct SettingsView: View {
     private var s: AppSettings { settings.settings }
 
     var body: some View {
-        let stats = LibraryStats(library.songs)
+        let stats = library.stats
 
         NavigationStack {
             Form {

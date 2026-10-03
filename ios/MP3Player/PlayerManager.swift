@@ -47,7 +47,10 @@ nonisolated private struct LegacyPlayerState: Codable {
 final class PlayerManager: ObservableObject {
     @Published private(set) var currentSong: Song?
     @Published private(set) var isPlaying = false
-    @Published private(set) var currentTime: TimeInterval = 0
+    /// The playback position lives in its own object (`clock`), so the many views that
+    /// observe the player don't redraw 5 times a second.
+    let clock = PlaybackClock()
+    var currentTime: TimeInterval { clock.time }
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var shuffleMode: ShuffleMode = .off
     @Published private(set) var repeatMode: RepeatMode = .off
@@ -106,6 +109,7 @@ final class PlayerManager: ObservableObject {
     private var tickCount = 0
     private var hasRestored = false
     private var cancellables = Set<AnyCancellable>()
+    private var nowPlayingArtwork: (key: String, artwork: MPMediaItemArtwork?)?
 
     private static let stateKey = "savedPlayerState.v2"
     private static let legacyStateKey = "savedPlayerState"
@@ -387,7 +391,7 @@ final class PlayerManager: ObservableObject {
         } else {
             active.pausedTime = target
         }
-        currentTime = target
+        clock.time = target
         updateNowPlaying()
     }
 
@@ -407,8 +411,8 @@ final class PlayerManager: ObservableObject {
                 startCrossfade()
             }
         }
-        if tickCount % 2 == 0 && abs(currentTime - position) > 0.05 {
-            currentTime = position                // 0.2 s keeps synced lyrics responsive
+        if active.running, tickCount % 2 == 0, abs(clock.time - position) > 0.05 {
+            clock.time = position                 // 0.2 s keeps synced lyrics responsive
         }
     }
 
@@ -565,6 +569,7 @@ final class PlayerManager: ObservableObject {
     /// Puts the edited song's new tags into the queue and, if it was current, reopens it where it was.
     func resumeAfterFileEdit(_ updated: Song, hold: FileEditHold?) {
         queue.updateItems { $0.key == updated.key ? updated : $0 }
+        if nowPlayingArtwork?.key == updated.key { nowPlayingArtwork = nil }   // the cover may have changed
         if let hold {
             playCurrent(at: hold.time, autoplay: hold.wasPlaying)
         } else {
@@ -624,7 +629,7 @@ final class PlayerManager: ObservableObject {
         repeatMode = queue.repeatMode
         setRate(state.rate)
         playCurrent(at: found != nil ? state.time : 0, autoplay: false)
-        currentTime = active.pausedTime
+        clock.time = active.pausedTime
     }
 
     // MARK: - Interruptions (calls, alarms), headphones, route changes
@@ -739,7 +744,8 @@ final class PlayerManager: ObservableObject {
     private func publish() {
         currentSong = queue.currentItem
         duration = active.file != nil ? active.duration : (currentSong?.duration ?? 0)
-        currentTime = position(of: active)
+        let time = position(of: active)
+        if abs(clock.time - time) > 0.01 { clock.time = time }
         shuffleMode = queue.shuffleMode
         repeatMode = queue.repeatMode
         updateNowPlaying()
@@ -759,8 +765,12 @@ final class PlayerManager: ObservableObject {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(rate) : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(rate)
         ]
-        if let data = song.artworkData, let image = UIImage(data: data) {
-            info[MPMediaItemPropertyArtwork] = Self.makeArtwork(image)
+        // One artwork object per song, not one per play/pause/seek.
+        if nowPlayingArtwork?.key != song.key {
+            nowPlayingArtwork = (song.key, song.artworkData.flatMap(UIImage.init(data:)).map(Self.makeArtwork))
+        }
+        if let artwork = nowPlayingArtwork?.artwork {
+            info[MPMediaItemPropertyArtwork] = artwork
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }

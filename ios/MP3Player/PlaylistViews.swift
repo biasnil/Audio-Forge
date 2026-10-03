@@ -12,6 +12,9 @@ struct PlaylistsView: View {
     @State private var renameText = ""
 
     var body: some View {
+        // One lookup set for every row, instead of one per row.
+        let available = Set(library.songs.map(\.key))
+
         NavigationStack {
             List {
                 ForEach(playlists.playlists) { playlist in
@@ -25,7 +28,7 @@ struct PlaylistsView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(playlist.name).lineLimit(1)
-                                Text(songCount(playlist))
+                                Text(songCount(playlist, available: available))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -78,8 +81,8 @@ struct PlaylistsView: View {
         }
     }
 
-    private func songCount(_ playlist: Playlist) -> String {
-        let n = playlists.songs(in: playlist, from: library.songs).count
+    private func songCount(_ playlist: Playlist, available: Set<String>) -> String {
+        let n = playlist.songFiles.filter(available.contains).count
         return "\(n) song\(n == 1 ? "" : "s")"
     }
 }

@@ -38,6 +38,11 @@ final class LibraryManager: ObservableObject {
         didSet { applyHiddenFolders(settings.settings.hiddenFolders) }
     }
     @Published private(set) var isScanning = false
+    /// Grouped once per library change (not on every redraw of the tabs).
+    @Published private(set) var albums: [AlbumGroup] = []
+    @Published private(set) var artists: [ArtistGroup] = []
+    @Published private(set) var folders: [FolderGroup] = []
+    @Published private(set) var stats = LibraryStats([])
 
     nonisolated static let audioExtensions: Set<String> = ["mp3", "m4a", "m4b", "aac", "wav", "aiff", "aif",
                                                            "flac", "caf"]
@@ -60,7 +65,12 @@ final class LibraryManager: ObservableObject {
     }
 
     private func applyHiddenFolders(_ hidden: Set<String>) {
-        songs = hidden.isEmpty ? allSongs : allSongs.filter { !Self.isHidden($0.folderKey, by: hidden) }
+        let visible = hidden.isEmpty ? allSongs : allSongs.filter { !Self.isHidden($0.folderKey, by: hidden) }
+        songs = visible
+        albums = AlbumGroup.make(from: visible)
+        artists = ArtistGroup.make(from: visible)
+        stats = LibraryStats(visible)
+        folders = folderGroups(hidden: hidden)
     }
 
     nonisolated static func isHidden(_ folderKey: String, by hidden: Set<String>) -> Bool {
@@ -81,6 +91,21 @@ final class LibraryManager: ObservableObject {
 
     // MARK: - Scanning
 
+    private var lastScan: Date?
+    private var lastDocumentsChange: Date?
+
+    /// Rescans when coming back to the app, but only if something may have changed:
+    /// files were added to / removed from Documents (e.g. through Finder), or it's been
+    /// a while (linked folders can change elsewhere). Pull to refresh always rescans.
+    func reloadIfStale() async {
+        let documentsChange = (try? documents.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate
+        if let lastScan, Date().timeIntervalSince(lastScan) < 600, documentsChange == lastDocumentsChange {
+            return
+        }
+        await reload()
+    }
+
     /// Rescans everything. Unchanged files are taken from the previous scan, so this is quick.
     func reload() async {
         if let reloadTask {
@@ -96,6 +121,9 @@ final class LibraryManager: ObservableObject {
     private func performReload() async {
         isScanning = true
         defer { isScanning = false }
+        lastScan = Date()
+        lastDocumentsChange = (try? documents.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate
         let scanRoots = roots()
         rootNames = Dictionary(scanRoots.map { ($0.prefix, $0.name) }, uniquingKeysWith: { first, _ in first })
         let previous = Dictionary(allSongs.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
@@ -195,10 +223,11 @@ final class LibraryManager: ObservableObject {
                         song.bitrateKbps = Int(Double(song.fileSize) * 8 / song.duration / 1000)
                     }
                     if let artwork = tags.artwork {
-                        song.artworkData = artwork
+                        // Kept at Now Playing size (≤900 px), not the file's full size.
+                        song.artworkData = ImageTools.shrinkCover(artwork) ?? artwork
                     } else if let coverURL {
                         if !coverLoaded {
-                            folderCover = try? Data(contentsOf: coverURL)
+                            folderCover = (try? Data(contentsOf: coverURL)).map { ImageTools.shrinkCover($0) ?? $0 }
                             coverLoaded = true
                         }
                         song.artworkData = folderCover
@@ -297,8 +326,7 @@ final class LibraryManager: ObservableObject {
     }
 
     /// The folders songs were found in, sorted by name.
-    func folderGroups() -> [FolderGroup] {
-        let hidden = settings.settings.hiddenFolders
+    private func folderGroups(hidden: Set<String>) -> [FolderGroup] {
         return Dictionary(grouping: allSongs, by: \.folderKey)
             .map { key, items in
                 let prefix = key.split(separator: "/", maxSplits: 1).first.map(String.init) ?? key

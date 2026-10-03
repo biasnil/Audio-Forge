@@ -12,7 +12,7 @@ struct FoldersView: View {
     @State private var unlinkTarget: LinkedFolder?
 
     var body: some View {
-        let groups = library.folderGroups()
+        let groups = library.folders
         let visible = groups.filter { !$0.isHidden }
         let hidden = groups.filter(\.isHidden)
 
