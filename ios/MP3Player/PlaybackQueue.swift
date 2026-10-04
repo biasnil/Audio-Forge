@@ -23,6 +23,10 @@ nonisolated struct PlaybackQueue<Item> {
     private(set) var shuffleMode: ShuffleMode = .off
     private(set) var repeatMode: RepeatMode = .off
 
+    /// Builds the smart-shuffle order (first element = `start`). nil = plain random order.
+    /// Used for harmonic shuffle (compatible keys and tempos next to each other).
+    var smartOrder: (@Sendable (_ items: [Item], _ start: Int) -> [Int])?
+
     private var pendingNextIndex = -1
     private var history: [Int] = []
     private var shuffleOrder: [Int] = []      // smart mode only
@@ -94,9 +98,16 @@ nonisolated struct PlaybackQueue<Item> {
             if shufflePos + 1 >= shuffleOrder.count {
                 // Every song has played once this lap.
                 if repeatMode != .all { return false }
-                var order = Array(items.indices).shuffled()
-                if order.count > 1 && order[0] == currentIndex {
-                    order.swapAt(0, 1)           // no immediate repeat across the lap boundary
+                var order: [Int]
+                if let smartOrder {
+                    // A fresh lap that continues from the current song; it plays last this lap.
+                    let built = smartOrder(items, currentIndex)
+                    order = Array(built.dropFirst()) + [currentIndex]
+                } else {
+                    order = Array(items.indices).shuffled()
+                    if order.count > 1 && order[0] == currentIndex {
+                        order.swapAt(0, 1)       // no immediate repeat across the lap boundary
+                    }
                 }
                 shuffleOrder = order
                 shufflePos = 0
@@ -159,10 +170,81 @@ nonisolated struct PlaybackQueue<Item> {
         items = items.map(transform)
     }
 
-    /// Smart shuffle: a fresh random order of every OTHER song, with the current one first ("already played").
+    /// Smart shuffle: a fresh order of every OTHER song, with the current one first ("already played").
     private mutating func resetSmartShuffle(from current: Int) {
+        if let smartOrder {
+            let order = smartOrder(items, current)
+            if order.count == items.count, order.first == current {
+                shuffleOrder = order
+                shufflePos = 0
+                return
+            }
+        }
         let rest = items.indices.filter { $0 != current }.shuffled()
         shuffleOrder = [current] + rest
         shufflePos = 0
+    }
+
+    /// Rebuilds the smart-shuffle order from the current song (after `smartOrder` changed).
+    mutating func reshuffle() {
+        guard shuffleMode == .smart, !items.isEmpty else { return }
+        pendingNextIndex = -1
+        resetSmartShuffle(from: currentIndex)
+    }
+
+    // MARK: - Up Next
+
+    /// The indices that will play next, in order (up to `limit`). nil in Random mode,
+    /// where each next song is only picked when it's needed.
+    func upcoming(limit: Int) -> [Int]? {
+        switch shuffleMode {
+        case .random:
+            return nil
+        case .smart:
+            guard shufflePos >= 0 else { return [] }
+            return Array(shuffleOrder.dropFirst(shufflePos + 1).prefix(limit))
+        case .off:
+            var result: [Int] = []
+            var index = currentIndex
+            while result.count < limit {
+                index += 1
+                if index >= items.count {
+                    guard repeatMode == .all else { break }
+                    index = 0
+                }
+                if index == currentIndex { break }
+                result.append(index)
+            }
+            return result
+        }
+    }
+
+    /// Makes `index` the current item (tapping a song in Up Next).
+    mutating func jump(to index: Int) {
+        guard items.indices.contains(index) else { return }
+        pendingNextIndex = -1
+        if shuffleMode == .smart {
+            if let position = shuffleOrder.firstIndex(of: index), position > shufflePos {
+                shufflePos = position
+            } else {
+                resetSmartShuffle(from: index)
+            }
+        }
+        currentIndex = index
+        history.append(index)
+    }
+
+    /// Removes an item that isn't the current one (swiping it away in Up Next).
+    mutating func remove(at index: Int) {
+        guard items.indices.contains(index), index != currentIndex else { return }
+        items.remove(at: index)
+        if currentIndex > index { currentIndex -= 1 }
+        history = history.filter { $0 != index }.map { $0 > index ? $0 - 1 : $0 }
+        if let position = shuffleOrder.firstIndex(of: index) {
+            shuffleOrder.remove(at: position)
+            if position <= shufflePos { shufflePos -= 1 }
+        }
+        shuffleOrder = shuffleOrder.map { $0 > index ? $0 - 1 : $0 }
+        pendingNextIndex = -1
     }
 }

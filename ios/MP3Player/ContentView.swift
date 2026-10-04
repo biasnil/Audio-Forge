@@ -11,6 +11,7 @@ struct ContentView: View {
     let settings: SettingsStore
     let library: LibraryManager
     let player: PlayerManager
+    let songData: SongDataStore
     @EnvironmentObject private var editor: SongEditor
     @Environment(\.scenePhase) private var scenePhase
     @State private var showNowPlaying = false
@@ -94,6 +95,7 @@ struct ContentView: View {
             } else if phase == .background {
                 player.saveState()                           // remember position
                 settings.saveNow()
+                songData.saveNow()
             }
         }
         .onChange(of: visibleTabs) { _, _ in
@@ -108,6 +110,7 @@ struct ContentView: View {
         case .songs: SongsView()
         case .albums: AlbumsView()
         case .artists: ArtistsView()
+        case .genres: GenresView()
         case .folders: FoldersView()
         case .playlists: PlaylistsView()
         case .equalizer: EqualizerView()
