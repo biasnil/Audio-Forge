@@ -41,6 +41,7 @@ final class LibraryManager: ObservableObject {
     /// Grouped once per library change (not on every redraw of the tabs).
     @Published private(set) var albums: [AlbumGroup] = []
     @Published private(set) var artists: [ArtistGroup] = []
+    @Published private(set) var genres: [GenreGroup] = []
     @Published private(set) var folders: [FolderGroup] = []
     @Published private(set) var stats = LibraryStats([])
 
@@ -69,6 +70,7 @@ final class LibraryManager: ObservableObject {
         songs = visible
         albums = AlbumGroup.make(from: visible)
         artists = ArtistGroup.make(from: visible)
+        genres = GenreGroup.make(from: visible)
         stats = LibraryStats(visible)
         folders = folderGroups(hidden: hidden)
     }

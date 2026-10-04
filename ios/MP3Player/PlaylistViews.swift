@@ -1,63 +1,123 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 // MARK: - Playlists tab
 
 struct PlaylistsView: View {
     @EnvironmentObject private var playlists: PlaylistManager
     @EnvironmentObject private var library: LibraryManager
+    @EnvironmentObject private var player: PlayerManager
 
     @State private var showNewPlaylist = false
     @State private var newName = ""
     @State private var renameTarget: Playlist?
     @State private var renameText = ""
+    @State private var newSmart: SmartPlaylist?
+    @State private var showImporter = false
+    @State private var coverTarget: UUID?
+    @State private var showCoverPicker = false
+    @State private var coverItem: PhotosPickerItem?
 
     var body: some View {
-        // One lookup set for every row, instead of one per row.
-        let available = Set(library.songs.map(\.key))
+        // One lookup for every row, instead of one per row.
+        let byKey = Dictionary(library.songs.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
 
         TabStack {
             List {
-                ForEach(playlists.playlists) { playlist in
-                    NavigationLink(value: playlist.id) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "music.note.list")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 44, height: 44)
-                                .background(Color.gray.opacity(0.2))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(playlist.name).lineLimit(1)
-                                Text(songCount(playlist, available: available))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                Section("Smart Lists") {
+                    ForEach(SmartPlaylist.builtIn) { smart in
+                        NavigationLink(value: SmartRoute(id: smart.id)) {
+                            Label(smart.name, systemImage: smart.systemImage)
+                        }
+                    }
+                    ForEach(playlists.smartPlaylists) { smart in
+                        NavigationLink(value: SmartRoute(id: smart.id)) {
+                            Label(smart.name, systemImage: "gearshape.2")
+                        }
+                    }
+                    .onDelete { playlists.deleteSmart(at: $0) }
+                }
+
+                Section("Playlists") {
+                    ForEach(playlists.playlists) { playlist in
+                        let songs = playlist.songFiles.compactMap { byKey[$0] }
+                        NavigationLink(value: playlist.id) {
+                            HStack(spacing: 12) {
+                                PlaylistCoverView(playlist: playlist, songs: songs)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(playlist.name).lineLimit(1)
+                                    Text("\(songs.count) song\(songs.count == 1 ? "" : "s")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .contextMenu {
+                            Button("Rename", systemImage: "pencil") {
+                                renameText = playlist.name
+                                renameTarget = playlist
+                            }
+                            Button("Change Cover", systemImage: "photo") {
+                                coverTarget = playlist.id
+                                showCoverPicker = true
+                            }
+                            if playlist.coverFile != nil {
+                                Button("Use Album Covers", systemImage: "square.grid.2x2") {
+                                    playlists.removeCover(for: playlist.id)
+                                }
                             }
                         }
                     }
-                    .contextMenu {
-                        Button("Rename", systemImage: "pencil") {
-                            renameText = playlist.name
-                            renameTarget = playlist
-                        }
-                    }
-                }
-                .onDelete { playlists.delete(at: $0) }
-            }
-            .listStyle(.plain)
-            .overlay {
-                if playlists.playlists.isEmpty {
-                    ContentUnavailableView("No Playlists",
-                                           systemImage: "music.note.list",
-                                           description: Text("Tap + to create one."))
+                    .onDelete { playlists.delete(at: $0) }
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("Playlists")
             .navigationDestination(for: UUID.self) { id in
                 PlaylistDetailView(playlistID: id)
             }
+            .navigationDestination(for: SmartRoute.self) { route in
+                SmartPlaylistDetailView(playlistID: route.id)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showNewPlaylist = true } label: { Image(systemName: "plus") }
+                    Menu {
+                        Button("New Playlist", systemImage: "music.note.list") { showNewPlaylist = true }
+                        Button("New Smart Playlist", systemImage: "gearshape.2") {
+                            newSmart = SmartPlaylist(name: "")
+                        }
+                        Button("Import .m3u Playlist…", systemImage: "square.and.arrow.down") { showImporter = true }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(item: $newSmart) { smart in
+                SmartPlaylistEditor(playlist: smart) { playlists.saveSmart($0) }
+            }
+            .fileImporter(isPresented: $showImporter,
+                          allowedContentTypes: [.m3uPlaylist, UTType(filenameExtension: "m3u8") ?? .m3uPlaylist],
+                          allowsMultipleSelection: true) { result in
+                guard case .success(let urls) = result else { return }
+                var messages: [String] = []
+                for url in urls {
+                    if let result = playlists.importM3U(url, library: library.songs) {
+                        messages.append("\(url.deletingPathExtension().lastPathComponent): "
+                                        + "\(result.matched) of \(result.total) songs found")
+                    }
+                }
+                player.notice = messages.isEmpty ? "No songs found in that playlist." : messages.joined(separator: "\n")
+            }
+            .photosPicker(isPresented: $showCoverPicker, selection: $coverItem, matching: .images)
+            .onChange(of: coverItem) { _, item in
+                guard let item, let id = coverTarget else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        playlists.setCover(data, for: id)
+                    }
+                    coverItem = nil
+                    coverTarget = nil
                 }
             }
             .alert("New Playlist", isPresented: $showNewPlaylist) {
@@ -80,11 +140,11 @@ struct PlaylistsView: View {
             }
         }
     }
+}
 
-    private func songCount(_ playlist: Playlist, available: Set<String>) -> String {
-        let n = playlist.songFiles.filter(available.contains).count
-        return "\(n) song\(n == 1 ? "" : "s")"
-    }
+/// Navigation value for smart playlists (UUID is already used by normal playlists).
+struct SmartRoute: Hashable {
+    let id: UUID
 }
 
 // MARK: - One playlist
@@ -96,6 +156,8 @@ struct PlaylistDetailView: View {
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var player: PlayerManager
     @State private var showPicker = false
+    @State private var showCoverPicker = false
+    @State private var coverItem: PhotosPickerItem?
 
     private var playlist: Playlist? {
         playlists.playlists.first { $0.id == playlistID }
@@ -109,33 +171,42 @@ struct PlaylistDetailView: View {
     var body: some View {
         let entries = self.entries
         let songs = entries.compactMap(\.song)
+        let name = playlist?.name ?? ""
 
         List {
-            if !songs.isEmpty {
-                Section {
-                    HStack(spacing: 12) {
-                        Button {
-                            player.play(songs, startAt: 0)
-                        } label: {
-                            Label("Play", systemImage: "play.fill").frame(maxWidth: .infinity)
-                        }
-                        Button {
-                            player.playShuffled(songs)
-                        } label: {
-                            Label("Shuffle", systemImage: "shuffle").frame(maxWidth: .infinity)
-                        }
+            Section {
+                VStack(spacing: 12) {
+                    if let playlist {
+                        PlaylistCoverView(playlist: playlist, songs: songs, size: 200)
+                            .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
+                            .onTapGesture { showCoverPicker = true }
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .listRowSeparator(.hidden)
+                    if !songs.isEmpty {
+                        HStack(spacing: 12) {
+                            Button {
+                                player.play(songs, startAt: 0, from: name)
+                            } label: {
+                                Label("Play", systemImage: "play.fill").frame(maxWidth: .infinity)
+                            }
+                            Button {
+                                player.playShuffled(songs, from: name)
+                            } label: {
+                                Label("Shuffle", systemImage: "shuffle").frame(maxWidth: .infinity)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .listRowSeparator(.hidden)
             }
 
             Section {
                 ForEach(entries) { entry in
                     if let song = entry.song {
                         Button {
-                            player.play(songs, startAt: songs.firstIndex { $0.id == song.id } ?? 0)
+                            player.play(songs, startAt: songs.firstIndex { $0.id == song.id } ?? 0, from: name)
                         } label: {
                             SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
                         }
@@ -174,11 +245,32 @@ struct PlaylistDetailView: View {
                                        description: Text("Tap + to add songs."))
             }
         }
-        .navigationTitle(playlist?.name ?? "")
+        .navigationTitle(name)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if !entries.isEmpty { EditButton() }   // reorder / remove
                 Button { showPicker = true } label: { Image(systemName: "plus") }
+                Menu {
+                    Button("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                        player.playNext(songs)
+                    }
+                    Button("Add to Queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                        player.addToQueue(songs)
+                    }
+                    Divider()
+                    Button("Change Cover", systemImage: "photo") { showCoverPicker = true }
+                    if playlist?.coverFile != nil {
+                        Button("Use Album Covers", systemImage: "square.grid.2x2") {
+                            playlists.removeCover(for: playlistID)
+                        }
+                    }
+                    ShareLink(item: M3UExport(name: name, songs: songs),
+                              preview: SharePreview("\(name).m3u8")) {
+                        Label("Export .m3u Playlist", systemImage: "square.and.arrow.up")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
         }
         .sheet(isPresented: $showPicker) {
@@ -186,6 +278,16 @@ struct PlaylistDetailView: View {
                 playlists.add(picked, to: playlistID)
             }
             .environmentObject(library)
+        }
+        .photosPicker(isPresented: $showCoverPicker, selection: $coverItem, matching: .images)
+        .onChange(of: coverItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    playlists.setCover(data, for: playlistID)
+                }
+                coverItem = nil
+            }
         }
     }
 }

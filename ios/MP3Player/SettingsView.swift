@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryManager
+    @EnvironmentObject private var songData: SongDataStore
+    @EnvironmentObject private var analyzer: LibraryAnalyzer
     @State private var musixmatchKey = ""
     @State private var savedKey = ""
 
@@ -40,11 +42,17 @@ struct SettingsView: View {
                         }
                     }
                     .disabled(library.isScanning)
+                    analysisRow
+                    NavigationLink("Find Duplicates") { DuplicatesView() }
                 } header: {
                     Text("Library")
                 } footer: {
-                    Text("Long-press a song to edit its tags or change its cover.")
+                    Text("Analysis finds each song's tempo (BPM), key, and where its sound starts and ends, "
+                         + "on this iPhone (nothing is uploaded). It unlocks Smart Options. "
+                         + "Long-press a song to edit its tags or change its cover.")
                 }
+
+                smartOptions
 
                 Section("Appearance") {
                     Picker("Theme", selection: binding(\.appearance)) {
@@ -64,10 +72,14 @@ struct SettingsView: View {
                                step: 1)
                     }
                     .disabled(!s.crossfadeEnabled)
+                    Toggle("Fade Out Sleep Timer", isOn: binding(\.sleepFadeOut))
+                    Toggle("Resume Long Tracks", isOn: binding(\.rememberLongTrackPosition))
                 } header: {
                     Text("Playback")
                 } footer: {
-                    Text("ReplayGain evens out loudness between songs using the gain stored in their tags.")
+                    Text("ReplayGain evens out loudness between songs using the gain stored in their tags. "
+                         + "With crossfade off, songs play gapless. Resume Long Tracks: audiobooks and mixes "
+                         + "(10 minutes or longer) continue where you stopped.")
                 }
 
                 Section("Video Wallpaper") {
@@ -129,6 +141,78 @@ struct SettingsView: View {
                 savedKey = Keychain.read(LyricsFinder.musixmatchKeyAccount)
                 musixmatchKey = savedKey
             }
+        }
+    }
+
+    // MARK: - Analysis
+
+    @ViewBuilder
+    private var analysisRow: some View {
+        let analyzed = songData.analyzedCount(of: library.songs)
+        let total = library.songs.count
+        if let progress = analyzer.progress {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Analyzing… \(progress.done) of \(progress.total)")
+                    Spacer()
+                    Button("Stop", role: .cancel) { analyzer.cancel() }
+                        .buttonStyle(.borderless)
+                }
+                ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+                Text("You can keep using the app. Analysis pauses while the app is in the background.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Button {
+                analyzer.start(library.songs)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Analyze Your Songs' Key and BPM")
+                    Text(analyzed == total ? "All \(total) songs analyzed"
+                         : "\(analyzed) of \(total) songs analyzed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(total == 0 || library.isScanning)
+        }
+    }
+
+    // MARK: - Smart Options
+
+    private var smartLocked: Bool { !s.analysisCompleted }
+
+    @ViewBuilder
+    private var smartOptions: some View {
+        Section {
+            if smartLocked {
+                Label("Run \"Analyze Your Songs' Key and BPM\" (above) to unlock these.",
+                      systemImage: "lock.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Toggle(isOn: binding(\.smartTransitions)) {
+                Label("Smart Transitions", systemImage: smartLocked ? "lock" : "wand.and.stars")
+            }
+            .disabled(smartLocked)
+            Toggle(isOn: binding(\.beatMatchedCrossfade)) {
+                Label("Beat-Matched Crossfades", systemImage: smartLocked ? "lock" : "metronome")
+            }
+            .disabled(smartLocked || !s.crossfadeEnabled)
+            Toggle(isOn: binding(\.harmonicShuffle)) {
+                Label("Harmonic Shuffle", systemImage: smartLocked ? "lock" : "dial.medium")
+            }
+            .disabled(smartLocked)
+        } header: {
+            Text("Smart Options")
+        } footer: {
+            Text("Smart Transitions: songs from the same album play gapless, crossfades start where a "
+                 + "song's ending actually fades out, and silence at the start and end is skipped. "
+                 + "Beat-Matched Crossfades (needs Crossfade on): the next song's tempo is matched and its "
+                 + "beats lined up during the fade, then it eases back to normal speed. Harmonic Shuffle: "
+                 + "Smart shuffle plays songs in compatible keys and similar tempos next to each other. "
+                 + "Songs that haven't been analyzed, or have no steady beat, use normal transitions.")
         }
     }
 

@@ -181,12 +181,12 @@ struct SongCollectionView: View {
                         .foregroundStyle(.secondary)
                     HStack(spacing: 12) {
                         Button {
-                            player.play(songs, startAt: 0)
+                            player.play(songs, startAt: 0, from: title)
                         } label: {
                             Label("Play", systemImage: "play.fill").frame(maxWidth: .infinity)
                         }
                         Button {
-                            player.playShuffled(songs)
+                            player.playShuffled(songs, from: title)
                         } label: {
                             Label("Shuffle", systemImage: "shuffle").frame(maxWidth: .infinity)
                         }
@@ -202,7 +202,7 @@ struct SongCollectionView: View {
             Section {
                 ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
                     Button {
-                        player.play(songs, startAt: index)
+                        player.play(songs, startAt: index, from: title)
                     } label: {
                         SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
                     }
@@ -213,7 +213,82 @@ struct SongCollectionView: View {
         .listStyle(.plain)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                        player.playNext(songs)
+                    }
+                    Button("Add to Queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                        player.addToQueue(songs)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .disabled(songs.isEmpty)
+            }
+        }
         .onAppear { songs = compute(library.songs) }
         .onReceive(library.$songs.dropFirst()) { songs = compute($0) }
+    }
+}
+
+// MARK: - Genres tab
+
+struct GenreGroup: Identifiable, Hashable {
+    let name: String
+    let songCount: Int
+    let artworkID: String?
+    var id: String { name }
+
+    static let unknown = "Unknown Genre"
+
+    static func make(from songs: [Song]) -> [GenreGroup] {
+        Dictionary(grouping: songs) { $0.genre.isEmpty ? unknown : $0.genre }
+            .map { name, items in
+                GenreGroup(name: name, songCount: items.count,
+                           artworkID: items.lazy.compactMap(\.artworkID).first)
+            }
+            .sorted { a, b in
+                if (a.name == unknown) != (b.name == unknown) { return b.name == unknown }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
+    }
+}
+
+struct GenresView: View {
+    @EnvironmentObject private var library: LibraryManager
+
+    var body: some View {
+        let genres = library.genres
+
+        TabStack {
+            List(genres) { genre in
+                NavigationLink(value: genre) {
+                    HStack(spacing: 12) {
+                        ArtworkView(artworkID: genre.artworkID, size: 44)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(genre.name).lineLimit(1)
+                            Text("\(genre.songCount) song\(genre.songCount == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .overlay {
+                if genres.isEmpty {
+                    ContentUnavailableView("No Genres", systemImage: "guitars",
+                                           description: Text("Songs with a genre tag show up here."))
+                }
+            }
+            .navigationTitle("Genres")
+            .navigationDestination(for: GenreGroup.self) { genre in
+                SongCollectionView(title: genre.name, sortByAlbum: true) { song in
+                    genre.name == GenreGroup.unknown ? song.genre.isEmpty : song.genre == genre.name
+                }
+            }
+        }
     }
 }

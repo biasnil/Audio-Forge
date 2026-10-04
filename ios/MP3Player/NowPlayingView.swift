@@ -7,6 +7,7 @@ struct NowPlayingView: View {
     @EnvironmentObject private var player: PlayerManager
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var editor: SongEditor
+    @EnvironmentObject private var songData: SongDataStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var lyrics: LyricsContent = .none
     @State private var showLyrics = false
@@ -18,6 +19,11 @@ struct NowPlayingView: View {
     @State private var coverSong: Song?
     @State private var showCoverPicker = false
     @State private var coverItem: PhotosPickerItem?
+    @State private var showUpNext = false
+    @State private var showFullLyrics = false
+    @State private var showVisualizer = false
+    /// Tint taken from the cover (per artwork id).
+    @State private var theme: (key: String, color: Color)?
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -28,8 +34,14 @@ struct NowPlayingView: View {
         return WallpaperFiles.resolve(songKey: song.key, in: settings.settings)
     }
 
+    private var themeColor: Color? {
+        guard let theme, theme.key == player.currentSong?.artworkID else { return nil }
+        return theme.color
+    }
+
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
+            topBar
             if lyricsMode {
                 HStack(spacing: 12) {
                     ArtworkView(artworkID: player.currentSong?.artworkID, size: 56)
@@ -40,15 +52,24 @@ struct NowPlayingView: View {
 
                 lyricsPanel
                     .frame(maxHeight: .infinity)
+                    .onTapGesture(count: 2) { showFullLyrics = true }
             } else {
-                Spacer(minLength: 16)
-                ArtworkView(artworkID: player.currentSong?.artworkID, size: 300, cornerRadius: 10)
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
-                    .contextMenu { coverMenu }                  // long-press the cover
+                Spacer(minLength: 8)
+                Group {
+                    if showVisualizer {
+                        VisualizerView(data: player.visualizer)
+                            .frame(width: 300, height: 300)
+                    } else {
+                        ArtworkView(artworkID: player.currentSong?.artworkID, size: 300, cornerRadius: 10)
+                            .shadow(color: (themeColor ?? .black).opacity(0.4), radius: 24, y: 10)
+                            .contextMenu { coverMenu }              // long-press the cover
+                    }
+                }
                 titleBlock(alignment: .center, large: true)
             }
 
             ProgressSlider(remaining: true, timeFont: .caption.monospacedDigit())
+            if player.isLongTrack { skipButtons }
             controls
             volume
             extras
@@ -57,8 +78,20 @@ struct NowPlayingView: View {
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 12)
+        .tint(themeColor)
         .background { background }
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showUpNext) {
+            UpNextView()
+        }
+        .fullScreenCover(isPresented: $showFullLyrics) {
+            if let song = player.currentSong {
+                FullScreenLyricsView(song: song, content: lyrics)
+            }
+        }
+        .onChange(of: showVisualizer) { _, on in player.setVisualizerActive(on && scenePhase == .active) }
+        .onChange(of: scenePhase) { _, phase in player.setVisualizerActive(showVisualizer && phase == .active) }
+        .onDisappear { player.setVisualizerActive(false) }
         .sheet(item: $editingSong) { song in
             TagEditorView(song: song)
         }
@@ -85,12 +118,16 @@ struct NowPlayingView: View {
         .task(id: player.currentSong?.artworkID) {
             guard let artworkID = player.currentSong?.artworkID else {
                 backdrop = nil
+                theme = nil
                 return
             }
-            let image = await Task.detached(priority: .utility) {
-                ArtworkStore.load(artworkID).flatMap(ImageTools.backdrop)
+            let result = await Task.detached(priority: .utility) { () -> (UIImage?, UIColor?) in
+                guard let data = ArtworkStore.load(artworkID) else { return (nil, nil) }
+                return (ImageTools.backdrop(data), ImageTools.themeColor(data))
             }.value
-            if let image, !Task.isCancelled { backdrop = (artworkID, image) }
+            guard !Task.isCancelled else { return }
+            if let image = result.0 { backdrop = (artworkID, image) }
+            theme = result.1.map { (artworkID, Color(uiColor: $0)) }
         }
     }
 
@@ -115,13 +152,61 @@ struct NowPlayingView: View {
                     if !playable { videoFailed = true }
                 }
         } else if let backdrop, backdrop.key == player.currentSong?.artworkID {
-            // Blurred once per song, in the background (see backdropTask).
-            Image(uiImage: backdrop.image)
-                .resizable()
-                .scaledToFill()
-                .opacity(0.35)
-                .ignoresSafeArea()
+            // Blurred once per song, in the background; tinted with the cover's colour.
+            ZStack {
+                Image(uiImage: backdrop.image)
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.35)
+                if let themeColor {
+                    LinearGradient(colors: [themeColor.opacity(0.35), .clear],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+            }
+            .ignoresSafeArea()
         }
+    }
+
+    /// Love (left) and Up Next (right).
+    private var topBar: some View {
+        HStack {
+            if let song = player.currentSong {
+                let loved = songData.isFavorite(song.key)
+                Button {
+                    songData.toggleFavorite(song.key)
+                } label: {
+                    Image(systemName: loved ? "heart.fill" : "heart")
+                        .foregroundStyle(loved ? Color.pink : Color.secondary)
+                }
+                .accessibilityLabel(loved ? "Unlove" : "Love")
+            }
+            Spacer()
+            if lyricsMode {
+                Button { showFullLyrics = true } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                }
+                .accessibilityLabel("Full-screen lyrics")
+            }
+            Button { showUpNext = true } label: {
+                Image(systemName: "list.bullet")
+            }
+            .accessibilityLabel("Up Next")
+        }
+        .font(.title3)
+        .buttonStyle(.plain)
+        .padding(.top, 20)
+    }
+
+    /// ±15 s for long tracks (audiobooks, mixes).
+    private var skipButtons: some View {
+        HStack(spacing: 48) {
+            Button { player.skip(by: -15) } label: { Image(systemName: "gobackward.15") }
+                .accessibilityLabel("Back 15 seconds")
+            Button { player.skip(by: 15) } label: { Image(systemName: "goforward.15") }
+                .accessibilityLabel("Forward 15 seconds")
+        }
+        .font(.title2)
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -138,7 +223,8 @@ struct NowPlayingView: View {
     @ViewBuilder
     private var lyricsPanel: some View {
         switch lyrics {
-        case .synced(let lines): LyricsView(lines: lines)
+        case .synced(let lines):
+            LyricsView(lines: lines, offset: player.currentSong.map { songData.stats(for: $0.key).lyricsOffset ?? 0 } ?? 0)
         case .plain(let lines): PlainLyricsView(lines: lines)
         default: EmptyView()
         }
@@ -217,7 +303,7 @@ struct NowPlayingView: View {
         }
     }
 
-    /// Speed, lyrics toggle, sleep timer.
+    /// Speed, lyrics, visualizer, A–B repeat, sleep timer.
     private var extras: some View {
         HStack {
             Menu {
@@ -253,6 +339,24 @@ struct NowPlayingView: View {
 
             Spacer()
 
+            Button {
+                withAnimation { showVisualizer.toggle() }
+            } label: {
+                Image(systemName: "waveform")
+                    .foregroundStyle(showVisualizer ? Color.accentColor : Color.primary)
+            }
+            .disabled(lyricsMode)
+            .accessibilityLabel("Visualizer")
+
+            Spacer()
+
+            Button { player.cycleABRepeat() } label: {
+                abLabel
+            }
+            .accessibilityLabel("A-B repeat")
+
+            Spacer()
+
             Menu {
                 Picker("Sleep Timer",
                        selection: Binding(get: { player.sleepTimer }, set: { player.setSleepTimer($0) })) {
@@ -268,6 +372,21 @@ struct NowPlayingView: View {
         }
         .font(.title3)
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var abLabel: some View {
+        switch player.abRepeat {
+        case .off:
+            Text("A–B").font(.subheadline.bold())
+        case .aSet:
+            Text("A–").font(.subheadline.bold()).foregroundStyle(Color.accentColor)
+        case .looping:
+            Text("A–B").font(.subheadline.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .background(Color.accentColor, in: Capsule())
+        }
     }
 
     @ViewBuilder

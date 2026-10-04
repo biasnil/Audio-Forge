@@ -82,7 +82,7 @@ final class SongEditor: ObservableObject {
     }
 }
 
-/// The long-press menu items for a song: playlists, tags, cover, delete.
+/// The long-press menu items for a song: queue, love, playlists, tags, cover, delete.
 struct SongMenu: View {
     let song: Song
     var onNewPlaylist: ((Song) -> Void)?
@@ -90,8 +90,18 @@ struct SongMenu: View {
     @EnvironmentObject private var playlists: PlaylistManager
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var editor: SongEditor
+    @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var songData: SongDataStore
 
     var body: some View {
+        Button("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") { player.playNext([song]) }
+        Button("Add to Queue", systemImage: "text.line.last.and.arrowtriangle.forward") { player.addToQueue([song]) }
+        let loved = songData.isFavorite(song.key)
+        Button(loved ? "Unlove" : "Love", systemImage: loved ? "heart.slash" : "heart") {
+            songData.toggleFavorite(song.key)
+        }
+        Divider()
+
         if let onNewPlaylist {
             Menu {
                 ForEach(playlists.playlists) { playlist in
@@ -118,6 +128,8 @@ struct SongMenu: View {
 /// Every tag, written into the file on Save (MP3, FLAC, M4A).
 struct TagEditorView: View {
     let song: Song
+
+    @EnvironmentObject private var songData: SongDataStore
 
     @EnvironmentObject private var editor: SongEditor
     @Environment(\.dismiss) private var dismiss
@@ -166,6 +178,10 @@ struct TagEditorView: View {
                     numberPair("Track", $fields.track, $fields.trackTotal)
                     numberPair("Disc", $fields.disc, $fields.discTotal)
                     field("BPM", $fields.bpm, numeric: true)
+                    field("Key", $fields.key)
+                    if let analysis = songData.analysis(for: song), analysis.bpm != nil || analysis.key != nil {
+                        detectedRow(analysis)
+                    }
                 }
                 Section("More") {
                     field("Composer", $fields.composer)
@@ -240,6 +256,27 @@ struct TagEditorView: View {
                 .multilineTextAlignment(.trailing)
                 .keyboardType(numeric ? .numberPad : .default)
                 .autocorrectionDisabled(numeric)
+        }
+    }
+
+    /// What the analysis found, with a button to write it into the BPM and Key fields.
+    private func detectedRow(_ analysis: SongAnalysis) -> some View {
+        let bpm = analysis.bpm.map { String(Int($0.rounded())) }
+        let key = analysis.key
+        let summary = [bpm.map { "\($0) BPM" }, key.map { "\($0.name) (\($0.camelot))" }]
+            .compactMap { $0 }.joined(separator: " · ")
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Detected").font(.caption).foregroundStyle(.secondary)
+                Text(summary).font(.subheadline)
+            }
+            Spacer()
+            Button("Use") {
+                if let bpm { fields.bpm = bpm }
+                if let key { fields.key = key.tagValue }
+            }
+            .buttonStyle(.bordered)
+            .disabled(fields.bpm == (bpm ?? fields.bpm) && fields.key == (key?.tagValue ?? fields.key))
         }
     }
 

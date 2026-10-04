@@ -227,7 +227,12 @@ enum SongSort: String, CaseIterable, Identifiable {
     case album = "Album"
     case year = "Year"
     case recent = "Recently Added"
+    case bpm = "BPM"
+    case key = "Key"
     var id: String { rawValue }
+
+    /// Sorts with an A–Z index down the side.
+    var isAlphabetical: Bool { self == .title || self == .artist || self == .album }
 }
 
 /// Same fields the desktop search checks: title, artist, album.
@@ -241,7 +246,8 @@ func searchSongs(_ songs: [Song], _ query: String) -> [Song] {
     }
 }
 
-func sortSongs(_ songs: [Song], by sort: SongSort) -> [Song] {
+/// BPM and Key sorts use the analysis (songs without one go last).
+func sortSongs(_ songs: [Song], by sort: SongSort, analysis: [String: SongAnalysis] = [:]) -> [Song] {
     func order(_ a: String, _ b: String) -> ComparisonResult { a.localizedStandardCompare(b) }
     func discTrack(_ song: Song) -> Int { song.discNumber * 1000 + song.trackNumber }
 
@@ -266,8 +272,34 @@ func sortSongs(_ songs: [Song], by sort: SongSort) -> [Song] {
             return order(a.title, b.title) == .orderedAscending
         case .recent:
             return a.dateAdded > b.dateAdded
+        case .bpm:
+            let x = analysis[a.key]?.bpm ?? .infinity, y = analysis[b.key]?.bpm ?? .infinity
+            if x != y { return x < y }
+            return order(a.title, b.title) == .orderedAscending
+        case .key:
+            // Camelot order: 1A, 1B, 2A, 2B…
+            func rank(_ song: Song) -> Int {
+                guard let key = analysis[song.key]?.key else { return Int.max }
+                return key.camelotNumber * 2 + (key.isMinor ? 0 : 1)
+            }
+            if rank(a) != rank(b) { return rank(a) < rank(b) }
+            return order(a.title, b.title) == .orderedAscending
         }
     }
+}
+
+/// The A–Z index letter for a song under an alphabetical sort ("#" for digits, symbols, other scripts).
+func indexLetter(for song: Song, sort: SongSort) -> String {
+    let text: String
+    switch sort {
+    case .artist: text = song.artist
+    case .album: text = song.album
+    default: text = song.title
+    }
+    guard let first = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).first
+    else { return "#" }
+    let letter = String(first).uppercased()
+    return ("A"..."Z").contains(letter) && letter.count == 1 ? letter : "#"
 }
 
 struct SongsView: View {
@@ -275,23 +307,44 @@ struct SongsView: View {
     @EnvironmentObject private var player: PlayerManager
     @EnvironmentObject private var playlists: PlaylistManager
     @EnvironmentObject private var editor: SongEditor
+    @EnvironmentObject private var songData: SongDataStore
 
     @AppStorage("songSort") private var sort: SongSort = .title
     @State private var searchText = ""
     @State private var showImporter = false
     @State private var showNewPlaylist = false
     @State private var newPlaylistName = ""
-    @State private var songForNewPlaylist: Song?
+    @State private var songsForNewPlaylist: [Song] = []
     /// Searched + sorted only when the library, search or sort changes, not on every redraw.
     @State private var songs: [Song] = []
+    @State private var indexTargets: [IndexTarget] = []
+    @State private var selecting = false
+    @State private var selection = Set<String>()
+
+    private struct IndexTarget: Identifiable {
+        let letter: String
+        let songID: String
+        var id: String { letter }
+    }
 
     private let importTypes: [UTType] = [
         .audio, UTType(filenameExtension: "lrc") ?? .plainText, .plainText,
     ]
 
     private func refresh(_ all: [Song]) {
-        songs = sortSongs(searchSongs(all, searchText), by: sort)
+        songs = sortSongs(searchSongs(all, searchText), by: sort, analysis: songData.analysis)
+        var targets: [IndexTarget] = []
+        if sort.isAlphabetical {
+            var seen = Set<String>()
+            for song in songs {
+                let letter = indexLetter(for: song, sort: sort)
+                if seen.insert(letter).inserted { targets.append(IndexTarget(letter: letter, songID: song.id)) }
+            }
+        }
+        indexTargets = targets
     }
+
+    private var selectedSongs: [Song] { songs.filter { selection.contains($0.id) } }
 
     var body: some View {
         // Tapping a song queues exactly this list (searched + sorted).
@@ -309,63 +362,19 @@ struct SongsView: View {
                         }
                     }
                 } else {
-                    List {
-                        ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                            Button {
-                                player.play(songs, startAt: index)
-                            } label: {
-                                SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
-                            }
-                            .contextMenu {                       // long-press
-                                SongMenu(song: song) { song in
-                                    songForNewPlaylist = song
-                                    showNewPlaylist = true
-                                }
-                            }
-                        }
-                        .onDelete { offsets in
-                            editor.pendingDelete = offsets.map { songs[$0] }   // asks first
-                        }
-                    }
-                    .listStyle(.plain)
-                    .refreshable { await library.reload() }
-                    .safeAreaInset(edge: .top) {
-                        // First scan: songs appear as they're read; show how far along it is.
-                        if let progress = library.scanProgress {
-                            ScanProgressView(progress: progress)
-                                .padding(.horizontal)
-                                .padding(.vertical, 6)
-                                .background(.bar)
-                        }
-                    }
-                    .overlay {
-                        if songs.isEmpty && !searchText.isEmpty {
-                            ContentUnavailableView.search(text: searchText)
-                        }
-                    }
+                    songList
                 }
             }
-            .navigationTitle("Songs")
+            .navigationTitle(selecting ? "\(selection.count) Selected" : "Songs")
             .searchable(text: $searchText, prompt: "Songs, artists, albums")
             .onAppear { refresh(library.songs) }
             .onReceive(library.$songs.dropFirst()) { refresh($0) }
+            .onReceive(songData.$analysis.dropFirst().debounce(for: .seconds(1), scheduler: RunLoop.main)) { _ in
+                if sort == .bpm || sort == .key { refresh(library.songs) }
+            }
             .onChange(of: searchText) { _, _ in refresh(library.songs) }
             .onChange(of: sort) { _, _ in refresh(library.songs) }
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if library.isScanning { ProgressView() }
-                    Menu {
-                        Picker("Sort By", selection: $sort) {
-                            ForEach(SongSort.allCases) { option in
-                                Text(option.rawValue).tag(option)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                    }
-                    Button { showImporter = true } label: { Image(systemName: "plus") }
-                }
-            }
+            .toolbar { toolbar }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: importTypes,
@@ -379,7 +388,7 @@ struct SongsView: View {
                 TextField("Playlist name", text: $newPlaylistName)
                 Button("Create") {
                     let id = playlists.create(name: newPlaylistName)
-                    if let song = songForNewPlaylist { playlists.add([song], to: id) }
+                    playlists.add(songsForNewPlaylist, to: id)
                     resetNewPlaylist()
                 }
                 Button("Cancel", role: .cancel) { resetNewPlaylist() }
@@ -387,9 +396,176 @@ struct SongsView: View {
         }
     }
 
+    private var songList: some View {
+        ScrollViewReader { proxy in
+            List(selection: $selection) {
+                ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+                    Group {
+                        if selecting {
+                            SongRow(song: song, isCurrent: false, detail: detail(for: song))
+                        } else {
+                            Button {
+                                player.play(songs, startAt: index, from: "Songs")
+                            } label: {
+                                SongRow(song: song, isCurrent: player.currentSong?.id == song.id,
+                                        detail: detail(for: song))
+                            }
+                            .contextMenu {                       // long-press
+                                SongMenu(song: song) { song in
+                                    songsForNewPlaylist = [song]
+                                    showNewPlaylist = true
+                                }
+                            }
+                        }
+                    }
+                    .tag(song.id)
+                    .id(song.id)
+                }
+                .onDelete { offsets in
+                    editor.pendingDelete = offsets.map { songs[$0] }   // asks first
+                }
+            }
+            .listStyle(.plain)
+            .environment(\.editMode, .constant(selecting ? .active : .inactive))
+            .refreshable { await library.reload() }
+            .safeAreaInset(edge: .top) {
+                // First scan: songs appear as they're read; show how far along it is.
+                if let progress = library.scanProgress {
+                    ScanProgressView(progress: progress)
+                        .padding(.horizontal)
+                        .padding(.vertical, 6)
+                        .background(.bar)
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if !selecting && searchText.isEmpty && indexTargets.count > 3 {
+                    AlphabetIndex(letters: indexTargets.map(\.letter)) { letter in
+                        if let target = indexTargets.first(where: { $0.letter == letter }) {
+                            proxy.scrollTo(target.songID, anchor: .top)
+                        }
+                    }
+                    .padding(.trailing, 2)
+                }
+            }
+            .overlay {
+                if songs.isEmpty && !searchText.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                }
+            }
+        }
+    }
+
+    /// BPM / key next to each song when sorted by them.
+    private func detail(for song: Song) -> String? {
+        guard sort == .bpm || sort == .key, let analysis = songData.analysis[song.key] else { return nil }
+        let bpm = analysis.bpm.map { "\(Int($0.rounded())) BPM" }
+        let key = analysis.key.map { "\($0.camelot) · \($0.shortName)" }
+        return [sort == .bpm ? bpm : key, sort == .bpm ? key : bpm].compactMap { $0 }.joined(separator: "  ")
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        if selecting {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Done") {
+                    selecting = false
+                    selection.removeAll()
+                }
+            }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button(selection.count == songs.count ? "None" : "All") {
+                    selection = selection.count == songs.count ? [] : Set(songs.map(\.id))
+                }
+                Menu {
+                    let picked = selectedSongs
+                    Button("Play", systemImage: "play") { player.play(picked, startAt: 0, from: "Selection") }
+                    Button("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                        player.playNext(picked)
+                    }
+                    Button("Add to Queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                        player.addToQueue(picked)
+                    }
+                    Menu("Add to Playlist", systemImage: "text.badge.plus") {
+                        ForEach(playlists.playlists) { playlist in
+                            Button(playlist.name) {
+                                playlists.add(picked, to: playlist.id)
+                                player.notice = "Added \(picked.count) songs to \(playlist.name)."
+                            }
+                        }
+                        Divider()
+                        Button("New Playlist…", systemImage: "plus") {
+                            songsForNewPlaylist = picked
+                            showNewPlaylist = true
+                        }
+                    }
+                    Button("Love", systemImage: "heart") { songData.setFavorite(picked.map(\.key), true) }
+                    Button("Delete…", systemImage: "trash", role: .destructive) {
+                        editor.pendingDelete = picked
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .disabled(selection.isEmpty)
+            }
+        } else {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if library.isScanning { ProgressView() }
+                Menu {
+                    Picker("Sort By", selection: $sort) {
+                        ForEach(SongSort.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    Divider()
+                    Button("Select Songs", systemImage: "checkmark.circle") { selecting = true }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                Button { showImporter = true } label: { Image(systemName: "plus") }
+            }
+        }
+    }
+
     private func resetNewPlaylist() {
         newPlaylistName = ""
-        songForNewPlaylist = nil
+        songsForNewPlaylist = []
+    }
+}
+
+/// The A–Z strip down the side of the Songs list: tap or drag to jump.
+struct AlphabetIndex: View {
+    let letters: [String]
+    let onSelect: (String) -> Void
+    @State private var lastLetter: String?
+
+    private let rowHeight: CGFloat = 15
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(letters, id: \.self) { letter in
+                Text(letter)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 18, height: rowHeight)
+            }
+        }
+        .padding(.vertical, 4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let index = Int((value.location.y - 4) / rowHeight)
+                    let letter = letters[min(max(index, 0), letters.count - 1)]
+                    if letter != lastLetter {
+                        lastLetter = letter
+                        onSelect(letter)
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    }
+                }
+                .onEnded { _ in lastLetter = nil }
+        )
+        .accessibilityHidden(true)
     }
 }
 
@@ -413,6 +589,8 @@ struct ScanProgressView: View {
 struct SongRow: View {
     let song: Song
     let isCurrent: Bool
+    /// Shown on the right instead of the length (e.g. BPM and key).
+    var detail: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -432,7 +610,11 @@ struct SongRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if song.duration > 0 {
+            if let detail {
+                Text(detail)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            } else if song.duration > 0 {
                 Text(formatTime(song.duration))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)

@@ -31,6 +31,13 @@ a sleep timer and resuming the last song on launch.
 - NowPlayingView.swift  – Full-screen player (controls, volume/AirPlay, speed, lyrics, sleep timer)
 - LyricsView.swift      – .lrc parser (UTF-8/UTF-16/GB18030), synced and plain lyrics views
 - LyricsFinder.swift    – Lyrics lookup: cache, LRCLIB, Musixmatch, then the local .lrc/.txt
+- SongData.swift        – SongDataStore (play counts, loved, long-track positions, lyrics offsets,
+                          analysis), MusicKey (Camelot), LibraryAnalyzer (runs the analysis)
+- AudioAnalyzer.swift   – On-device BPM + beat grid, key, silence and outro detection (Accelerate)
+- UpNextView.swift      – The queue: history, now playing, Playing Next (reorder), rest of the list
+- SmartPlaylists.swift  – Smart lists and rule-based smart playlists, playlist covers, .m3u export
+- DuplicatesView.swift  – Finds songs stored more than once
+- Visualizer.swift      – Spectrum bars on Now Playing (tap on the EQ output, only while shown)
 - Artwork.swift         – PlaybackClock (playback position), thumbnail cache, ArtworkView,
                           background image downsampling and the Now Playing backdrop blur
 
@@ -82,6 +89,28 @@ folders with the Files picker, and lyrics lookups work with the default network 
   one ends. Crossfade on = a fade of the chosen length. Both pause and resume cleanly.
 - A song that can't be opened is skipped with a short banner instead of stopping the queue.
 - "End of current song" sleep timer stops after the current song even with crossfade on.
+
+## Features added after Android parity
+- **Queue:** Play Next / Add to Queue on any song, album, playlist or selection; Up Next screen
+  (history, reorder, remove, jump, Clear, Save as Playlist); remembered across launches.
+- **Library:** Genres tab, A–Z index, multi-select (play, queue, add to playlist, love, delete),
+  play counts and Loved songs, duplicate finder (Settings → Library), sort by BPM and Key.
+- **Playlists:** smart lists (Loved, Most Played, Recently Played, Recently Added, Never Played),
+  rule-based smart playlists, .m3u/.m3u8 import and export, custom or album-grid covers.
+- **Playback:** ±15 s and position memory for long tracks (10 min+), A–B repeat,
+  sleep-timer fade-out.
+- **Now Playing:** colours from the cover, visualizer, full-screen lyrics with word-by-word
+  highlighting (enhanced .lrc) and a timing offset per song.
+- **Analysis (Settings → Library → Analyze Your Songs' Key and BPM):** tempo, beat grid, key
+  (Camelot) and silence/outro points, computed on the iPhone. Shown in the tag editor ("Use"
+  fills the BPM and Key tags) and used by Smart Options.
+- **Smart Options (unlocked once analysis has run):**
+  - Smart Transitions: same-album songs gapless, crossfades start at the real fade-out, silence
+    at the start/end skipped.
+  - Beat-Matched Crossfades: next song's tempo matched (±8%, half/double time) and its first beat
+    started on a beat of the current song; it then eases back to normal speed.
+  - Harmonic Shuffle: Smart shuffle picks songs in compatible keys and similar tempos.
+  Songs without analysis or a steady beat use normal transitions.
 
 ## Where things are stored
 - Songs you import: the app's Documents folder (visible in Files and Finder).

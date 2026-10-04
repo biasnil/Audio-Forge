@@ -38,6 +38,41 @@ nonisolated enum ImageTools {
         return CGImageDestinationFinalize(destination) ? output as Data : nil
     }
 
+    /// The cover's most characteristic colour (saturated pixels count more), toned so it
+    /// works as a tint on both light and dark backgrounds.
+    static func themeColor(_ data: Data) -> UIColor? {
+        guard let small = downsample(data, maxPixels: 32) else { return nil }
+        let width = small.width, height = small.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        // The context must only use the buffer while it's pinned.
+        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
+                                          bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(small, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        var red = 0.0, green = 0.0, blue = 0.0, total = 0.0
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            let r = Double(pixels[i]) / 255, g = Double(pixels[i + 1]) / 255, b = Double(pixels[i + 2]) / 255
+            let maxValue = max(r, g, b), minValue = min(r, g, b)
+            let saturation = maxValue > 0 ? (maxValue - minValue) / maxValue : 0
+            let weight = saturation * saturation * maxValue + 0.02
+            red += r * weight
+            green += g * weight
+            blue += b * weight
+            total += weight
+        }
+        guard total > 0 else { return nil }
+        let average = UIColor(red: red / total, green: green / total, blue: blue / total, alpha: 1)
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        average.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        return UIColor(hue: hue, saturation: min(max(saturation, 0.45), 0.85),
+                       brightness: min(max(brightness, 0.6), 0.9), alpha: 1)
+    }
+
     /// A small, heavily blurred version of the cover for the Now Playing background.
     static func backdrop(_ data: Data) -> UIImage? {
         guard let small = downsample(data, maxPixels: 120) else { return nil }

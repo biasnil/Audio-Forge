@@ -451,7 +451,7 @@ final class PlayerManager: ObservableObject {
     }
 
     private func cancelNextSong() {
-        if case .context = pendingNext { queue.cancelPendingNext() }
+        if case .context? = pendingNext { queue.cancelPendingNext() }
         pendingNext = nil
     }
 
