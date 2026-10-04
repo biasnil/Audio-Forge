@@ -74,6 +74,10 @@ final class PlayerManager: ObservableObject {
         var startFrame: AVAudioFramePosition = 0
         /// Position while not running.
         var pausedTime: TimeInterval = 0
+        /// The last position read from the engine while running. Used when the engine can't
+        /// answer any more (an interruption or route change already stopped it), so the
+        /// position isn't lost and playback doesn't jump back to where the segment started.
+        var lastPosition: TimeInterval = 0
         var running = false
         /// Bumped whenever the scheduled segment is replaced, so stale completions are ignored.
         var generation = 0
@@ -226,6 +230,7 @@ final class PlayerManager: ObservableObject {
         let frameCount = AVAudioFrameCount(max(file.length - startFrame, 0))
         slot.startFrame = startFrame
         slot.pausedTime = Double(startFrame) / sampleRate
+        slot.lastPosition = slot.pausedTime
         slot.generation += 1
         let generation = slot.generation
         let index = slots.firstIndex { $0 === slot } ?? 0
@@ -252,11 +257,15 @@ final class PlayerManager: ObservableObject {
 
     private func position(of slot: Slot) -> TimeInterval {
         guard let file = slot.file else { return 0 }
-        guard slot.running,
-              let nodeTime = slot.player.lastRenderTime,
-              let playerTime = slot.player.playerTime(forNodeTime: nodeTime) else { return slot.pausedTime }
+        guard slot.running else { return slot.pausedTime }
+        guard engine.isRunning,
+              let nodeTime = slot.player.lastRenderTime, nodeTime.isSampleTimeValid,
+              let playerTime = slot.player.playerTime(forNodeTime: nodeTime) else { return slot.lastPosition }
         let time = Double(slot.startFrame + playerTime.sampleTime) / file.processingFormat.sampleRate
-        return min(max(time, 0), slot.duration)
+        // Never earlier than what was already reached (a fresh segment can briefly report 0).
+        let position = min(max(time, slot.lastPosition), slot.duration)
+        slot.lastPosition = position
+        return position
     }
 
     // Built outside the main actor: the engine calls it on its own thread.
@@ -316,16 +325,20 @@ final class PlayerManager: ObservableObject {
         saveState()
     }
 
+    /// Picks up exactly where `pause()` stopped, including a crossfade in progress:
+    /// both songs continue from their own positions at the same fade volumes.
     func resume() {
         guard active.file != nil, !active.running else { return }
         start(active, at: active.pausedTime)
+        if crossfading, incoming.file != nil { start(incoming, at: incoming.pausedTime) }
         isPlaying = active.running
         publish()
     }
 
+    /// Pauses without losing a crossfade: both slots keep their positions and volumes.
     func pause() {
-        abortCrossfade()
         stopSlot(active)
+        if crossfading { stopSlot(incoming) }
         isPlaying = false
         engine.pause()
         publish()
@@ -404,6 +417,7 @@ final class PlayerManager: ObservableObject {
         let length = active.duration
 
         if crossfading {
+            _ = self.position(of: incoming)        // keeps its last known position fresh too
             updateCrossfade(position: position, length: length)
         } else if active.running, audio.crossfadeEnabled, !crossfadeBlocked {
             let fade = Double(audio.crossfadeSeconds)
@@ -469,15 +483,17 @@ final class PlayerManager: ObservableObject {
     // MARK: - Shuffle / Repeat / Speed / Volume
 
     func cycleShuffle() {
+        // Changing the mode drops the queue's next pick, so finish a fade first
+        // (the next song is already playing) instead of cutting back to the old one.
+        finalizeCrossfade()
         queue.cycleShuffleMode()
-        abortCrossfade()
         shuffleMode = queue.shuffleMode
         saveState()
     }
 
     func cycleRepeat() {
+        finalizeCrossfade()
         queue.cycleRepeatMode()
-        abortCrossfade()
         repeatMode = queue.repeatMode
         saveState()
     }
@@ -696,12 +712,14 @@ final class PlayerManager: ObservableObject {
         }
     }
 
+    /// The engine stopped itself (output changed, e.g. AirPods connected): carry on from the
+    /// same positions, keeping a crossfade going.
     private func handleEngineConfigurationChange() {
         guard isPlaying else { return }
-        let time = position(of: active)
-        abortCrossfade()
         stopSlot(active)
-        start(active, at: time)
+        if crossfading { stopSlot(incoming) }
+        start(active, at: active.pausedTime)
+        if crossfading, incoming.file != nil { start(incoming, at: incoming.pausedTime) }
         isPlaying = active.running
         publish()
     }
