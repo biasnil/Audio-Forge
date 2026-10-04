@@ -20,7 +20,7 @@ struct MP3PlayerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(settings: settings, library: library, player: player)
                 .environmentObject(settings)
                 .environmentObject(library)
                 .environmentObject(player)

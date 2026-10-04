@@ -5,30 +5,50 @@ import UniformTypeIdentifiers
 
 /// Root view: the library tabs (some can be hidden in Settings), mini player above the tab bar.
 struct ContentView: View {
-    @EnvironmentObject private var library: LibraryManager
-    @EnvironmentObject private var player: PlayerManager
-    @EnvironmentObject private var settings: SettingsStore
+    /// Plain references, deliberately not observed: the root (and with it the whole TabView)
+    /// shouldn't redraw on every player, library or settings change. Child views observe
+    /// what they show.
+    let settings: SettingsStore
+    let library: LibraryManager
+    let player: PlayerManager
     @EnvironmentObject private var editor: SongEditor
     @Environment(\.scenePhase) private var scenePhase
     @State private var showNowPlaying = false
     @State private var coverItem: PhotosPickerItem?
     @State private var showBackgroundWarning = false
-    @AppStorage("selectedTab") private var selectedTab: AppTab = .songs
+    @State private var appearance: Appearance = .system
+    @State private var hiddenTabs: Set<AppTab> = []
+    @AppStorage("selectedTabName") private var selectedTab = AppTab.songs.rawValue
+
+    private static let moreTag = "More"
 
     private var visibleTabs: [AppTab] {
-        AppTab.allCases.filter { !$0.hideable || !settings.settings.hiddenTabs.contains($0) }
+        AppTab.allCases.filter { !$0.hideable || !hiddenTabs.contains($0) }
     }
+
+    /// The tab bar fits 5. With more, the 5th is our own "More" list (instead of iOS's,
+    /// which wraps each tab's navigation in a second one and shows double title bars).
+    private var barTabs: [AppTab] { visibleTabs.count > 5 ? Array(visibleTabs.prefix(4)) : visibleTabs }
+    private var moreTabs: [AppTab] { visibleTabs.count > 5 ? Array(visibleTabs.dropFirst(4)) : [] }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ForEach(visibleTabs) { tab in
+            ForEach(barTabs) { tab in
                 tabContent(tab)
                     .miniPlayer(showNowPlaying: $showNowPlaying)
                     .tabItem { Label(tab.rawValue, systemImage: tab.systemImage) }
-                    .tag(tab)
+                    .tag(tab.rawValue)
+            }
+            if !moreTabs.isEmpty {
+                MoreTabView(tabs: moreTabs) { tabContent($0) }
+                    .miniPlayer(showNowPlaying: $showNowPlaying)
+                    .tabItem { Label("More", systemImage: "ellipsis") }
+                    .tag(Self.moreTag)
             }
         }
         .preferredColorScheme(colorScheme)
+        .onReceive(settings.$settings.map(\.appearance).removeDuplicates()) { appearance = $0 }
+        .onReceive(settings.$settings.map(\.hiddenTabs).removeDuplicates()) { hiddenTabs = $0 }
         .sheet(isPresented: $showNowPlaying) {
             NowPlayingView()
         }
@@ -39,20 +59,20 @@ struct ContentView: View {
         .onChange(of: coverItem) { _, item in
             guard let item else { return }
             Task {
-                await editor.applyCover(item)
+                await editor.applyCover(item, to: editor.coverTarget)
+                editor.coverTarget = nil
                 coverItem = nil
             }
         }
-        .alert("Can't Play", isPresented: playerErrorShown) {
-            Button("OK") { player.errorMessage = nil }
-        } message: {
-            Text(player.errorMessage ?? "")
+        .confirmationDialog(deleteTitle, isPresented: deleteShown, titleVisibility: .visible,
+                            presenting: editor.pendingDelete) { songs in
+            Button("Delete", role: .destructive) {
+                Task { await library.delete(songs) }
+            }
+        } message: { songs in
+            Text(SongEditor.deleteWarning(for: songs))
         }
-        .alert("Tags", isPresented: editorMessageShown) {
-            Button("OK") { editor.message = nil }
-        } message: {
-            Text(editor.message ?? "")
-        }
+        .modifier(PlaybackMessages())
         .alert("Background Audio Is Off", isPresented: $showBackgroundWarning) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -66,17 +86,19 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                // Rescan when returning, if files may have changed (e.g. added via Finder).
+                // Rescan when returning (e.g. files added via Finder or to a linked folder).
                 Task {
                     await library.reloadIfStale()
                     player.restoreIfNeeded(from: library.songs)
                 }
             } else if phase == .background {
                 player.saveState()                           // remember position
+                settings.saveNow()
             }
         }
-        .onChange(of: visibleTabs) { _, tabs in
-            if !tabs.contains(selectedTab) { selectedTab = .songs }
+        .onChange(of: visibleTabs) { _, _ in
+            let tags = barTabs.map(\.rawValue) + (moreTabs.isEmpty ? [] : [Self.moreTag])
+            if !tags.contains(selectedTab) { selectedTab = AppTab.songs.rawValue }
         }
     }
 
@@ -95,21 +117,102 @@ struct ContentView: View {
     }
 
     private var colorScheme: ColorScheme? {
-        switch settings.settings.appearance {
+        switch appearance {
         case .system: nil
         case .light: .light
         case .dark: .dark
         }
     }
 
-    private var playerErrorShown: Binding<Bool> {
-        Binding(get: { player.errorMessage != nil },
-                set: { if !$0 { player.errorMessage = nil } })
+    private var deleteTitle: String {
+        let count = editor.pendingDelete?.count ?? 0
+        return count == 1 ? "Delete \(editor.pendingDelete?.first?.title ?? "song")?" : "Delete \(count) songs?"
     }
 
-    private var editorMessageShown: Binding<Bool> {
-        Binding(get: { editor.message != nil },
-                set: { if !$0 { editor.message = nil } })
+    private var deleteShown: Binding<Bool> {
+        Binding(get: { editor.pendingDelete != nil },
+                set: { if !$0 { editor.pendingDelete = nil } })
+    }
+}
+
+/// The "More" tab: the tabs that don't fit in the bar, in one navigation stack.
+struct MoreTabView<Content: View>: View {
+    let tabs: [AppTab]
+    @ViewBuilder let content: (AppTab) -> Content
+
+    var body: some View {
+        NavigationStack {
+            List(tabs) { tab in
+                NavigationLink(value: tab) {
+                    Label(tab.rawValue, systemImage: tab.systemImage)
+                }
+            }
+            .navigationTitle("More")
+            .navigationDestination(for: AppTab.self) { tab in
+                content(tab).environment(\.inNavigationStack, true)
+            }
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// True when a tab is shown inside the More tab's navigation stack.
+    @Entry var inNavigationStack = false
+}
+
+/// A tab's navigation stack, unless it's already inside one (the More tab).
+struct TabStack<Content: View>: View {
+    @Environment(\.inNavigationStack) private var inNavigationStack
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if inNavigationStack {
+            content()
+        } else {
+            NavigationStack { content() }
+        }
+    }
+}
+
+/// Playback and tag messages: the "Can't Play" / "Tags" alerts and the "Skipped …" banner.
+/// Used on the root and on Now Playing (a sheet covers the root's alerts).
+struct PlaybackMessages: ViewModifier {
+    @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var editor: SongEditor
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Can't Play", isPresented: Binding(get: { player.errorMessage != nil },
+                                                      set: { if !$0 { player.errorMessage = nil } })) {
+                Button("OK") { player.errorMessage = nil }
+            } message: {
+                Text(player.errorMessage ?? "")
+            }
+            .alert("Tags", isPresented: Binding(get: { editor.message != nil },
+                                                set: { if !$0 { editor.message = nil } })) {
+                Button("OK") { editor.message = nil }
+            } message: {
+                Text(editor.message ?? "")
+            }
+            .overlay(alignment: .top) {
+                if let notice = player.notice {
+                    Text(notice)
+                        .font(.footnote.weight(.medium))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .padding(.top, 8)
+                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .onTapGesture { player.notice = nil }
+                        .task(id: notice) {
+                            try? await Task.sleep(for: .seconds(4))
+                            if player.notice == notice { withAnimation { player.notice = nil } }
+                        }
+                }
+            }
+            .animation(.default, value: player.notice)
     }
 }
 
@@ -168,6 +271,7 @@ struct SongsView: View {
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var player: PlayerManager
     @EnvironmentObject private var playlists: PlaylistManager
+    @EnvironmentObject private var editor: SongEditor
 
     @AppStorage("songSort") private var sort: SongSort = .title
     @State private var searchText = ""
@@ -188,7 +292,7 @@ struct SongsView: View {
 
     var body: some View {
         // Tapping a song queues exactly this list (searched + sorted).
-        NavigationStack {
+        TabStack {
             Group {
                 if library.songs.isEmpty {
                     ContentUnavailableView {
@@ -196,6 +300,10 @@ struct SongsView: View {
                     } description: {
                         Text(library.isScanning ? "Looking for music…"
                              : "Tap + to import songs (and .lrc lyrics), or link a folder in the Folders tab.")
+                    } actions: {
+                        if let progress = library.scanProgress {
+                            ScanProgressView(progress: progress)
+                        }
                     }
                 } else {
                     List {
@@ -213,12 +321,20 @@ struct SongsView: View {
                             }
                         }
                         .onDelete { offsets in
-                            let toDelete = offsets.map { songs[$0] }
-                            Task { await library.delete(toDelete) }
+                            editor.pendingDelete = offsets.map { songs[$0] }   // asks first
                         }
                     }
                     .listStyle(.plain)
                     .refreshable { await library.reload() }
+                    .safeAreaInset(edge: .top) {
+                        // First scan: songs appear as they're read; show how far along it is.
+                        if let progress = library.scanProgress {
+                            ScanProgressView(progress: progress)
+                                .padding(.horizontal)
+                                .padding(.vertical, 6)
+                                .background(.bar)
+                        }
+                    }
                     .overlay {
                         if songs.isEmpty && !searchText.isEmpty {
                             ContentUnavailableView.search(text: searchText)
@@ -276,13 +392,28 @@ struct SongsView: View {
 
 // MARK: - Shared pieces
 
+/// "Reading songs… 120 of 2,000" with a bar.
+struct ScanProgressView: View {
+    let progress: (done: Int, total: Int)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Reading songs… \(progress.done) of \(progress.total)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+        }
+        .frame(maxWidth: 320)
+    }
+}
+
 struct SongRow: View {
     let song: Song
     let isCurrent: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(data: song.artworkData, size: 44, cacheKey: song.key)
+            ArtworkView(artworkID: song.artworkID, size: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .lineLimit(1)
@@ -336,7 +467,7 @@ struct MiniPlayer: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 16) {
-                ArtworkView(data: player.currentSong?.artworkData, size: 48, cacheKey: player.currentSong?.key)
+                ArtworkView(artworkID: player.currentSong?.artworkID, size: 48)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(player.currentSong?.title ?? "").font(.headline).lineLimit(1)
                     Text(player.currentSong?.artist ?? "")

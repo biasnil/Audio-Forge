@@ -3,28 +3,45 @@ import Combine
 
 // MARK: - Grouping (computed once per library change, in LibraryManager)
 
-struct AlbumGroup: Identifiable {
+struct AlbumGroup: Identifiable, Hashable {
+    /// See `key(for:)`.
+    let id: String
     let name: String
     let artist: String
-    let artwork: Data?
-    /// Key of the song the artwork came from (for the thumbnail cache).
-    let artworkKey: String?
-    var id: String { name }
+    /// Cover of the first song that has one.
+    let artworkID: String?
+
+    /// Which album a song belongs to. The name alone isn't enough ("Greatest Hits" by two
+    /// artists would merge), so it's the name plus the album artist; without an album artist,
+    /// the folder (a compilation's songs share one), plus the artist when the folder is a whole
+    /// library root where unrelated songs sit together. Untagged songs group by folder.
+    static func key(for song: Song) -> String {
+        let isRootFolder = !song.folderKey.contains("/")
+        if song.album == "Unknown Album" {
+            return "\u{1}unknown|\(song.folderKey)" + (isRootFolder ? "|\(song.artist.lowercased())" : "")
+        }
+        let album = song.album.lowercased()
+        if !song.albumArtist.isEmpty { return "\(album)|aa:\(song.albumArtist.lowercased())" }
+        return "\(album)|f:\(song.folderKey)" + (isRootFolder ? "|\(song.artist.lowercased())" : "")
+    }
 
     static func make(from songs: [Song]) -> [AlbumGroup] {
-        Dictionary(grouping: songs, by: \.album)
-            .map { name, items in
+        Dictionary(grouping: songs, by: key(for:))
+            .map { key, items in
                 let albumArtist = items.first { !$0.albumArtist.isEmpty }?.albumArtist
                 let artists = Set(items.map(\.artist))
-                let withArt = items.first { $0.artworkData != nil }
                 return AlbumGroup(
-                    name: name,
+                    id: key,
+                    name: items[0].album,
                     artist: albumArtist ?? (artists.count == 1 ? items[0].artist : "Various Artists"),
-                    artwork: withArt?.artworkData,
-                    artworkKey: withArt?.key
+                    artworkID: items.lazy.compactMap(\.artworkID).first
                 )
             }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .sorted { a, b in
+                let byName = a.name.localizedStandardCompare(b.name)
+                if byName != .orderedSame { return byName == .orderedAscending }
+                return a.artist.localizedStandardCompare(b.artist) == .orderedAscending
+            }
     }
 }
 
@@ -32,20 +49,17 @@ struct ArtistGroup: Identifiable {
     let name: String
     let songCount: Int
     let albumCount: Int
-    let artwork: Data?
-    let artworkKey: String?
+    let artworkID: String?
     var id: String { name }
 
     static func make(from songs: [Song]) -> [ArtistGroup] {
         Dictionary(grouping: songs, by: \.artist)
             .map { name, items in
-                let withArt = items.first { $0.artworkData != nil }
-                return ArtistGroup(
+                ArtistGroup(
                     name: name,
                     songCount: items.count,
                     albumCount: Set(items.map(\.album)).count,
-                    artwork: withArt?.artworkData,
-                    artworkKey: withArt?.key
+                    artworkID: items.lazy.compactMap(\.artworkID).first
                 )
             }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -63,13 +77,13 @@ struct AlbumsView: View {
     var body: some View {
         let albums = library.albums
 
-        NavigationStack {
+        TabStack {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 20) {
                     ForEach(albums) { album in
-                        NavigationLink(value: album.name) {
+                        NavigationLink(value: album) {
                             VStack(alignment: .leading, spacing: 4) {
-                                SquareArtwork(data: album.artwork, cacheKey: album.artworkKey)
+                                SquareArtwork(artworkID: album.artworkID)
                                 Text(album.name)
                                     .font(.subheadline.weight(.medium))
                                     .lineLimit(1)
@@ -91,8 +105,8 @@ struct AlbumsView: View {
                 }
             }
             .navigationTitle("Albums")
-            .navigationDestination(for: String.self) { name in
-                SongCollectionView(title: name, sortByAlbum: false) { $0.album == name }
+            .navigationDestination(for: AlbumGroup.self) { album in
+                SongCollectionView(title: album.name, sortByAlbum: false) { AlbumGroup.key(for: $0) == album.id }
             }
         }
     }
@@ -106,11 +120,11 @@ struct ArtistsView: View {
     var body: some View {
         let artists = library.artists
 
-        NavigationStack {
+        TabStack {
             List(artists) { artist in
                 NavigationLink(value: artist.name) {
                     HStack(spacing: 12) {
-                        ArtworkView(data: artist.artwork, size: 44, cacheKey: artist.artworkKey, cornerRadius: 22)
+                        ArtworkView(artworkID: artist.artworkID, size: 44, cornerRadius: 22)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(artist.name).lineLimit(1)
                             Text("\(artist.songCount) song\(artist.songCount == 1 ? "" : "s") · "
@@ -154,12 +168,12 @@ struct SongCollectionView: View {
     }
 
     var body: some View {
-        let header = songs.first { $0.artworkData != nil }
+        let headerArtwork = songs.lazy.compactMap(\.artworkID).first
 
         List {
             Section {
                 VStack(spacing: 12) {
-                    SquareArtwork(data: header?.artworkData, cacheKey: header?.key, expectedSize: 220)
+                    SquareArtwork(artworkID: headerArtwork, expectedSize: 220)
                         .frame(width: 220)
                         .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
                     Text("\(songs.count) song\(songs.count == 1 ? "" : "s")")

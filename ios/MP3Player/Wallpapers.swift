@@ -91,7 +91,7 @@ struct WallpapersView: View {
     var body: some View {
         let s = settings.settings
 
-        NavigationStack {
+        TabStack {
             Form {
                 Section {
                     LabeledContent("Video", value: s.globalWallpaperFile.isEmpty ? "None" : s.globalWallpaperFile)

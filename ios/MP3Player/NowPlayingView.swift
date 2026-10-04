@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import PhotosUI
 
 /// Full-screen player, opened by tapping the mini player.
 struct NowPlayingView: View {
@@ -11,6 +12,12 @@ struct NowPlayingView: View {
     @State private var showLyrics = false
     @State private var videoFailed = false
     @State private var backdrop: (key: String, image: UIImage)?
+    // Now Playing is itself a sheet, so the root view can't show the tag editor or photo
+    // picker on top of it: they're presented from here instead.
+    @State private var editingSong: Song?
+    @State private var coverSong: Song?
+    @State private var showCoverPicker = false
+    @State private var coverItem: PhotosPickerItem?
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -25,7 +32,7 @@ struct NowPlayingView: View {
         VStack(spacing: 18) {
             if lyricsMode {
                 HStack(spacing: 12) {
-                    ArtworkView(data: player.currentSong?.artworkData, size: 56, cacheKey: player.currentSong?.key)
+                    ArtworkView(artworkID: player.currentSong?.artworkID, size: 56)
                     titleBlock(alignment: .leading, large: false)
                     Spacer()
                 }
@@ -35,8 +42,7 @@ struct NowPlayingView: View {
                     .frame(maxHeight: .infinity)
             } else {
                 Spacer(minLength: 16)
-                ArtworkView(data: player.currentSong?.artworkData, size: 300, cacheKey: player.currentSong?.key,
-                            cornerRadius: 10)
+                ArtworkView(artworkID: player.currentSong?.artworkID, size: 300, cornerRadius: 10)
                     .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
                     .contextMenu { coverMenu }                  // long-press the cover
                 titleBlock(alignment: .center, large: true)
@@ -53,23 +59,38 @@ struct NowPlayingView: View {
         .padding(.bottom, 12)
         .background { background }
         .presentationDragIndicator(.visible)
+        .sheet(item: $editingSong) { song in
+            TagEditorView(song: song)
+        }
+        .photosPicker(isPresented: $showCoverPicker, selection: $coverItem, matching: .images)
+        .onChange(of: coverItem) { _, item in
+            guard let item else { return }
+            Task {
+                await editor.applyCover(item, to: coverSong)
+                coverSong = nil
+                coverItem = nil
+            }
+        }
+        .modifier(PlaybackMessages())
         .task(id: lyricsLookupID) {
             guard let song = player.currentSong else {
                 lyrics = .none
                 return
             }
             lyrics = .loading
-            let found = await LyricsFinder.find(for: song)
+            let found = await Task.detached(priority: .userInitiated) { await LyricsFinder.find(for: song) }.value
             if !Task.isCancelled { lyrics = found }
         }
         .onChange(of: player.currentSong?.key) { _, _ in videoFailed = false }
-        .task(id: player.currentSong?.key) {
-            guard let song = player.currentSong, let data = song.artworkData else {
+        .task(id: player.currentSong?.artworkID) {
+            guard let artworkID = player.currentSong?.artworkID else {
                 backdrop = nil
                 return
             }
-            let image = await Task.detached(priority: .utility) { ImageTools.backdrop(data) }.value
-            if let image, !Task.isCancelled { backdrop = (song.key, image) }
+            let image = await Task.detached(priority: .utility) {
+                ArtworkStore.load(artworkID).flatMap(ImageTools.backdrop)
+            }.value
+            if let image, !Task.isCancelled { backdrop = (artworkID, image) }
         }
     }
 
@@ -93,7 +114,7 @@ struct NowPlayingView: View {
                     let playable = (try? await AVURLAsset(url: url).load(.isPlayable)) ?? false
                     if !playable { videoFailed = true }
                 }
-        } else if let backdrop, backdrop.key == player.currentSong?.key {
+        } else if let backdrop, backdrop.key == player.currentSong?.artworkID {
             // Blurred once per song, in the background (see backdropTask).
             Image(uiImage: backdrop.image)
                 .resizable()
@@ -106,8 +127,11 @@ struct NowPlayingView: View {
     @ViewBuilder
     private var coverMenu: some View {
         if let song = player.currentSong {
-            Button("Edit Tags", systemImage: "tag") { editor.editing = song }
-            Button("Change Cover", systemImage: "photo") { editor.changeCover(song) }
+            Button("Edit Tags", systemImage: "tag") { editingSong = song }
+            Button("Change Cover", systemImage: "photo") {
+                coverSong = song
+                showCoverPicker = true
+            }
         }
     }
 

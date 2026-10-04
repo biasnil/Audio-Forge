@@ -68,11 +68,20 @@ folders with the Files picker, and lyrics lookups work with the default network 
   TestFlight). Debug builds with the debugger attached are several times slower in SwiftUI.
 - The playback position is published by `PlaybackClock`, not `PlayerManager`, so only the
   progress bars and lyrics redraw while music plays. Seek bars seek once, when released.
-- Cover art is kept at ≤900 px; list rows decode small thumbnails in the background and
-  cache them. The Now Playing backdrop is blurred once per song.
+- Cover art is stored once per distinct cover on disk (Caches/artwork, ≤900 px); songs only
+  keep its id, so big libraries don't fill memory. Rows decode small thumbnails in the
+  background and cache them. The Now Playing backdrop is blurred once per song.
+- The first scan reads four files at a time and shows songs (with progress) as it goes.
 - Lists, album/artist/folder groups and stats are computed when the library changes, not on
-  every redraw. Returning to the app only rescans if Documents changed or 10 minutes passed
-  (pull to refresh always rescans).
+  every redraw. Returning to the app rescans, but only replaces the library if something
+  changed. The root view doesn't observe the player, library or settings, and settings are
+  saved at most twice a second.
+
+## Playback notes
+- Crossfade off = gapless: the next song is scheduled to start on the sample the current
+  one ends. Crossfade on = a fade of the chosen length. Both pause and resume cleanly.
+- A song that can't be opened is skipped with a short banner instead of stopping the queue.
+- "End of current song" sleep timer stops after the current song even with crossfade on.
 
 ## Where things are stored
 - Songs you import: the app's Documents folder (visible in Files and Finder).

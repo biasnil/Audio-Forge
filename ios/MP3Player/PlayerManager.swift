@@ -58,8 +58,10 @@ final class PlayerManager: ObservableObject {
     @Published private(set) var volumePercent: Int
     @Published private(set) var sleepTimer: SleepTimer = .off
     @Published private(set) var sleepEndDate: Date?
-    /// Set when a song can't be played; the UI shows it and clears it.
+    /// Set when nothing in the queue can be played; the UI shows an alert and clears it.
     @Published var errorMessage: String?
+    /// A short, non-blocking message ("Skipped X — can't be played"); the UI shows a banner.
+    @Published var notice: String?
 
     /// One player node and its effects chain.
     private final class Slot {
@@ -102,7 +104,10 @@ final class PlayerManager: ObservableObject {
     private var activeIndex = 0
     private var active: Slot { slots[activeIndex] }
     private var incoming: Slot { slots[1 - activeIndex] }
+    /// A hand-off to the next song is in progress in the other slot: a crossfade, or
+    /// (when `gapless`) the next song scheduled to start exactly when this one ends.
     private var crossfading = false
+    private var gapless = false
     /// The next song couldn't be loaded for a fade: don't retry on every tick.
     private var crossfadeBlocked = false
 
@@ -221,8 +226,8 @@ final class PlayerManager: ObservableObject {
         return true
     }
 
-    /// Starts `slot` playing from `time`.
-    private func start(_ slot: Slot, at time: TimeInterval) {
+    /// Starts `slot` playing from `time`, now or at `hostTime` (gapless hand-off).
+    private func start(_ slot: Slot, at time: TimeInterval, startingAt hostTime: AVAudioTime? = nil) {
         guard let file = slot.file, startEngineIfNeeded() else { return }
         stopSlot(slot)
         let sampleRate = file.processingFormat.sampleRate
@@ -243,8 +248,18 @@ final class PlayerManager: ObservableObject {
         slot.player.scheduleSegment(file, startingFrame: startFrame, frameCount: frameCount, at: nil,
                                     completionCallbackType: .dataPlayedBack,
                                     completionHandler: Self.completion(for: self, slot: index, generation: generation))
-        slot.player.play()
+        slot.player.play(at: hostTime)
         slot.running = true
+    }
+
+    /// The moment (host time) `slot` will play its last sample, for a gapless start of the next song.
+    private func endHostTime(of slot: Slot) -> AVAudioTime? {
+        guard let file = slot.file, slot.running, engine.isRunning,
+              let nodeTime = slot.player.lastRenderTime, nodeTime.isHostTimeValid, nodeTime.isSampleTimeValid,
+              let playerTime = slot.player.playerTime(forNodeTime: nodeTime) else { return nil }
+        let framesLeft = Double(file.length - (slot.startFrame + playerTime.sampleTime))
+        let seconds = max(framesLeft / file.processingFormat.sampleRate / Double(rate), 0)
+        return AVAudioTime(hostTime: nodeTime.hostTime + AVAudioTime.hostTime(forSeconds: seconds))
     }
 
     /// Stops a slot, remembering where it was.
@@ -304,21 +319,34 @@ final class PlayerManager: ObservableObject {
 
     /// Hard cut to the queue's current song.
     private func playCurrent(at time: TimeInterval = 0, autoplay: Bool = true) {
-        guard let song = queue.currentItem else { return }
+        guard var song = queue.currentItem else { return }
         crossfadeBlocked = false
         let slot = active
         slot.fader.outputVolume = 1
-        guard load(song, into: slot) else {
-            errorMessage = "Couldn't play \(song.fileName)."
-            isPlaying = false
-            engine.pause()
-            publish()
-            return
+        // A song that can't be opened (deleted, corrupt, not downloaded) is skipped, so one
+        // bad file doesn't stop the whole queue. Gives up after trying the whole queue once.
+        var skipped: [String] = []
+        while !load(song, into: slot) {
+            skipped.append(song.fileName)
+            guard skipped.count < queue.items.count, queue.moveNext(), let next = queue.currentItem else {
+                errorMessage = skipped.count == 1 ? "Couldn't play \(song.fileName)."
+                    : "None of the next \(skipped.count) songs could be played."
+                isPlaying = false
+                engine.pause()
+                publish()
+                return
+            }
+            song = next
         }
+        if !skipped.isEmpty {
+            notice = skipped.count == 1 ? "Skipped \(skipped[0]) — it can't be played."
+                : "Skipped \(skipped.count) songs that can't be played."
+        }
+        let startTime = skipped.isEmpty ? time : 0
         if autoplay {
-            start(slot, at: time)
+            start(slot, at: startTime)
         } else {
-            slot.pausedTime = min(time, slot.duration)
+            slot.pausedTime = min(startTime, slot.duration)
         }
         isPlaying = autoplay && slot.running
         publish()
@@ -337,6 +365,7 @@ final class PlayerManager: ObservableObject {
 
     /// Pauses without losing a crossfade: both slots keep their positions and volumes.
     func pause() {
+        if gapless { abortCrossfade() }          // re-scheduled near the end after resuming
         stopSlot(active)
         if crossfading { stopSlot(incoming) }
         isPlaying = false
@@ -419,10 +448,14 @@ final class PlayerManager: ObservableObject {
         if crossfading {
             _ = self.position(of: incoming)        // keeps its last known position fresh too
             updateCrossfade(position: position, length: length)
-        } else if active.running, audio.crossfadeEnabled, !crossfadeBlocked {
-            let fade = Double(audio.crossfadeSeconds)
-            if length > fade * 2, (length - position) / Double(rate) <= fade {
-                startCrossfade()
+        } else if active.running, !crossfadeBlocked, repeatMode != .one, sleepTimer != .endOfTrack {
+            // Line up the next song before this one ends: a crossfade, or a gapless hand-off.
+            let remaining = (length - position) / Double(rate)
+            if audio.crossfadeEnabled {
+                let fade = Double(audio.crossfadeSeconds)
+                if length > fade * 2, remaining <= fade { startCrossfade(gapless: false) }
+            } else if remaining <= 1.5 {
+                startCrossfade(gapless: true)
             }
         }
         if active.running, tickCount % 2 == 0, abs(clock.time - position) > 0.05 {
@@ -430,21 +463,29 @@ final class PlayerManager: ObservableObject {
         }
     }
 
-    private func startCrossfade() {
-        guard repeatMode != .one, queue.peekNext(), let next = queue.pendingNextItem else { return }
+    private func startCrossfade(gapless: Bool) {
+        guard repeatMode != .one, sleepTimer != .endOfTrack else { return }
+        // Gapless: start the next song on the exact sample this one ends (computed before
+        // loading, while this slot's timing is known). If it can't be timed, the normal
+        // advance at the end still plays it, just with a tiny gap.
+        let handOff = gapless ? endHostTime(of: active) : nil
+        if gapless && handOff == nil { return }
+        guard queue.peekNext(), let next = queue.pendingNextItem else { return }
         let slot = incoming
         guard load(next, into: slot) else {
-            // Gets another go (and reports the error) on the normal advance.
+            // Gets another go (and is skipped if it still can't be played) on the normal advance.
             crossfadeBlocked = true
             queue.cancelPendingNext()
             return
         }
-        slot.fader.outputVolume = 0
-        start(slot, at: 0)
+        slot.fader.outputVolume = gapless ? 1 : 0
+        start(slot, at: 0, startingAt: handOff)
+        self.gapless = gapless
         crossfading = true
     }
 
     private func updateCrossfade(position: TimeInterval, length: TimeInterval) {
+        guard !gapless else { return }           // switches over when the song actually ends
         let remaining = (length - position) / Double(rate)
         let fade = Double(audio.crossfadeSeconds)
         let progress = Float(1 - min(max(remaining / fade, 0), 1))
@@ -457,6 +498,7 @@ final class PlayerManager: ObservableObject {
     private func finalizeCrossfade() {
         guard crossfading else { return }
         crossfading = false
+        gapless = false
         let old = active
         activeIndex = 1 - activeIndex
         active.fader.outputVolume = 1
@@ -474,6 +516,7 @@ final class PlayerManager: ObservableObject {
     private func abortCrossfade() {
         guard crossfading else { return }
         crossfading = false
+        gapless = false
         stopSlot(incoming)
         incoming.file = nil
         incoming.song = nil
@@ -485,20 +528,27 @@ final class PlayerManager: ObservableObject {
     func cycleShuffle() {
         // Changing the mode drops the queue's next pick, so finish a fade first
         // (the next song is already playing) instead of cutting back to the old one.
-        finalizeCrossfade()
+        settleHandOff()
         queue.cycleShuffleMode()
         shuffleMode = queue.shuffleMode
         saveState()
     }
 
     func cycleRepeat() {
-        finalizeCrossfade()
+        settleHandOff()
         queue.cycleRepeatMode()
         repeatMode = queue.repeatMode
         saveState()
     }
 
+    /// Before the queue's next pick changes: an audible crossfade is finished (the next song
+    /// is already playing); a gapless hand-off that hasn't started yet is just cancelled.
+    private func settleHandOff() {
+        if gapless { abortCrossfade() } else { finalizeCrossfade() }
+    }
+
     func setRate(_ newRate: Float) {
+        if gapless { abortCrossfade() }          // its start time was computed for the old speed
         rate = newRate
         slots.forEach { $0.timePitch.rate = newRate }
         updateNowPlaying()
@@ -545,6 +595,11 @@ final class PlayerManager: ObservableObject {
         sleepTask = nil
         sleepEndDate = nil
         sleepTimer = timer
+        if timer == .endOfTrack && crossfading {
+            // Stop after the song that's playing: don't hand off to the next one.
+            abortCrossfade()
+            queue.cancelPendingNext()
+        }
 
         guard case .minutes(let minutes) = timer else { return }
         let seconds = TimeInterval(minutes * 60)
@@ -716,6 +771,7 @@ final class PlayerManager: ObservableObject {
     /// same positions, keeping a crossfade going.
     private func handleEngineConfigurationChange() {
         guard isPlaying else { return }
+        if gapless { abortCrossfade() }
         stopSlot(active)
         if crossfading { stopSlot(incoming) }
         start(active, at: active.pausedTime)
@@ -784,8 +840,10 @@ final class PlayerManager: ObservableObject {
             MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(rate)
         ]
         // One artwork object per song, not one per play/pause/seek.
-        if nowPlayingArtwork?.key != song.key {
-            nowPlayingArtwork = (song.key, song.artworkData.flatMap(UIImage.init(data:)).map(Self.makeArtwork))
+        let artworkKey = "\(song.key)|\(song.artworkID ?? "")"
+        if nowPlayingArtwork?.key != artworkKey {
+            nowPlayingArtwork = (artworkKey,
+                                 ArtworkStore.load(song.artworkID).flatMap(UIImage.init(data:)).map(Self.makeArtwork))
         }
         if let artwork = nowPlayingArtwork?.artwork {
             info[MPMediaItemPropertyArtwork] = artwork

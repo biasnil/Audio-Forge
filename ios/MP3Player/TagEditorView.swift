@@ -11,6 +11,8 @@ final class SongEditor: ObservableObject {
     @Published var coverTarget: Song?
     @Published var coverPickerShown = false
     @Published var message: String?
+    /// Songs waiting for the user to confirm deleting them.
+    @Published var pendingDelete: [Song]?
 
     private let library: LibraryManager
     private let player: PlayerManager
@@ -25,16 +27,15 @@ final class SongEditor: ObservableObject {
         coverPickerShown = true
     }
 
-    /// Writes the picked photo into the song as its cover.
-    func applyCover(_ item: PhotosPickerItem?) async {
-        guard let item, let song = coverTarget else { return }
-        coverTarget = nil
+    /// Writes the picked photo into `song` as its cover.
+    func applyCover(_ item: PhotosPickerItem?, to song: Song?) async {
+        guard let item, let song else { return }
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let cover = TagIO.prepareCover(data) else {
+              let cover = await Task.detached(operation: { TagIO.prepareCover(data) }).value else {
             message = "That image couldn't be used."
             return
         }
-        var fields = await TagIO.read(song.url)
+        var fields = await Self.readTags(song.url)
         fields.artwork = cover
         if await save(song, fields: fields, artworkChanged: true) { message = "Cover changed." }
     }
@@ -49,7 +50,10 @@ final class SongEditor: ObservableObject {
         let hold = player.releaseFileForEdit(song)
         var failure: String?
         do {
-            try await TagIO.write(fields, to: song.url, artworkChanged: artworkChanged)
+            // Rewriting a big file takes a moment: keep it off the main thread.
+            try await Task.detached(priority: .userInitiated) {
+                try await TagIO.write(fields, to: song.url, artworkChanged: artworkChanged)
+            }.value
         } catch {
             failure = error.localizedDescription
         }
@@ -61,6 +65,20 @@ final class SongEditor: ObservableObject {
             return false
         }
         return true
+    }
+
+    /// Reads a file's tags off the main thread.
+    nonisolated static func readTags(_ url: URL) async -> TagFields {
+        await Task.detached(priority: .userInitiated) { await TagIO.read(url) }.value
+    }
+
+    /// What the delete confirmation says: linked-folder songs are the user's original files.
+    static func deleteWarning(for songs: [Song]) -> String {
+        let linked = songs.contains { $0.key.hasPrefix("link:") }
+        return linked
+            ? "This deletes the original file from your linked folder (and from iCloud Drive if it's "
+                + "there, on all your devices). It can't be undone."
+            : "The file is removed from the app. It can't be undone."
     }
 }
 
@@ -90,7 +108,7 @@ struct SongMenu: View {
         Button("Change Cover", systemImage: "photo") { editor.changeCover(song) }
 
         Button(role: .destructive) {
-            Task { await library.delete([song]) }
+            editor.pendingDelete = [song]            // asks first, see ContentView
         } label: {
             Label("Delete Song", systemImage: "trash")
         }
@@ -197,7 +215,7 @@ struct TagEditorView: View {
             }
             .task {
                 guard !loaded else { return }
-                let read = await TagIO.read(song.url)
+                let read = await SongEditor.readTags(song.url)
                 fields = read
                 original = read
                 loaded = true

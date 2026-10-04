@@ -15,7 +15,7 @@ struct PlaylistsView: View {
         // One lookup set for every row, instead of one per row.
         let available = Set(library.songs.map(\.key))
 
-        NavigationStack {
+        TabStack {
             List {
                 ForEach(playlists.playlists) { playlist in
                     NavigationLink(value: playlist.id) {

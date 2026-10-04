@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         let stats = library.stats
 
-        NavigationStack {
+        TabStack {
             Form {
                 if !BackgroundAudio.isEnabled {
                     Section {

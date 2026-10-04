@@ -123,10 +123,27 @@ final class SettingsStore: ObservableObject {
         transform(&copy)
         guard copy != settings else { return }
         settings = copy
-        save()
+        scheduleSave()
     }
 
-    private func save() {
+    private var saveTask: Task<Void, Never>?
+
+    /// Saves half a second after the last change, so dragging a slider doesn't write the
+    /// file dozens of times a second (the latest value is what gets written).
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.saveNow()
+        }
+    }
+
+    /// Writes immediately (also used when the app goes to the background).
+    func saveNow() {
+        saveTask?.cancel()
+        saveTask = nil
+        // Small file, written at most twice a second: fine on the main thread, and in order.
         do {
             let data = try JSONEncoder().encode(settings)
             try data.write(to: fileURL, options: .atomic)
