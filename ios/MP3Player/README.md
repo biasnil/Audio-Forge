@@ -52,14 +52,12 @@ a sleep timer and resuming the last song on launch.
 4. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
    the one in your project's Assets). It's a single 1024×1024 image made from the Android
    launcher icon; Xcode makes the other sizes.
-5. **Info.plist:** this folder includes `Info.plist` with the three keys from steps 6–7 below
-   (background audio, file sharing, open in place). Xcode merges it with the settings it
-   generates. Keep it in the folder: if it's missing, the build fails with "Build input file
-   cannot be found: …/Info.plist".
-   With Xcode's folder-synced groups, the file must **not** also be copied as a resource:
-   select `Info.plist` in the navigator → File inspector (right panel) → Target Membership →
-   untick the app target. Otherwise the build fails with "Multiple commands produce
-   …/MP3Player.app/Info.plist".
+5. **Info.plist:** `ios/Info.plist` holds the three keys from steps 6–7 below (background
+   audio, file sharing, open in place); Xcode merges it with the settings it generates.
+   Put it **next to `MP3Player.xcodeproj`, not inside the `MP3Player` source folder** (with
+   Xcode's folder-synced groups, a plist inside that folder is also copied as a resource and
+   the build fails with "Multiple commands produce …/MP3Player.app/Info.plist"). Then in
+   Build Settings, set **Info.plist File** (`INFOPLIST_FILE`) to `Info.plist`.
 5. **Background audio (required)** — without it music stops when you leave the app or lock
    the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
    **Background Modes** → tick **Audio, AirPlay, and Picture in Picture**. (This adds
