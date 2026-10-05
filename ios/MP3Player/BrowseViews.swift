@@ -15,7 +15,7 @@ struct AlbumGroup: Identifiable, Hashable {
     /// artists would merge), so it's the name plus the album artist; without an album artist,
     /// the folder (a compilation's songs share one), plus the artist when the folder is a whole
     /// library root where unrelated songs sit together. Untagged songs group by folder.
-    static func key(for song: Song) -> String {
+    nonisolated static func key(for song: Song) -> String {
         let isRootFolder = !song.folderKey.contains("/")
         if song.album == "Unknown Album" {
             return "\u{1}unknown|\(song.folderKey)" + (isRootFolder ? "|\(song.artist.lowercased())" : "")

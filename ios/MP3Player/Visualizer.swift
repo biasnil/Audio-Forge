@@ -6,7 +6,7 @@ import Accelerate
 /// Spectrum levels for the Now Playing visualizer (0...1 per band, low to high).
 @MainActor
 final class VisualizerData: ObservableObject {
-    static let bandCount = 24
+    nonisolated static let bandCount = 24
     @Published var levels: [Float] = Array(repeating: 0, count: VisualizerData.bandCount)
 }
 
