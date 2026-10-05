@@ -635,6 +635,9 @@ struct MiniPlayerInset: ViewModifier {
                 MiniPlayer()
                     .contentShape(Rectangle())
                     .onTapGesture { showNowPlaying = true }   // open full-screen player
+                    .gesture(DragGesture(minimumDistance: 20).onEnded { value in
+                        if value.translation.height < -30 { showNowPlaying = true }   // swipe up
+                    })
             }
         }
     }
@@ -646,32 +649,70 @@ extension View {
     }
 }
 
+/// A compact bar (about a third of the old height) so it doesn't cover the lists:
+/// cover, title, play/pause and next, with a thin progress line. Tap or swipe up for
+/// Now Playing, which has the seek bar, previous, volume and everything else.
 struct MiniPlayer: View {
     @EnvironmentObject private var player: PlayerManager
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                ArtworkView(artworkID: player.currentSong?.artworkID, size: 48)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player.currentSong?.title ?? "").font(.headline).lineLimit(1)
-                    Text(player.currentSong?.artist ?? "")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Button { player.previous() } label: { Image(systemName: "backward.fill") }
-                Button { player.togglePlayPause() } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").font(.title2)
-                }
-                Button { player.next() } label: { Image(systemName: "forward.fill") }
+        HStack(spacing: 12) {
+            ArtworkView(artworkID: player.currentSong?.artworkID, size: 40)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(player.currentSong?.title ?? "")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(player.currentSong?.artist ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-
-            ProgressSlider(remaining: false, timeFont: .caption2.monospacedDigit())
+            Spacer(minLength: 8)
+            Button { player.togglePlayPause() } label: {
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title3)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+            Button { player.next() } label: {
+                Image(systemName: "forward.fill")
+                    .font(.body)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Next")
         }
-        .padding()
-        .background(.regularMaterial)
+        .buttonStyle(.plain)
+        .padding(.leading, 8)
+        .padding(.trailing, 6)
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottom) {
+            MiniProgressLine()
+                .padding(.horizontal, 14)
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 4)
+    }
+}
+
+/// The thin progress line along the bottom of the mini player (the only part that redraws
+/// while music plays).
+private struct MiniProgressLine: View {
+    @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var clock: PlaybackClock
+
+    var body: some View {
+        let fraction = player.duration > 0 ? min(max(clock.time / player.duration, 0), 1) : 0
+        GeometryReader { geometry in
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(width: geometry.size.width * fraction, height: 2)
+        }
+        .frame(height: 2)
+        .accessibilityHidden(true)
     }
 }
 
