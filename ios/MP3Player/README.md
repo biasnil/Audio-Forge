@@ -52,6 +52,10 @@ a sleep timer and resuming the last song on launch.
 4. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
    the one in your project's Assets). It's a single 1024×1024 image made from the Android
    launcher icon; Xcode makes the other sizes.
+5. **Info.plist:** this folder includes `Info.plist` with the three keys from steps 6–7 below
+   (background audio, file sharing, open in place). Xcode merges it with the settings it
+   generates. Keep it in the folder: if it's missing, the build fails with "Build input file
+   cannot be found: …/Info.plist".
 5. **Background audio (required)** — without it music stops when you leave the app or lock
    the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
    **Background Modes** → tick **Audio, AirPlay, and Picture in Picture**. (This adds
