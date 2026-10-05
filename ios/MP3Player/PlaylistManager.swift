@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Combine
 
 /// Songs are stored by key ("docs/<path>" or "link:<folder>/<path>"), because the
