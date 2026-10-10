@@ -7,12 +7,14 @@ struct NowPlayingView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var editor: SongEditor
     @Environment(\.scenePhase) private var scenePhase
-    @State private var lyrics: LyricsContent = .none
     @State private var showLyrics = false
     @State private var videoFailed = false
     @State private var backdrop: (key: String, image: UIImage)?
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+
+    /// Looked up by the player while this screen is open (also used by CarPlay and the lock screen).
+    private var lyrics: LyricsContent { player.lyrics }
 
     private var lyricsMode: Bool { showLyrics && lyrics.isAvailable }
 
@@ -53,15 +55,8 @@ struct NowPlayingView: View {
         .padding(.bottom, 12)
         .background { background }
         .presentationDragIndicator(.visible)
-        .task(id: lyricsLookupID) {
-            guard let song = player.currentSong else {
-                lyrics = .none
-                return
-            }
-            lyrics = .loading
-            let found = await LyricsFinder.find(for: song)
-            if !Task.isCancelled { lyrics = found }
-        }
+        .onAppear { player.beginLyricsDemand() }
+        .onDisappear { player.endLyricsDemand() }
         .onChange(of: player.currentSong?.key) { _, _ in videoFailed = false }
         .task(id: player.currentSong?.key) {
             guard let song = player.currentSong, let data = song.artworkData else {
@@ -71,12 +66,6 @@ struct NowPlayingView: View {
             let image = await Task.detached(priority: .utility) { ImageTools.backdrop(data) }.value
             if let image, !Task.isCancelled { backdrop = (song.key, image) }
         }
-    }
-
-    /// Title/artist too: after a tag edit the lookup runs again with the new names.
-    private var lyricsLookupID: String {
-        guard let song = player.currentSong else { return "" }
-        return "\(song.key)|\(song.title)|\(song.artist)"
     }
 
     // MARK: - Pieces

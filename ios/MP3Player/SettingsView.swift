@@ -83,6 +83,16 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Lyrics on Lock Screen & CarPlay", isOn: binding(\.lyricsOnNowPlaying))
+                } header: {
+                    Text("Lyrics")
+                } footer: {
+                    Text("Shows the line being sung in place of the album name, for songs with synced lyrics. "
+                         + "CarPlay also has a Lyrics screen (the quote button on Now Playing). "
+                         + "Only glance at lyrics while driving when it's safe.")
+                }
+
+                Section {
                     SecureField("Musixmatch API key", text: $musixmatchKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -104,7 +114,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderless)
                 } header: {
-                    Text("Lyrics")
+                    Text("Lyrics Lookup")
                 } footer: {
                     Text("Lyrics are looked up on LRCLIB (free, no key), then Musixmatch if you add an API key "
                          + "(stored in the Keychain), then a same-name .lrc or .txt file next to the song.")

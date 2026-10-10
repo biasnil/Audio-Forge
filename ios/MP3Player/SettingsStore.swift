@@ -68,6 +68,8 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
     var linkedFolders: [LinkedFolder] = []
     /// Folder keys (Song.folderKey) whose songs are hidden, subfolders included.
     var hiddenFolders: Set<String> = []
+    /// Shows the current synced lyric line in place of the album on the lock screen and CarPlay.
+    var lyricsOnNowPlaying = false
 
     init() {}
 
@@ -96,6 +98,8 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
         wallpapers = (try? c.decodeIfPresent([WallpaperEntry].self, forKey: .wallpapers)) ?? d.wallpapers
         linkedFolders = (try? c.decodeIfPresent([LinkedFolder].self, forKey: .linkedFolders)) ?? d.linkedFolders
         hiddenFolders = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenFolders)) ?? d.hiddenFolders
+        lyricsOnNowPlaying = (try? c.decodeIfPresent(Bool.self, forKey: .lyricsOnNowPlaying))
+            ?? d.lyricsOnNowPlaying
     }
 }
 

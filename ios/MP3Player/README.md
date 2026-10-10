@@ -33,6 +33,7 @@ a sleep timer and resuming the last song on launch.
 - LyricsFinder.swift    – Lyrics lookup: cache, LRCLIB, Musixmatch, then the local .lrc/.txt
 - Artwork.swift         – PlaybackClock (playback position), thumbnail cache, ArtworkView,
                           background image downsampling and the Now Playing backdrop blur
+- CarPlay.swift         – CarPlay scene: menu, Lyrics button on Now Playing, lyrics list
 
 ## Xcode project setup
 1. iOS App template, SwiftUI, Swift.
@@ -62,6 +63,54 @@ a sleep timer and resuming the last song on launch.
 
 No permission prompts are needed: photos and videos are picked with the system picker,
 folders with the Files picker, and lyrics lookups work with the default network settings.
+
+## Lyrics in the car
+**Lock screen / CarPlay line (no setup).** Settings → Lyrics → **Lyrics on Lock Screen &
+CarPlay** shows the line being sung (synced lyrics only) in place of the album name on the
+lock screen, Control Center and CarPlay's Now Playing screen.
+
+**CarPlay Lyrics screen (needs setup).** Adds AudioForge to the CarPlay home screen with a
+menu (Now Playing, Lyrics) and a Lyrics button on Now Playing. Without these steps
+CarPlay.swift is simply never used.
+1. **Entitlement.** Apple must approve CarPlay for your developer account: request the
+   CarPlay **audio** entitlement at developer.apple.com/contact/carplay (a paid developer
+   account is required; free personal teams can't get it). Once approved, add a file
+   `MP3Player.entitlements` to the target (or edit the existing one) with:
+   ```xml
+   <key>com.apple.developer.carplay-audio</key>
+   <true/>
+   ```
+   and make sure Build Settings → **Code Signing Entitlements** points to it. The Simulator
+   accepts the entitlement without approval, so you can try it there first.
+2. **CarPlay scene.** Info tab → add **Application Scene Manifest**
+   (`UIApplicationSceneManifest`), or in Info.plist as source code:
+   ```xml
+   <key>UIApplicationSceneManifest</key>
+   <dict>
+       <key>UIApplicationSupportsMultipleScenes</key>
+       <true/>
+       <key>UISceneConfigurations</key>
+       <dict>
+           <key>CPTemplateApplicationSceneSessionRoleApplication</key>
+           <array>
+               <dict>
+                   <key>UISceneConfigurationName</key>
+                   <string>CarPlay</string>
+                   <key>UISceneDelegateClassName</key>
+                   <string>CarPlaySceneDelegate</string>
+               </dict>
+           </array>
+       </dict>
+   </dict>
+   ```
+   If the project already has a scene manifest, add only the
+   `CPTemplateApplicationSceneSessionRoleApplication` entry. The phone screen stays SwiftUI's.
+3. **Try it without a car:** run on the Simulator, then Simulator menu → I/O → External
+   Displays → **CarPlay**.
+
+The CarPlay list is built from list items (CarPlay has no lyrics view): the car limits how
+many rows it shows and cuts each to one line. Synced lyrics start at the line being sung and
+move along with the song; tap a line to jump to it. Plain lyrics show from the top.
 
 ## Performance notes
 - Test speed with a **Release** build (Edit Scheme → Run → Build Configuration → Release, or
