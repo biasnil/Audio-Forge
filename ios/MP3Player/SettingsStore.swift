@@ -69,6 +69,8 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
     var linkedFolders: [LinkedFolder] = []
     /// Folder keys (Song.folderKey) whose songs are hidden, subfolders included.
     var hiddenFolders: Set<String> = []
+    /// Shows the current synced lyric line in place of the album on the lock screen and CarPlay.
+    var lyricsOnNowPlaying = false
 
     // Playback extras.
     /// Lower the volume over the last 30 s of a sleep timer (10 s for "end of song").
@@ -121,6 +123,8 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
         beatMatchedCrossfade = (try? c.decodeIfPresent(Bool.self, forKey: .beatMatchedCrossfade))
             ?? d.beatMatchedCrossfade
         harmonicShuffle = (try? c.decodeIfPresent(Bool.self, forKey: .harmonicShuffle)) ?? d.harmonicShuffle
+        lyricsOnNowPlaying = (try? c.decodeIfPresent(Bool.self, forKey: .lyricsOnNowPlaying))
+            ?? d.lyricsOnNowPlaying
     }
 }
 

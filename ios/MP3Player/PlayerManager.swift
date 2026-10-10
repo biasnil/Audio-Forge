@@ -102,6 +102,8 @@ final class PlayerManager: ObservableObject {
     /// Long tracks (audiobooks, mixes) get ±15 s buttons and resume where you stopped.
     static let longTrackSeconds: TimeInterval = 600
     var isLongTrack: Bool { duration >= Self.longTrackSeconds }
+    /// The current song's lyrics, looked up while something shows them (see `beginLyricsDemand`).
+    @Published private(set) var lyrics: LyricsContent = .none
 
     /// One player node and its effects chain.
     private final class Slot {
@@ -184,6 +186,13 @@ final class PlayerManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var nowPlayingArtwork: (key: String, artwork: MPMediaItemArtwork?)?
     private let visualizerTap = VisualizerTap()
+    /// Which song (and title/artist, so a tag edit looks again) `lyrics` belongs to; "" = none.
+    private var lyricsID = ""
+    private var lyricsTask: Task<Void, Never>?
+    /// Screens showing lyrics right now (Now Playing, CarPlay).
+    private var lyricsDemand = 0
+    /// The synced line shown on the lock screen / CarPlay.
+    private var lyricLineIndex: Int?
 
     private static let stateKey = "savedPlayerState.v2"
     private static let legacyStateKey = "savedPlayerState"
@@ -757,6 +766,7 @@ final class PlayerManager: ObservableObject {
             }
         }
         applySleepFade(position: position, end: end)
+        updateLyricLine(position: position)
     }
 
     /// Lines up the next song before this one ends: a crossfade, or a gapless hand-off.
@@ -980,7 +990,13 @@ final class PlayerManager: ObservableObject {
 
     private func applyAudioSettings(_ new: AppSettings) {
         let old = audio
+        let lyricsLineToggled = new.lyricsOnNowPlaying != old.lyricsOnNowPlaying
         audio = new
+        if lyricsLineToggled {
+            lyricLineIndex = nil
+            refreshLyrics()
+            updateNowPlaying()
+        }
         for (band, gain) in zip(eq.bands, new.eqGainsDb) {
             band.gain = gain
             band.bypass = !new.eqEnabled
@@ -1106,6 +1122,60 @@ final class PlayerManager: ObservableObject {
         if abs(engine.mainMixerNode.outputVolume - volume) > 0.005 {
             engine.mainMixerNode.outputVolume = volume
         }
+    }
+
+    // MARK: - Lyrics
+
+    /// Call when a screen showing lyrics appears (pair with `endLyricsDemand`).
+    func beginLyricsDemand() {
+        lyricsDemand += 1
+        refreshLyrics()
+    }
+
+    func endLyricsDemand() {
+        lyricsDemand = max(lyricsDemand - 1, 0)
+    }
+
+    /// Looks up the current song's lyrics if something shows them and they aren't loaded yet.
+    private func refreshLyrics() {
+        let song = currentSong
+        let id = song.map { "\($0.key)|\($0.title)|\($0.artist)" } ?? ""
+        guard id != lyricsID else { return }
+        lyricsTask?.cancel()
+        lyricLineIndex = nil
+        guard let song, lyricsDemand > 0 || audio.lyricsOnNowPlaying else {
+            // Looked up later, when something shows them.
+            lyricsID = ""
+            if lyrics != .none { lyrics = .none }
+            return
+        }
+        lyricsID = id
+        lyrics = .loading
+        lyricsTask = Task { [weak self] in
+            let found = await Task.detached(priority: .userInitiated) { await LyricsFinder.find(for: song) }.value
+            guard !Task.isCancelled, let self, self.lyricsID == id else { return }
+            self.lyrics = found
+            self.lyricLineIndex = nil
+        }
+    }
+
+    /// With "lyrics on the lock screen" on: refreshes Now Playing when the line being sung changes.
+    private func updateLyricLine(position: TimeInterval) {
+        guard audio.lyricsOnNowPlaying, case .synced(let lines) = lyrics, let song = currentSong else { return }
+        let offset = songData.stats(for: song.key).lyricsOffset ?? 0
+        let line = lines.currentIndex(at: position - offset)
+        if line != lyricLineIndex {
+            lyricLineIndex = line
+            updateNowPlaying()
+        }
+    }
+
+    /// The album, or (with that setting on) the synced lyric line being sung.
+    private func albumLine(for song: Song) -> String {
+        guard audio.lyricsOnNowPlaying, case .synced(let lines) = lyrics,
+              let index = lyricLineIndex, lines.indices.contains(index) else { return song.album }
+        let text = lines[index].text
+        return text.isEmpty ? "♪" : text
     }
 
     // MARK: - Tag edits
@@ -1342,6 +1412,7 @@ final class PlayerManager: ObservableObject {
             center.skipForwardCommand.isEnabled = isLongTrack
             center.skipBackwardCommand.isEnabled = isLongTrack
         }
+        refreshLyrics()
         updateNowPlaying()
     }
 
@@ -1353,7 +1424,7 @@ final class PlayerManager: ObservableObject {
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
             MPMediaItemPropertyArtist: song.artist,
-            MPMediaItemPropertyAlbumTitle: song.album,
+            MPMediaItemPropertyAlbumTitle: albumLine(for: song),
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: position(of: active),
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(rate) : 0.0,

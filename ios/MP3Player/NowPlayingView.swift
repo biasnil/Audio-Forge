@@ -9,7 +9,6 @@ struct NowPlayingView: View {
     @EnvironmentObject private var editor: SongEditor
     @EnvironmentObject private var songData: SongDataStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var lyrics: LyricsContent = .none
     @State private var showLyrics = false
     @State private var videoFailed = false
     @State private var backdrop: (key: String, image: UIImage)?
@@ -26,6 +25,9 @@ struct NowPlayingView: View {
     @State private var theme: (key: String, color: Color)?
 
     private let rates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+
+    /// Looked up by the player while this screen is open (also used by CarPlay and the lock screen).
+    private var lyrics: LyricsContent { player.lyrics }
 
     private var lyricsMode: Bool { showLyrics && lyrics.isAvailable }
 
@@ -105,15 +107,8 @@ struct NowPlayingView: View {
             }
         }
         .modifier(PlaybackMessages())
-        .task(id: lyricsLookupID) {
-            guard let song = player.currentSong else {
-                lyrics = .none
-                return
-            }
-            lyrics = .loading
-            let found = await Task.detached(priority: .userInitiated) { await LyricsFinder.find(for: song) }.value
-            if !Task.isCancelled { lyrics = found }
-        }
+        .onAppear { player.beginLyricsDemand() }
+        .onDisappear { player.endLyricsDemand() }
         .onChange(of: player.currentSong?.key) { _, _ in videoFailed = false }
         .task(id: player.currentSong?.artworkID) {
             guard let artworkID = player.currentSong?.artworkID else {
@@ -129,12 +124,6 @@ struct NowPlayingView: View {
             if let image = result.0 { backdrop = (artworkID, image) }
             theme = result.1.map { (artworkID, Color(uiColor: $0)) }
         }
-    }
-
-    /// Title/artist too: after a tag edit the lookup runs again with the new names.
-    private var lyricsLookupID: String {
-        guard let song = player.currentSong else { return "" }
-        return "\(song.key)|\(song.title)|\(song.artist)"
     }
 
     // MARK: - Pieces

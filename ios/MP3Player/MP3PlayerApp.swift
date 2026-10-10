@@ -1,27 +1,26 @@
 import SwiftUI
 
+/// The app's shared objects. The CarPlay screen is a separate scene (and can start without
+/// the phone screen ever opening), so it reaches the same player and library through here.
+@MainActor
+enum AppObjects {
+    static let settings = SettingsStore()
+    static let library = LibraryManager(settings: settings)
+    static let songData = SongDataStore()
+    static let analyzer = LibraryAnalyzer(store: songData, settings: settings)
+    static let player = PlayerManager(settings: settings, songData: songData)
+    static let editor = SongEditor(library: library, player: player)
+}
+
 @main
 struct MP3PlayerApp: App {
-    @StateObject private var settings: SettingsStore
-    @StateObject private var library: LibraryManager
-    @StateObject private var songData: SongDataStore
-    @StateObject private var analyzer: LibraryAnalyzer
-    @StateObject private var player: PlayerManager
+    @StateObject private var settings = AppObjects.settings
+    @StateObject private var library = AppObjects.library
+    @StateObject private var songData = AppObjects.songData
+    @StateObject private var analyzer = AppObjects.analyzer
+    @StateObject private var player = AppObjects.player
     @StateObject private var playlists = PlaylistManager()
-    @StateObject private var editor: SongEditor
-
-    init() {
-        let settings = SettingsStore()
-        let library = LibraryManager(settings: settings)
-        let songData = SongDataStore()
-        let player = PlayerManager(settings: settings, songData: songData)
-        _settings = StateObject(wrappedValue: settings)
-        _library = StateObject(wrappedValue: library)
-        _songData = StateObject(wrappedValue: songData)
-        _analyzer = StateObject(wrappedValue: LibraryAnalyzer(store: songData, settings: settings))
-        _player = StateObject(wrappedValue: player)
-        _editor = StateObject(wrappedValue: SongEditor(library: library, player: player))
-    }
+    @StateObject private var editor = AppObjects.editor
 
     var body: some Scene {
         WindowGroup {

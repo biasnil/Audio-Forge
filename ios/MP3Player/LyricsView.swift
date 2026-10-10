@@ -13,6 +13,20 @@ nonisolated struct LyricWord: Hashable, Sendable {
     let text: String
 }
 
+extension Array where Element == LyricLine {
+    /// Index of the last line that has started at `time` (binary search; lines are sorted by time).
+    /// Slightly early, so a line shows as it starts being sung.
+    nonisolated func currentIndex(at time: TimeInterval) -> Int? {
+        let now = time + 0.15
+        var low = 0, high = count - 1, found: Int?
+        while low <= high {
+            let mid = (low + high) / 2
+            if self[mid].time <= now { found = mid; low = mid + 1 } else { high = mid - 1 }
+        }
+        return found
+    }
+}
+
 /// What the Now Playing screen shows in its lyrics panel.
 nonisolated enum LyricsContent: Equatable, Sendable {
     case none
@@ -149,15 +163,8 @@ struct LyricsView: View {
 
     private var now: TimeInterval { clock.time + 0.15 - offset }
 
-    /// The last line that has started (binary search; lines are sorted by time).
     private var currentID: Int? {
-        let now = self.now
-        var low = 0, high = lines.count - 1, found: Int?
-        while low <= high {
-            let mid = (low + high) / 2
-            if lines[mid].time <= now { found = mid; low = mid + 1 } else { high = mid - 1 }
-        }
-        return found.map { lines[$0].id }
+        lines.currentIndex(at: clock.time - offset).map { lines[$0].id }
     }
 
     var body: some View {
