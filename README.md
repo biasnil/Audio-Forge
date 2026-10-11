@@ -128,7 +128,7 @@ Gradle 8.14.3 (through the included wrapper) and Android Gradle Plugin 8.11.1.
 
 ## iOS app
 
-`ios/MP3Player/` is a SwiftUI app for iPhone (iOS 17+) with the same features as
+`ios/AudioForge/` is a SwiftUI app for iPhone (iOS 17+) with the same features as
 the Android app. Playback runs on AVAudioEngine, which gives crossfade, the 10-band EQ
 with presets and post-gain, ReplayGain and volume up to 200%. The app also has
 Off/Random/Smart shuffle with play history, a tag and cover editor (MP3, FLAC, M4A),
@@ -136,7 +136,7 @@ lyrics from LRCLIB and Musixmatch with plain lyrics and a cache, and folders lin
 from the Files app (subfolders included). The rest of the Android features are there
 too: video wallpapers, a Settings tab and hideable tabs. Playback speed, a sleep timer
 and resuming the last song on launch are iOS-only for now. See
-`ios/MP3Player/README.md` for the Xcode setup.
+`ios/AudioForge/README.md` for the Xcode setup.
 
 ## Settings
 

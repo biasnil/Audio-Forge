@@ -13,7 +13,7 @@ enum AppObjects {
 }
 
 @main
-struct MP3PlayerApp: App {
+struct AudioForgeApp: App {
     @StateObject private var settings = AppObjects.settings
     @StateObject private var library = AppObjects.library
     @StateObject private var songData = AppObjects.songData

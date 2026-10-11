@@ -1,11 +1,11 @@
-# AudioForge for iOS (MP3Player, SwiftUI)
+# AudioForge for iOS (SwiftUI)
 
 Offline music player for iPhone. Swift + SwiftUI + AVFoundation, iOS 17+, built in Xcode.
 It matches the Android app's features (see the root README), plus playback speed,
 a sleep timer and resuming the last song on launch.
 
 ## Files
-- MP3PlayerApp.swift    – @main entry; creates SettingsStore, LibraryManager, PlayerManager,
+- AudioForgeApp.swift   – @main entry; creates SettingsStore, LibraryManager, PlayerManager,
                           PlaylistManager and SongEditor
 - Song.swift            – Song model (key, tags, duration, bitrate, artwork, lyrics file, ReplayGain)
 - SettingsStore.swift   – AppSettings (JSON in Application Support), tabs, linked folders,
@@ -55,9 +55,9 @@ a sleep timer and resuming the last song on launch.
    launcher icon; Xcode makes the other sizes.
 5. **Info.plist:** `ios/Info.plist` holds the three keys from steps 6–7 below (background
    audio, file sharing, open in place); Xcode merges it with the settings it generates.
-   Put it **next to `MP3Player.xcodeproj`, not inside the `MP3Player` source folder** (with
+   Put it **next to `AudioForge.xcodeproj`, not inside the `AudioForge` source folder** (with
    Xcode's folder-synced groups, a plist inside that folder is also copied as a resource and
-   the build fails with "Multiple commands produce …/MP3Player.app/Info.plist"). Then in
+   the build fails with "Multiple commands produce …/AudioForge.app/Info.plist"). Then in
    Build Settings, set **Info.plist File** (`INFOPLIST_FILE`) to `Info.plist`.
 5. **Background audio (required)** — without it music stops when you leave the app or lock
    the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
@@ -88,7 +88,7 @@ CarPlay.swift is simply never used.
 1. **Entitlement.** Apple must approve CarPlay for your developer account: request the
    CarPlay **audio** entitlement at developer.apple.com/contact/carplay (a paid developer
    account is required; free personal teams can't get it). Once approved, add a file
-   `MP3Player.entitlements` to the target (or edit the existing one) with:
+   `AudioForge.entitlements` to the target (or edit the existing one) with:
    ```xml
    <key>com.apple.developer.carplay-audio</key>
    <true/>
