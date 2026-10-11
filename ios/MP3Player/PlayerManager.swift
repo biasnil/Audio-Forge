@@ -273,10 +273,29 @@ final class PlayerManager: ObservableObject {
         slot.connectedFormat = format
     }
 
+    /// Links the main mixer to the output at the output's current sample rate, if it isn't already.
+    ///
+    /// When the output changes (e.g. Bluetooth headphones switch to their low-quality call mode
+    /// for a call or Siri, then back), the old link can keep the previous rate, such as 16 kHz,
+    /// and everything plays through it: no highs, muffled. Only possible while the engine is stopped.
+    private func matchOutputFormat() {
+        let hardware = engine.outputNode.outputFormat(forBus: 0)
+        guard hardware.sampleRate > 0, hardware.channelCount > 0 else { return }   // no output right now
+        let current = engine.mainMixerNode.outputFormat(forBus: 0)
+        guard current.sampleRate != hardware.sampleRate || current.channelCount != hardware.channelCount,
+              let format = AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate,
+                                         channels: hardware.channelCount) else { return }
+        engine.disconnectNodeOutput(engine.mainMixerNode)
+        engine.connect(engine.mainMixerNode, to: engine.outputNode, format: format)
+    }
+
     private func startEngineIfNeeded() -> Bool {
         do {
             try AVAudioSession.sharedInstance().setActive(true)
-            if !engine.isRunning { try engine.start() }
+            if !engine.isRunning {
+                matchOutputFormat()
+                try engine.start()
+            }
             return true
         } catch {
             errorMessage = "Audio couldn't start: \(error.localizedDescription)"
@@ -1339,9 +1358,11 @@ final class PlayerManager: ObservableObject {
         }
     }
 
-    /// The engine stopped itself (output changed, e.g. AirPods connected): carry on from the
-    /// same positions, keeping a crossfade going.
+    /// The engine stopped itself (output changed, e.g. AirPods connected, or headphones going in
+    /// and out of call mode): re-link the output to its new format, even while paused (an
+    /// interruption pauses first), then carry on from the same positions, keeping a crossfade going.
     private func handleEngineConfigurationChange() {
+        if !engine.isRunning { matchOutputFormat() }
         guard isPlaying else { return }
         if gapless || (crossfading && !incoming.running) { abortCrossfade() }
         stopSlot(active)
