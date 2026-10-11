@@ -1450,6 +1450,7 @@ final class PlayerManager: ObservableObject {
         }
         refreshLyrics()
         updateNowPlaying()
+        WidgetBridge.update(song: currentSong, isPlaying: isPlaying)
     }
 
     private func updateNowPlaying() {

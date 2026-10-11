@@ -41,6 +41,14 @@ a sleep timer and resuming the last song on launch.
 - Artwork.swift         – PlaybackClock (playback position), thumbnail cache, ArtworkView,
                           background image downsampling and the Now Playing backdrop blur
 - CarPlay.swift         – CarPlay scene: menu, Lyrics button on Now Playing, lyrics list
+- WidgetBridge.swift    – Writes what's playing for the widget; runs the widget's buttons
+
+Outside this folder (see "Now Playing widget" below):
+- ../Shared/            – Built into both the app and the widget: NowPlayingShared.swift (what the
+                          widget shows, App Group folder) and PlaybackIntents.swift (its buttons)
+- ../AudioForgeWidget/  – The widget extension (NowPlayingWidget.swift)
+- ../AudioForge.entitlements, ../AudioForgeWidget.entitlements – App Group for each target
+- ../AudioForgeWidget-Info.plist – The widget's Info.plist (marks it as a WidgetKit extension)
 
 ## Xcode project setup
 1. iOS App template, SwiftUI, Swift.
@@ -87,8 +95,8 @@ menu (Now Playing, Lyrics) and a Lyrics button on Now Playing. Without these ste
 CarPlay.swift is simply never used.
 1. **Entitlement.** Apple must approve CarPlay for your developer account: request the
    CarPlay **audio** entitlement at developer.apple.com/contact/carplay (a paid developer
-   account is required; free personal teams can't get it). Once approved, add a file
-   `AudioForge.entitlements` to the target (or edit the existing one) with:
+   account is required; free personal teams can't get it). Once approved, add to
+   `ios/AudioForge.entitlements` (already there for the widget's App Group):
    ```xml
    <key>com.apple.developer.carplay-audio</key>
    <true/>
@@ -104,6 +112,29 @@ CarPlay.swift is simply never used.
 The CarPlay list is built from list items (CarPlay has no lyrics view): the car limits how
 many rows it shows and cuts each to one line. Synced lyrics start at the line being sung and
 move along with the song; tap a line to jump to it. Plain lyrics show from the top.
+
+## Now Playing widget
+A home screen widget (small and medium) with the current song and cover, play/pause and next
+(medium also has previous). Tapping elsewhere on it opens the app.
+
+- The app writes the song, artist, play state and a small cover to the App Group folder
+  `group.com.biasnil.audioforge` whenever they change (`WidgetBridge.update`, called from
+  `PlayerManager.publish()`), then asks WidgetKit to redraw. The widget never refreshes on
+  its own schedule, so it costs no battery while nothing changes.
+- The buttons are `AudioPlaybackIntent`s, which iOS runs inside the app, so they drive the
+  real player. If the app isn't running, iOS starts it in the background; it loads the last
+  song first, the same way it does on launch.
+
+**Xcode setup** (the project file isn't in the repo):
+1. A Widget Extension target named `AudioForgeWidget` (bundle id
+   `com.biasnil.audioforge.widget`), embedded in the app. Its synced source folders are
+   `ios/AudioForgeWidget` and `ios/Shared`. The app target also gets `ios/Shared`.
+2. Widget build settings: Info.plist File → `ios/AudioForgeWidget-Info.plist`, Code Signing
+   Entitlements → `ios/AudioForgeWidget.entitlements`, and Active Compilation Conditions
+   `WIDGET_EXTENSION` (keeps the app-only part of PlaybackIntents.swift out of the widget).
+3. App build settings: Code Signing Entitlements → `ios/AudioForge.entitlements`.
+4. Both entitlements files hold the App Group. With automatic signing, Xcode registers the
+   group and the widget's id on the first build for a device.
 
 ## Performance notes
 - Test speed with a **Release** build (Edit Scheme → Run → Build Configuration → Release, or
