@@ -50,6 +50,7 @@ private:
     QGraphicsScene m_scene;
     QGraphicsVideoItem* m_videoItem;
     QMediaPlayer* m_player;
+    bool m_paused = false; // a new video waits while paused (page not visible / minimized)
     QAudioOutput* m_audioOutput; // exists only so QMediaPlayer has an output to bind; volume forced to 0 -- there is no audio track expected, but Qt Multimedia wants an output object regardless
 };
 

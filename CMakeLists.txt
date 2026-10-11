@@ -15,7 +15,7 @@ set(CMAKE_AUTORCC ON)  # Qt resource compiler -- picks up resources/icons.qrc
 if(WIN32 AND EXISTS "C:/msys64/ucrt64")
     set(CMAKE_PREFIX_PATH "C:/msys64/ucrt64" ${CMAKE_PREFIX_PATH})
 endif()
-find_package(Qt6 COMPONENTS Widgets Network Multimedia MultimediaWidgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Network Multimedia MultimediaWidgets Svg REQUIRED)
 
 # TagLib reads/writes ID3 tags. It only ships a pkg-config file, not a CMake
 # package, so we go through pkg-config.
@@ -30,6 +30,7 @@ add_executable(audioforge WIN32
     common/src/warnings.cpp
     common/src/discord_presence.cpp
     common/src/secret_store.cpp
+    common/src/song_analysis.cpp
 
     qt_player/src/track_metadata.cpp
     qt_player/src/track_metadata_tags.cpp
@@ -38,6 +39,12 @@ add_executable(audioforge WIN32
     qt_player/src/music_library.cpp
     qt_player/src/wallpaper_library.cpp
     qt_player/src/player_window.cpp
+    qt_player/src/theme.cpp
+    qt_player/src/app_files.cpp
+    qt_player/src/song_data.cpp
+    qt_player/src/widgets/toggle_switch.cpp
+    qt_player/src/widgets/up_next_panel.cpp
+    qt_player/src/dialogs/duplicates_dialog.cpp
     qt_player/src/widgets/clickable_widget.cpp
     qt_player/src/widgets/click_seek_slider.cpp
     qt_player/src/widgets/single_page_stacked_widget.cpp
@@ -65,6 +72,9 @@ add_executable(audioforge WIN32
     qt_player/include/audioforge/dialogs/musicbrainz_result_dialog.hpp
     qt_player/include/audioforge/dialogs/manual_tag_dialog.hpp
     qt_player/include/audioforge/dialogs/wallpaper_track_picker_dialog.hpp
+    qt_player/include/audioforge/dialogs/duplicates_dialog.hpp
+    qt_player/include/audioforge/song_data.hpp
+    qt_player/include/audioforge/widgets/up_next_panel.hpp
 
     # App icon (see resources/README) -- icons.qrc bundles the PNG so
     # setWindowIcon() works cross-platform; app_icon.rc (Windows only,
@@ -78,7 +88,7 @@ target_include_directories(audioforge PRIVATE
     vendor
 )
 
-target_link_libraries(audioforge PRIVATE Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets PkgConfig::TAGLIB)
+target_link_libraries(audioforge PRIVATE Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets Qt6::Svg PkgConfig::TAGLIB)
 
 if(WIN32)
     # miniaudio (WASAPI device access)

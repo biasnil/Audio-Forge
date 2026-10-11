@@ -1,7 +1,11 @@
 #pragma once
 
+#include <QHash>
 #include <QMap>
 #include "audioforge/track_info.hpp"
+
+#include <atomic>
+#include <functional>
 
 namespace audioforge {
 
@@ -20,21 +24,38 @@ public:
         int genreCount = 0;
     };
 
-    // Adds a folder (no-op if already added), scans it, and appends any new
-    // tracks found. Returns false if the folder was already present.
+    // Records a folder (its songs arrive with the next scan -- see below).
+    // Returns false if it was already added.
     bool addFolder(const QString& dir);
 
     // Stops tracking a folder and drops any tracks whose path is under it.
     void removeFolder(const QString& dir);
 
-    // Full rescan of every added folder: picks up new files AND drops ones
-    // that no longer exist (since only files QDirIterator still finds get
-    // re-added).
-    void refreshAll();
-
     // Re-reads one file's tags in place (used after a MusicBrainz tag write
     // so the in-memory copy matches what was actually saved to disk).
     void refreshTrack(const QString& path);
+
+    // --- Background scanning ---------------------------------------------
+    // Reading every file's tags takes a while (seconds for a few hundred
+    // songs), so PlayerWindow scans off the UI thread: it sets the folder
+    // list, runs ScanFolders() on a worker thread, then hands the result to
+    // setTracks().
+
+    void setFolders(const QStringList& folders) { m_musicFolders = folders; }
+    void setTracks(const QVector<TrackInfo>& tracks);
+
+    // Every .mp3 under `folders`. A file in `known` whose modified time
+    // hasn't changed is reused as-is; only new or changed files are read.
+    // `progress(done, total)` is called from the scanning thread; returns
+    // early (partial result) once `cancelled` is set. Thread-safe.
+    static QVector<TrackInfo> ScanFolders(const QStringList& folders, const QHash<QString, TrackInfo>& known,
+                                          const std::function<void(int, int)>& progress,
+                                          const std::atomic<bool>& cancelled);
+
+    // library.json next to AudioForge.ini: the last scan's tags, so a launch
+    // shows the library straight away and only re-reads changed files.
+    static QVector<TrackInfo> LoadCache();
+    static void SaveCache(const QVector<TrackInfo>& tracks);
 
     const QStringList& folders() const { return m_musicFolders; }
     const QVector<TrackInfo>& tracks() const { return m_tracks; }
@@ -61,10 +82,11 @@ public:
     void removePlaylistAt(int index);
 
 private:
-    void scanFolder(const QString& dir);
+    void rebuildIndex();
 
     QStringList m_musicFolders;
     QVector<TrackInfo> m_tracks;
+    QHash<QString, int> m_indexByPath; // path -> position in m_tracks; findTrackInfo() was a linear scan
     QVector<PlaylistData> m_playlists;
 };
 
