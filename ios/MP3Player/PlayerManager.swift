@@ -4,6 +4,7 @@ import Combine
 import AVFoundation
 import MediaPlayer
 import UIKit
+import CarPlay
 
 nonisolated enum SleepTimer: Hashable {
     case off
@@ -146,6 +147,7 @@ final class PlayerManager: ObservableObject {
 
         init() {
             gain.bands[0].bypass = true
+            timePitch.bypass = true              // normal speed: see applyRate
         }
     }
 
@@ -322,7 +324,11 @@ final class PlayerManager: ObservableObject {
     private func effectiveRate(_ slot: Slot) -> Double { Double(rate * slot.rateFactor) }
 
     private func applyRate(_ slot: Slot) {
-        slot.timePitch.rate = rate * slot.rateFactor
+        let effective = rate * slot.rateFactor
+        slot.timePitch.rate = effective
+        // The time-stretcher is heavy and runs non-stop (on both slots, even the idle one).
+        // At normal speed it changes nothing, so skip it and save battery.
+        slot.timePitch.bypass = effective == 1
     }
 
     /// Opens a song's file in `slot` (stopped, at the start). False if it can't be read.
@@ -754,6 +760,15 @@ final class PlayerManager: ObservableObject {
 
     // MARK: - Tick: transitions, play counts, A–B repeat, sleep fade
 
+    /// Whether anything shows the playback position: the app's screen, or CarPlay (its lyrics
+    /// follow it). In the background without CarPlay, updating it 5 times a second only keeps
+    /// SwiftUI busy and drains the battery; it catches up on the first tick back.
+    private var isPositionShown: Bool {
+        let app = UIApplication.shared
+        return app.applicationState != .background
+            || app.connectedScenes.contains { $0.session.role == .carTemplateApplication }
+    }
+
     private func tick() {
         tickCount += 1
         guard active.file != nil else { return }
@@ -780,7 +795,7 @@ final class PlayerManager: ObservableObject {
                 start(active, at: a)
             }
             countPlayIfDue(position: position)
-            if tickCount % 2 == 0, abs(clock.time - position) > 0.05 {
+            if tickCount % 2 == 0, abs(clock.time - position) > 0.05, isPositionShown {
                 clock.time = position             // 0.2 s keeps synced lyrics responsive
             }
         }
