@@ -11,6 +11,8 @@ final class SongEditor: ObservableObject {
     @Published var coverTarget: Song?
     @Published var coverPickerShown = false
     @Published var message: String?
+    /// Songs waiting for the user to confirm deleting them.
+    @Published var pendingDelete: [Song]?
 
     private let library: LibraryManager
     private let player: PlayerManager
@@ -25,16 +27,15 @@ final class SongEditor: ObservableObject {
         coverPickerShown = true
     }
 
-    /// Writes the picked photo into the song as its cover.
-    func applyCover(_ item: PhotosPickerItem?) async {
-        guard let item, let song = coverTarget else { return }
-        coverTarget = nil
+    /// Writes the picked photo into `song` as its cover.
+    func applyCover(_ item: PhotosPickerItem?, to song: Song?) async {
+        guard let item, let song else { return }
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let cover = TagIO.prepareCover(data) else {
+              let cover = await Task.detached(operation: { TagIO.prepareCover(data) }).value else {
             message = "That image couldn't be used."
             return
         }
-        var fields = await TagIO.read(song.url)
+        var fields = await Self.readTags(song.url)
         fields.artwork = cover
         if await save(song, fields: fields, artworkChanged: true) { message = "Cover changed." }
     }
@@ -49,7 +50,10 @@ final class SongEditor: ObservableObject {
         let hold = player.releaseFileForEdit(song)
         var failure: String?
         do {
-            try await TagIO.write(fields, to: song.url, artworkChanged: artworkChanged)
+            // Rewriting a big file takes a moment: keep it off the main thread.
+            try await Task.detached(priority: .userInitiated) {
+                try await TagIO.write(fields, to: song.url, artworkChanged: artworkChanged)
+            }.value
         } catch {
             failure = error.localizedDescription
         }
@@ -62,9 +66,23 @@ final class SongEditor: ObservableObject {
         }
         return true
     }
+
+    /// Reads a file's tags off the main thread.
+    nonisolated static func readTags(_ url: URL) async -> TagFields {
+        await Task.detached(priority: .userInitiated) { await TagIO.read(url) }.value
+    }
+
+    /// What the delete confirmation says: linked-folder songs are the user's original files.
+    static func deleteWarning(for songs: [Song]) -> String {
+        let linked = songs.contains { $0.key.hasPrefix("link:") }
+        return linked
+            ? "This deletes the original file from your linked folder (and from iCloud Drive if it's "
+                + "there, on all your devices). It can't be undone."
+            : "The file is removed from the app. It can't be undone."
+    }
 }
 
-/// The long-press menu items for a song: playlists, tags, cover, delete.
+/// The long-press menu items for a song: queue, love, playlists, tags, cover, delete.
 struct SongMenu: View {
     let song: Song
     var onNewPlaylist: ((Song) -> Void)?
@@ -72,8 +90,18 @@ struct SongMenu: View {
     @EnvironmentObject private var playlists: PlaylistManager
     @EnvironmentObject private var library: LibraryManager
     @EnvironmentObject private var editor: SongEditor
+    @EnvironmentObject private var player: PlayerManager
+    @EnvironmentObject private var songData: SongDataStore
 
     var body: some View {
+        Button("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") { player.playNext([song]) }
+        Button("Add to Queue", systemImage: "text.line.last.and.arrowtriangle.forward") { player.addToQueue([song]) }
+        let loved = songData.isFavorite(song.key)
+        Button(loved ? "Unlove" : "Love", systemImage: loved ? "heart.slash" : "heart") {
+            songData.toggleFavorite(song.key)
+        }
+        Divider()
+
         if let onNewPlaylist {
             Menu {
                 ForEach(playlists.playlists) { playlist in
@@ -90,7 +118,7 @@ struct SongMenu: View {
         Button("Change Cover", systemImage: "photo") { editor.changeCover(song) }
 
         Button(role: .destructive) {
-            Task { await library.delete([song]) }
+            editor.pendingDelete = [song]            // asks first, see ContentView
         } label: {
             Label("Delete Song", systemImage: "trash")
         }
@@ -100,6 +128,8 @@ struct SongMenu: View {
 /// Every tag, written into the file on Save (MP3, FLAC, M4A).
 struct TagEditorView: View {
     let song: Song
+
+    @EnvironmentObject private var songData: SongDataStore
 
     @EnvironmentObject private var editor: SongEditor
     @Environment(\.dismiss) private var dismiss
@@ -148,6 +178,10 @@ struct TagEditorView: View {
                     numberPair("Track", $fields.track, $fields.trackTotal)
                     numberPair("Disc", $fields.disc, $fields.discTotal)
                     field("BPM", $fields.bpm, numeric: true)
+                    field("Key", $fields.key)
+                    if let analysis = songData.analysis(for: song), analysis.bpm != nil || analysis.key != nil {
+                        detectedRow(analysis)
+                    }
                 }
                 Section("More") {
                     field("Composer", $fields.composer)
@@ -197,7 +231,7 @@ struct TagEditorView: View {
             }
             .task {
                 guard !loaded else { return }
-                let read = await TagIO.read(song.url)
+                let read = await SongEditor.readTags(song.url)
                 fields = read
                 original = read
                 loaded = true
@@ -222,6 +256,27 @@ struct TagEditorView: View {
                 .multilineTextAlignment(.trailing)
                 .keyboardType(numeric ? .numberPad : .default)
                 .autocorrectionDisabled(numeric)
+        }
+    }
+
+    /// What the analysis found, with a button to write it into the BPM and Key fields.
+    private func detectedRow(_ analysis: SongAnalysis) -> some View {
+        let bpm = analysis.bpm.map { String(Int($0.rounded())) }
+        let key = analysis.key
+        let summary = [bpm.map { "\($0) BPM" }, key.map { "\($0.name) (\($0.camelot))" }]
+            .compactMap { $0 }.joined(separator: " · ")
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Detected").font(.caption).foregroundStyle(.secondary)
+                Text(summary).font(.subheadline)
+            }
+            Spacer()
+            Button("Use") {
+                if let bpm { fields.bpm = bpm }
+                if let key { fields.key = key.tagValue }
+            }
+            .buttonStyle(.bordered)
+            .disabled(fields.bpm == (bpm ?? fields.bpm) && fields.key == (key?.tagValue ?? fields.key))
         }
     }
 

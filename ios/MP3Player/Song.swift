@@ -18,8 +18,9 @@ nonisolated struct Song: Identifiable, Hashable, Sendable {
     var bitrateKbps: Int = 0
     var sampleRate: Int = 0
     var fileSize: Int64 = 0
-    /// Embedded cover art, or else cover.jpg / folder.jpg / ... next to the file.
-    var artworkData: Data?
+    /// Embedded cover art, or else cover.jpg / folder.jpg / ... next to the file,
+    /// as an ArtworkStore id (the image itself lives on disk, not in memory).
+    var artworkID: String?
     var dateAdded: Date
     /// Used to skip re-reading unchanged files on a rescan.
     var fileModified: Date = .distantPast

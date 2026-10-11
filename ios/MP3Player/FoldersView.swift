@@ -16,7 +16,7 @@ struct FoldersView: View {
         let visible = groups.filter { !$0.isHidden }
         let hidden = groups.filter(\.isHidden)
 
-        NavigationStack {
+        TabStack {
             List {
                 Section {
                     ForEach(visible) { group in

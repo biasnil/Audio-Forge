@@ -7,7 +7,7 @@ struct EqualizerView: View {
     private var eq: AppSettings { settings.settings }
 
     var body: some View {
-        NavigationStack {
+        TabStack {
             Form {
                 Section {
                     Toggle("Equalizer", isOn: Binding(

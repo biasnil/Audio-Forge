@@ -31,8 +31,16 @@ a sleep timer and resuming the last song on launch.
 - NowPlayingView.swift  – Full-screen player (controls, volume/AirPlay, speed, lyrics, sleep timer)
 - LyricsView.swift      – .lrc parser (UTF-8/UTF-16/GB18030), synced and plain lyrics views
 - LyricsFinder.swift    – Lyrics lookup: cache, LRCLIB, Musixmatch, then the local .lrc/.txt
+- SongData.swift        – SongDataStore (play counts, loved, long-track positions, lyrics offsets,
+                          analysis), MusicKey (Camelot), LibraryAnalyzer (runs the analysis)
+- AudioAnalyzer.swift   – On-device BPM + beat grid, key, silence and outro detection (Accelerate)
+- UpNextView.swift      – The queue: history, now playing, Playing Next (reorder), rest of the list
+- SmartPlaylists.swift  – Smart lists and rule-based smart playlists, playlist covers, .m3u export
+- DuplicatesView.swift  – Finds songs stored more than once
+- Visualizer.swift      – Spectrum bars on Now Playing (tap on the EQ output, only while shown)
 - Artwork.swift         – PlaybackClock (playback position), thumbnail cache, ArtworkView,
                           background image downsampling and the Now Playing backdrop blur
+- CarPlay.swift         – CarPlay scene: menu, Lyrics button on Now Playing, lyrics list
 
 ## Xcode project setup
 1. iOS App template, SwiftUI, Swift.
@@ -45,6 +53,12 @@ a sleep timer and resuming the last song on launch.
 4. App icon: use the Assets.xcassets folder from here (or copy its AppIcon.appiconset over
    the one in your project's Assets). It's a single 1024×1024 image made from the Android
    launcher icon; Xcode makes the other sizes.
+5. **Info.plist:** `ios/Info.plist` holds the three keys from steps 6–7 below (background
+   audio, file sharing, open in place); Xcode merges it with the settings it generates.
+   Put it **next to `MP3Player.xcodeproj`, not inside the `MP3Player` source folder** (with
+   Xcode's folder-synced groups, a plist inside that folder is also copied as a resource and
+   the build fails with "Multiple commands produce …/MP3Player.app/Info.plist"). Then in
+   Build Settings, set **Info.plist File** (`INFOPLIST_FILE`) to `Info.plist`.
 5. **Background audio (required)** — without it music stops when you leave the app or lock
    the phone, and the next song never starts. Signing & Capabilities → **+ Capability** →
    **Background Modes** → tick **Audio, AirPlay, and Picture in Picture**. (This adds
@@ -63,16 +77,75 @@ a sleep timer and resuming the last song on launch.
 No permission prompts are needed: photos and videos are picked with the system picker,
 folders with the Files picker, and lyrics lookups work with the default network settings.
 
+## Lyrics in the car
+**Lock screen / CarPlay line (no setup).** Settings → Lyrics → **Lyrics on Lock Screen &
+CarPlay** shows the line being sung (synced lyrics only) in place of the album name on the
+lock screen, Control Center and CarPlay's Now Playing screen.
+
+**CarPlay Lyrics screen (needs setup).** Adds AudioForge to the CarPlay home screen with a
+menu (Now Playing, Lyrics) and a Lyrics button on Now Playing. Without these steps
+CarPlay.swift is simply never used.
+1. **Entitlement.** Apple must approve CarPlay for your developer account: request the
+   CarPlay **audio** entitlement at developer.apple.com/contact/carplay (a paid developer
+   account is required; free personal teams can't get it). Once approved, add a file
+   `MP3Player.entitlements` to the target (or edit the existing one) with:
+   ```xml
+   <key>com.apple.developer.carplay-audio</key>
+   <true/>
+   ```
+   and make sure Build Settings → **Code Signing Entitlements** points to it. The Simulator
+   accepts the entitlement without approval, so you can try it there first.
+2. **CarPlay scene.** Already in `ios/Info.plist` (`UIApplicationSceneManifest` with a
+   `CPTemplateApplicationSceneSessionRoleApplication` entry naming `CarPlaySceneDelegate`).
+   Without the entitlement it's simply unused; the phone screen stays SwiftUI's.
+3. **Try it without a car:** run on the Simulator, then Simulator menu → I/O → External
+   Displays → **CarPlay**.
+
+The CarPlay list is built from list items (CarPlay has no lyrics view): the car limits how
+many rows it shows and cuts each to one line. Synced lyrics start at the line being sung and
+move along with the song; tap a line to jump to it. Plain lyrics show from the top.
+
 ## Performance notes
 - Test speed with a **Release** build (Edit Scheme → Run → Build Configuration → Release, or
   TestFlight). Debug builds with the debugger attached are several times slower in SwiftUI.
 - The playback position is published by `PlaybackClock`, not `PlayerManager`, so only the
   progress bars and lyrics redraw while music plays. Seek bars seek once, when released.
-- Cover art is kept at ≤900 px; list rows decode small thumbnails in the background and
-  cache them. The Now Playing backdrop is blurred once per song.
+- Cover art is stored once per distinct cover on disk (Caches/artwork, ≤900 px); songs only
+  keep its id, so big libraries don't fill memory. Rows decode small thumbnails in the
+  background and cache them. The Now Playing backdrop is blurred once per song.
+- The first scan reads four files at a time and shows songs (with progress) as it goes.
 - Lists, album/artist/folder groups and stats are computed when the library changes, not on
-  every redraw. Returning to the app only rescans if Documents changed or 10 minutes passed
-  (pull to refresh always rescans).
+  every redraw. Returning to the app rescans, but only replaces the library if something
+  changed. The root view doesn't observe the player, library or settings, and settings are
+  saved at most twice a second.
+
+## Playback notes
+- Crossfade off = gapless: the next song is scheduled to start on the sample the current
+  one ends. Crossfade on = a fade of the chosen length. Both pause and resume cleanly.
+- A song that can't be opened is skipped with a short banner instead of stopping the queue.
+- "End of current song" sleep timer stops after the current song even with crossfade on.
+
+## Features added after Android parity
+- **Queue:** Play Next / Add to Queue on any song, album, playlist or selection; Up Next screen
+  (history, reorder, remove, jump, Clear, Save as Playlist); remembered across launches.
+- **Library:** Genres tab, A–Z index, multi-select (play, queue, add to playlist, love, delete),
+  play counts and Loved songs, duplicate finder (Settings → Library), sort by BPM and Key.
+- **Playlists:** smart lists (Loved, Most Played, Recently Played, Recently Added, Never Played),
+  rule-based smart playlists, .m3u/.m3u8 import and export, custom or album-grid covers.
+- **Playback:** ±15 s and position memory for long tracks (10 min+), A–B repeat,
+  sleep-timer fade-out.
+- **Now Playing:** colours from the cover, visualizer, full-screen lyrics with word-by-word
+  highlighting (enhanced .lrc) and a timing offset per song.
+- **Analysis (Settings → Library → Analyze Your Songs' Key and BPM):** tempo, beat grid, key
+  (Camelot) and silence/outro points, computed on the iPhone. Shown in the tag editor ("Use"
+  fills the BPM and Key tags) and used by Smart Options.
+- **Smart Options (unlocked once analysis has run):**
+  - Smart Transitions: same-album songs gapless, crossfades start at the real fade-out, silence
+    at the start/end skipped.
+  - Beat-Matched Crossfades: next song's tempo matched (±8%, half/double time) and its first beat
+    started on a beat of the current song; it then eases back to normal speed.
+  - Harmonic Shuffle: Smart shuffle picks songs in compatible keys and similar tempos.
+  Songs without analysis or a steady beat use normal transitions.
 
 ## Where things are stored
 - Songs you import: the app's Documents folder (visible in Files and Finder).

@@ -9,7 +9,7 @@ nonisolated enum Appearance: String, Codable, CaseIterable, Identifiable, Sendab
 
 /// The tabs that can be hidden in Settings (Songs and Settings always stay).
 nonisolated enum AppTab: String, Codable, CaseIterable, Identifiable, Sendable {
-    case songs = "Songs", albums = "Albums", artists = "Artists", folders = "Folders"
+    case songs = "Songs", albums = "Albums", artists = "Artists", genres = "Genres", folders = "Folders"
     case playlists = "Playlists", equalizer = "Equalizer", wallpapers = "Wallpapers", settings = "Settings"
 
     var id: String { rawValue }
@@ -20,6 +20,7 @@ nonisolated enum AppTab: String, Codable, CaseIterable, Identifiable, Sendable {
         case .songs: "music.note"
         case .albums: "square.stack"
         case .artists: "music.mic"
+        case .genres: "guitars"
         case .folders: "folder"
         case .playlists: "music.note.list"
         case .equalizer: "slider.vertical.3"
@@ -68,6 +69,24 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
     var linkedFolders: [LinkedFolder] = []
     /// Folder keys (Song.folderKey) whose songs are hidden, subfolders included.
     var hiddenFolders: Set<String> = []
+    /// Shows the current synced lyric line in place of the album on the lock screen and CarPlay.
+    var lyricsOnNowPlaying = false
+
+    // Playback extras.
+    /// Lower the volume over the last 30 s of a sleep timer (10 s for "end of song").
+    var sleepFadeOut = true
+    /// Long tracks (10 min+: audiobooks, mixes) continue where you stopped.
+    var rememberLongTrackPosition = true
+
+    // Smart Options (need "Analyze Your Songs' Key and BPM" to have run once).
+    /// Set when an analysis run has finished; unlocks the options below.
+    var analysisCompleted = false
+    /// Album-aware gapless, fades that start where the song actually ends, trimmed silence.
+    var smartTransitions = false
+    /// Crossfades that match the next song's tempo and line up the beats.
+    var beatMatchedCrossfade = false
+    /// Shuffle picks songs in compatible keys and similar tempos (like a DJ set).
+    var harmonicShuffle = false
 
     init() {}
 
@@ -96,6 +115,16 @@ nonisolated struct AppSettings: Codable, Equatable, Sendable {
         wallpapers = (try? c.decodeIfPresent([WallpaperEntry].self, forKey: .wallpapers)) ?? d.wallpapers
         linkedFolders = (try? c.decodeIfPresent([LinkedFolder].self, forKey: .linkedFolders)) ?? d.linkedFolders
         hiddenFolders = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenFolders)) ?? d.hiddenFolders
+        sleepFadeOut = (try? c.decodeIfPresent(Bool.self, forKey: .sleepFadeOut)) ?? d.sleepFadeOut
+        rememberLongTrackPosition = (try? c.decodeIfPresent(Bool.self, forKey: .rememberLongTrackPosition))
+            ?? d.rememberLongTrackPosition
+        analysisCompleted = (try? c.decodeIfPresent(Bool.self, forKey: .analysisCompleted)) ?? d.analysisCompleted
+        smartTransitions = (try? c.decodeIfPresent(Bool.self, forKey: .smartTransitions)) ?? d.smartTransitions
+        beatMatchedCrossfade = (try? c.decodeIfPresent(Bool.self, forKey: .beatMatchedCrossfade))
+            ?? d.beatMatchedCrossfade
+        harmonicShuffle = (try? c.decodeIfPresent(Bool.self, forKey: .harmonicShuffle)) ?? d.harmonicShuffle
+        lyricsOnNowPlaying = (try? c.decodeIfPresent(Bool.self, forKey: .lyricsOnNowPlaying))
+            ?? d.lyricsOnNowPlaying
     }
 }
 
@@ -123,10 +152,27 @@ final class SettingsStore: ObservableObject {
         transform(&copy)
         guard copy != settings else { return }
         settings = copy
-        save()
+        scheduleSave()
     }
 
-    private func save() {
+    private var saveTask: Task<Void, Never>?
+
+    /// Saves half a second after the last change, so dragging a slider doesn't write the
+    /// file dozens of times a second (the latest value is what gets written).
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.saveNow()
+        }
+    }
+
+    /// Writes immediately (also used when the app goes to the background).
+    func saveNow() {
+        saveTask?.cancel()
+        saveTask = nil
+        // Small file, written at most twice a second: fine on the main thread, and in order.
         do {
             let data = try JSONEncoder().encode(settings)
             try data.write(to: fileURL, options: .atomic)

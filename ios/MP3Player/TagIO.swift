@@ -17,6 +17,8 @@ nonisolated struct TagFields: Equatable, Sendable {
     var composer = ""
     var bpm = ""
     var comment = ""
+    /// Musical key ("Am", "C#") — ID3 TKEY / Vorbis INITIALKEY.
+    var key = ""
     var artwork: Data?
     var replayGainDb: Float?
 
@@ -26,7 +28,7 @@ nonisolated struct TagFields: Equatable, Sendable {
     mutating func fillGaps(from other: TagFields) {
         let keyPaths: [WritableKeyPath<TagFields, String>] = [
             \.title, \.artist, \.album, \.albumArtist, \.genre, \.year, \.track, \.trackTotal,
-            \.disc, \.discTotal, \.composer, \.bpm, \.comment,
+            \.disc, \.discTotal, \.composer, \.bpm, \.comment, \.key,
         ]
         for keyPath in keyPaths where self[keyPath: keyPath].isEmpty {
             self[keyPath: keyPath] = other[keyPath: keyPath]
@@ -174,6 +176,8 @@ nonisolated enum TagIO {
                 if fields.year.isEmpty { fields.year = String(await string(item).prefix(4)) }
             case .iTunesMetadataComposer, .id3MetadataComposer, .quickTimeMetadataComposer:
                 await set(\.composer, item)
+            case .id3MetadataInitialKey:
+                await set(\.key, item)
             case .iTunesMetadataBeatsPerMin, .id3MetadataBeatsPerMinute:
                 await set(\.bpm, item)
             case .iTunesMetadataUserComment, .id3MetadataComments, .quickTimeMetadataComment:
@@ -409,6 +413,7 @@ nonisolated struct ID3Tag {
         (f.disc, f.discTotal) = TagIO.splitNumberPair(text(v2 ? "TPA" : "TPOS"))
         f.composer = text(v2 ? "TCM" : "TCOM")
         f.bpm = text(v2 ? "TBP" : "TBPM")
+        f.key = text(v2 ? "TKE" : "TKEY")
         f.comment = comment()
         f.artwork = picture()
         for frame in frames where frame.id == (v2 ? "TXX" : "TXXX") {
@@ -490,7 +495,7 @@ nonisolated struct ID3Tag {
             major = 3
         }
         var managed: Set<String> = ["TIT2", "TPE1", "TALB", "TPE2", "TCON", "TYER", "TDAT", "TDRC",
-                                    "TRCK", "TPOS", "TCOM", "TBPM"]
+                                    "TRCK", "TPOS", "TCOM", "TBPM", "TKEY"]
         if artworkChanged { managed.insert("APIC") }
         let major = self.major
         frames.removeAll { frame in
@@ -517,6 +522,7 @@ nonisolated struct ID3Tag {
         addText("TPOS", TagIO.joinNumberPair(fields.disc, fields.discTotal))
         addText("TCOM", fields.composer)
         addText("TBPM", fields.bpm)
+        addText("TKEY", fields.key)
 
         let comment = fields.comment.trimmingCharacters(in: .whitespacesAndNewlines)
         if !comment.isEmpty {
@@ -712,6 +718,7 @@ nonisolated struct FLACFile {
         f.discTotal = values["DISCTOTAL"] ?? values["TOTALDISCS"] ?? disc.1
         f.composer = values["COMPOSER"] ?? ""
         f.bpm = values["BPM"] ?? ""
+        f.key = values["INITIALKEY"] ?? values["KEY"] ?? ""
         f.comment = values["COMMENT"] ?? values["DESCRIPTION"] ?? ""
         f.replayGainDb = parseReplayGainDb(values["REPLAYGAIN_TRACK_GAIN"])
         f.artwork = picture()
@@ -745,7 +752,7 @@ nonisolated struct FLACFile {
     mutating func apply(_ fields: TagFields, artworkChanged: Bool) {
         let managed: Set<String> = ["TITLE", "ARTIST", "ALBUM", "ALBUMARTIST", "ALBUM ARTIST", "GENRE", "DATE",
                                     "YEAR", "TRACKNUMBER", "TRACKTOTAL", "TOTALTRACKS", "DISCNUMBER", "DISCTOTAL",
-                                    "TOTALDISCS", "COMPOSER", "BPM", "COMMENT", "DESCRIPTION"]
+                                    "TOTALDISCS", "COMPOSER", "BPM", "COMMENT", "DESCRIPTION", "INITIALKEY", "KEY"]
         let existing = commentBlock
         var comments = (existing?.comments ?? []).filter { comment in
             let key = comment.split(separator: "=", maxSplits: 1).first.map { $0.uppercased() } ?? ""
@@ -769,6 +776,7 @@ nonisolated struct FLACFile {
         add("DISCTOTAL", fields.discTotal)
         add("COMPOSER", fields.composer)
         add("BPM", fields.bpm)
+        add("INITIALKEY", fields.key)
         add("COMMENT", fields.comment)
 
         let vendor = existing?.vendor ?? Array("AudioForge".utf8)
