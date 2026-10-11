@@ -25,6 +25,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.VOLUME_NAME,
+            MediaStore.MediaColumns.DATE_ADDED,
         )
         val tracks = ArrayList<Track>()
         resolver.query(collection, projection, "${MediaStore.Audio.AudioColumns.IS_MUSIC} != 0", null, null)?.use { cursor ->
@@ -41,6 +42,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             val size = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
             val relativePath = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
             val volume = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.VOLUME_NAME)
+            val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
 
             while (cursor.moveToNext()) {
                 currentCoroutineContext().ensureActive()
@@ -58,6 +60,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     fileName = fileName,
                     sizeBytes = cursor.getLong(size),
                     folderKey = folderKey(cursor.getString(volume), cursor.getString(relativePath)),
+                    dateAddedMs = cursor.getLong(dateAdded) * 1000, // MediaStore stores seconds
                 )
             }
         }

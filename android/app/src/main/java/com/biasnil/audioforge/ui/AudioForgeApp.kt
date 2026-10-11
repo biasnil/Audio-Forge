@@ -4,25 +4,31 @@ import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -40,10 +46,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.AppContainer
 import com.biasnil.audioforge.R
-import com.biasnil.audioforge.data.albumGroups
+import com.biasnil.audioforge.data.TrackSort
 import com.biasnil.audioforge.data.artistGroups
+import com.biasnil.audioforge.data.genreGroups
 import com.biasnil.audioforge.data.tracksByArtist
 import com.biasnil.audioforge.data.tracksInAlbum
+import com.biasnil.audioforge.data.tracksInGenre
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,8 +78,13 @@ fun AudioForgeApp(container: AppContainer) {
             },
         )
         LaunchedEffect(Unit) {
-            container.playback.errors.collect { fileName ->
-                snackbarHostState.showSnackbar(context.getString(R.string.error_cannot_play, fileName))
+            container.playback.errors.collect { error ->
+                val message = if (error.startsWith("skipped:")) {
+                    context.getString(R.string.error_skipped, error.removePrefix("skipped:"))
+                } else {
+                    context.getString(R.string.error_cannot_play, error)
+                }
+                snackbarHostState.showSnackbar(message)
             }
         }
 
@@ -87,12 +100,13 @@ fun AudioForgeApp(container: AppContainer) {
                     }
                 }
 
+                // At the top, like the iOS app's notice banner (clear of the tab bar and mini player).
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 72.dp), // above the mini player bar
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 8.dp),
                 )
             }
         }
@@ -105,15 +119,28 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
     when (page) {
         Page.NowPlaying -> NowPlayingScreen(onBack = onBack, onOpenPage = onOpenPage)
+        Page.UpNext -> UpNextPage(onBack = onBack)
+        Page.FullLyrics -> FullLyricsPage(onBack = onBack)
+        is Page.SmartPlaylistDetail -> SmartPlaylistPage(page.id, onBack = onBack, onOpenPage = onOpenPage)
+        is Page.SmartPlaylistEdit -> SmartPlaylistEditorPage(page.id, onBack = onBack, onOpenPage = onOpenPage)
+        Page.Duplicates -> DuplicatesPage(onBack = onBack)
         is Page.AlbumDetail -> GroupPage(
             title = page.name.ifEmpty { stringResource(R.string.unknown_album) },
             tracks = remember(tracks, page.name) { tracksInAlbum(tracks, page.name) },
             onBack = onBack,
+            onOpenPage = onOpenPage,
         )
         is Page.ArtistDetail -> GroupPage(
             title = page.name.ifEmpty { stringResource(R.string.unknown_artist) },
             tracks = remember(tracks, page.name) { tracksByArtist(tracks, page.name) },
             onBack = onBack,
+            onOpenPage = onOpenPage,
+        )
+        is Page.GenreDetail -> GroupPage(
+            title = page.name.ifEmpty { stringResource(R.string.unknown_genre) },
+            tracks = remember(tracks, page.name) { tracksInGenre(tracks, page.name) },
+            onBack = onBack,
+            onOpenPage = onOpenPage,
         )
         is Page.PlaylistDetail -> PlaylistPage(page.id, onBack = onBack, onOpenPage = onOpenPage)
         is Page.AddTracks -> AddTracksPage(page.playlistId, onBack = onBack)
@@ -122,7 +149,11 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The library: the iOS app's tab bar (five tabs fit; with more visible the
+ * fifth is "More", listing the rest), the mini player above it, and each
+ * tab under its large title.
+ */
 @Composable
 private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: () -> Unit) {
     val container = LocalAppContainer.current
@@ -132,28 +163,35 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
     val playback by container.playback.state.collectAsStateWithLifecycle()
 
     val visibleTabs = LibraryTab.entries.filter { !it.hideable || it.name !in settings.hiddenTabs }
-    // Tracks first, same as the desktop app's startup tab.
-    var selectedTabName by rememberSaveable { mutableStateOf(LibraryTab.Tracks.name) }
-    val selectedTab = visibleTabs.firstOrNull { it.name == selectedTabName } ?: visibleTabs.first()
+    val barTabs = if (visibleTabs.size > 5) visibleTabs.take(4) else visibleTabs
+    val moreTabs = if (visibleTabs.size > 5) visibleTabs.drop(4) else emptyList()
+
+    // Songs first, like the iOS app.
+    var selectedKey by rememberSaveable { mutableStateOf(LibraryTab.Songs.name) }
+    /** The tab opened from the More list, if any. */
+    var moreTabName by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedKeys = barTabs.map { it.name } + if (moreTabs.isNotEmpty()) listOf(MORE_KEY) else emptyList()
+    if (selectedKey !in selectedKeys) selectedKey = LibraryTab.Songs.name
+    val moreTab = moreTabs.firstOrNull { it.name == moreTabName }
+    BackHandler(enabled = selectedKey == MORE_KEY && moreTab != null) { moreTabName = null }
+
+    val songsState = remember { SongsTabState() }
+    val shownSongs = rememberShownSongs(songsState)
+    BackHandler(enabled = songsState.selecting) { songsState.endSelecting() }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    if (scanning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                },
-            )
-        },
         bottomBar = {
-            MiniPlayerBar(state = playback, onOpenNowPlaying = { onOpenPage(Page.NowPlaying) })
+            Column {
+                MiniPlayerBar(state = playback, onOpenNowPlaying = { onOpenPage(Page.NowPlaying) })
+                AppTabBar(
+                    items = barTabs.map { it.name to it } + if (moreTabs.isNotEmpty()) listOf(MORE_KEY to null) else emptyList(),
+                    selected = selectedKey,
+                    onSelect = { key ->
+                        if (key == MORE_KEY && selectedKey == MORE_KEY) moreTabName = null // tap again: back to the list
+                        selectedKey = key
+                    },
+                )
+            }
         },
     ) { innerPadding ->
         Column(
@@ -161,43 +199,101 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            ScrollableTabRow(
-                selectedTabIndex = visibleTabs.indexOf(selectedTab),
-                edgePadding = 0.dp,
+            val tab = if (selectedKey == MORE_KEY) moreTab else LibraryTab.valueOf(selectedKey)
+            if (tab == null) {
+                MoreList(moreTabs, onOpen = { moreTabName = it.name })
+                return@Column
+            }
+            val selectingSongs = tab == LibraryTab.Songs && songsState.selecting
+            TabHeader(
+                title = if (selectingSongs) stringResource(R.string.selected_count, songsState.selection.size)
+                else stringResource(tab.title),
+                onBack = if (selectedKey == MORE_KEY) ({ moreTabName = null }) else null,
             ) {
-                visibleTabs.forEach { tab ->
-                    Tab(
-                        selected = tab == selectedTab,
-                        onClick = { selectedTabName = tab.name },
-                        text = { Text(stringResource(tab.title)) },
+                if (scanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(20.dp),
+                        strokeWidth = 2.dp,
                     )
                 }
+                when (tab) {
+                    LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs)
+                    LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
+                    else -> Unit
+                }
             }
-
             Box(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when (selectedTab) {
-                    LibraryTab.Tracks -> TracksTab(onRequestAudioPermission)
-                    LibraryTab.Albums -> GroupsTab(
-                        groups = remember(tracks) { albumGroups(tracks) },
-                        unknownName = R.string.unknown_album,
-                        onOpenGroup = { onOpenPage(Page.AlbumDetail(it)) },
+                when (tab) {
+                    LibraryTab.Songs -> TracksTab(songsState, onRequestAudioPermission)
+                    LibraryTab.Albums -> AlbumsTab(
+                        onOpenAlbum = { onOpenPage(Page.AlbumDetail(it)) },
                         onRequestAudioPermission = onRequestAudioPermission,
                     )
                     LibraryTab.Artists -> GroupsTab(
                         groups = remember(tracks) { artistGroups(tracks) },
                         unknownName = R.string.unknown_artist,
                         onOpenGroup = { onOpenPage(Page.ArtistDetail(it)) },
+                        tracksOf = { tracksByArtist(tracks, it.name) },
+                        onRequestAudioPermission = onRequestAudioPermission,
+                        roundArtwork = true,
+                        showAlbumCount = true,
+                    )
+                    LibraryTab.Genres -> GroupsTab(
+                        groups = remember(tracks) { genreGroups(tracks) },
+                        unknownName = R.string.unknown_genre,
+                        onOpenGroup = { onOpenPage(Page.GenreDetail(it)) },
+                        tracksOf = { tracksInGenre(tracks, it.name) },
                         onRequestAudioPermission = onRequestAudioPermission,
                     )
                     LibraryTab.Folders -> FoldersTab(onRequestAudioPermission)
                     LibraryTab.Playlists -> PlaylistsTab(onOpenPage)
                     LibraryTab.Equalizer -> EqualizerTab()
-                    LibraryTab.Settings -> SettingsTab()
+                    LibraryTab.Settings -> SettingsTab(onOpenPage)
                     LibraryTab.Wallpapers -> WallpapersTab(onOpenPage)
+                }
+            }
+        }
+    }
+}
+
+private const val MORE_KEY = "More"
+
+/** The More tab: the tabs that don't fit in the bar. */
+@Composable
+private fun MoreList(tabs: List<LibraryTab>, onOpen: (LibraryTab) -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        TabHeader(stringResource(R.string.tab_more))
+        Column(
+            Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpen(tab) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(tab.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Text(stringResource(tab.title), modifier = Modifier.weight(1f))
+                    Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (index < tabs.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
                 }
             }
         }

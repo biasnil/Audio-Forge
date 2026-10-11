@@ -31,4 +31,6 @@ data class Track(
      * Empty for added-folder tracks (those folders were chosen on purpose).
      */
     val folderKey: String = "",
+    /** When the file arrived (MediaStore's date added, or the file's last change); 0 = unknown. */
+    val dateAddedMs: Long = 0,
 )

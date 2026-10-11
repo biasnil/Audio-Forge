@@ -2,22 +2,22 @@ package com.biasnil.audioforge.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Neutrals follow the desktop app's DarkPalette()/LightPalette()
-// (qt_player/src/player_window.cpp); the accent is the logo's purple.
+// The iOS app's look: system blue accent, black / white backgrounds and
+// grey grouped rows (iOS systemBackground / secondarySystemBackground...).
 
-internal val LogoPurple = Color(0xFF8820FD)
-internal val DeepPurple = Color(0xFF6C3CE9) // desktop tag editor's Save button -- better contrast on light backgrounds
+internal val BlueDark = Color(0xFF0A84FF)
+internal val BlueLight = Color(0xFF007AFF)
 
-internal val DarkWindow = Color(0xFF1E1F22)
-internal val DarkBase = Color(0xFF18191C)
-internal val DarkRaised = Color(0xFF2D2E32)
-internal val DarkRaisedHigh = Color(0xFF38393E)
-internal val DarkMutedText = Color(0xFFB4B4B8)
-internal val DarkOutline = Color(0xFF4A4B50)
+internal val DarkWindow = Color(0xFF000000)
+internal val DarkBase = Color(0xFF000000)
+internal val DarkRaised = Color(0xFF1C1C1E)
+internal val DarkRaisedHigh = Color(0xFF2C2C2E)
+internal val DarkMutedText = Color(0xFF98989F)
+internal val DarkOutline = Color(0xFF38383A)
 
-internal val LightWindow = Color(0xFFF0F0F0)
+internal val LightWindow = Color(0xFFFFFFFF)
 internal val LightBase = Color(0xFFFFFFFF)
-internal val LightRaised = Color(0xFFE9E9E9)
-internal val LightRaisedHigh = Color(0xFFDDDDDD)
-internal val LightMutedText = Color(0xFF55555A)
-internal val LightOutline = Color(0xFFB8B8BC)
+internal val LightRaised = Color(0xFFF2F2F7)
+internal val LightRaisedHigh = Color(0xFFE5E5EA)
+internal val LightMutedText = Color(0xFF6C6C70)
+internal val LightOutline = Color(0xFFC6C6C8)

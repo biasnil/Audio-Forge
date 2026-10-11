@@ -1,17 +1,19 @@
 package com.biasnil.audioforge.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.biasnil.audioforge.data.Appearance
 
-// Fixed brand colors rather than Android's wallpaper-based dynamic color,
-// so the app looks the same as the desktop version on every phone.
+// Fixed colors rather than Android's wallpaper-based dynamic color, so the
+// app looks the same as the iOS version on every phone.
 private val DarkColors = darkColorScheme(
-    primary = LogoPurple,
+    primary = BlueDark,
     onPrimary = Color.White,
-    secondary = LogoPurple,
+    secondary = BlueDark,
     onSecondary = Color.White,
     background = DarkWindow,
     onBackground = Color.White,
@@ -20,17 +22,18 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = DarkRaised,
     onSurfaceVariant = DarkMutedText,
     surfaceContainerLowest = DarkBase,
-    surfaceContainerLow = DarkBase,
+    surfaceContainerLow = DarkRaised,
     surfaceContainer = DarkRaised,
-    surfaceContainerHigh = DarkRaised,
+    surfaceContainerHigh = DarkRaisedHigh,
     surfaceContainerHighest = DarkRaisedHigh,
     outline = DarkOutline,
+    outlineVariant = DarkOutline,
 )
 
 private val LightColors = lightColorScheme(
-    primary = DeepPurple,
+    primary = BlueLight,
     onPrimary = Color.White,
-    secondary = DeepPurple,
+    secondary = BlueLight,
     onSecondary = Color.White,
     background = LightWindow,
     onBackground = Color.Black,
@@ -39,20 +42,32 @@ private val LightColors = lightColorScheme(
     surfaceVariant = LightRaised,
     onSurfaceVariant = LightMutedText,
     surfaceContainerLowest = LightBase,
-    surfaceContainerLow = LightBase,
+    surfaceContainerLow = LightRaised,
     surfaceContainer = LightRaised,
-    surfaceContainerHigh = LightRaised,
+    surfaceContainerHigh = LightRaisedHigh,
     surfaceContainerHighest = LightRaisedHigh,
     outline = LightOutline,
+    outlineVariant = LightOutline,
 )
+
+/** Whether [appearance] means dark right now (System follows the phone). */
+@Composable
+fun isDark(appearance: Appearance): Boolean = when (appearance) {
+    Appearance.System -> isSystemInDarkTheme()
+    Appearance.Light -> false
+    Appearance.Dark -> true
+}
 
 @Composable
 fun AudioForgeTheme(
-    darkTheme: Boolean = true, // dark by default, same as the desktop app
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    /** Replaces the accent (Now Playing tints its controls with the cover's colour). */
+    accent: Color? = null,
     content: @Composable () -> Unit,
 ) {
+    val base = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = if (accent != null) base.copy(primary = accent, secondary = accent) else base,
         content = content,
     )
 }

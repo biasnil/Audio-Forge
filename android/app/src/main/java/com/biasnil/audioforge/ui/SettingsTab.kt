@@ -33,13 +33,18 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.biasnil.audioforge.data.AppSettings
+import com.biasnil.audioforge.data.Appearance
 import com.biasnil.audioforge.data.SecretBox
 import com.biasnil.audioforge.data.libraryStats
 import kotlin.math.roundToInt
 
 @Composable
-fun SettingsTab() {
+fun SettingsTab(onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val settings by container.store.settings.collectAsStateWithLifecycle()
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
@@ -70,6 +75,10 @@ fun SettingsTab() {
             OutlinedButton(onClick = container.library::refresh, enabled = !scanning) {
                 Text(stringResource(R.string.refresh_library))
             }
+            Spacer(Modifier.width(12.dp))
+            OutlinedButton(onClick = { onOpenPage(Page.Duplicates) }) {
+                Text(stringResource(R.string.duplicates_find))
+            }
             if (scanning) {
                 Spacer(Modifier.width(16.dp))
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -78,14 +87,36 @@ fun SettingsTab() {
 
         HorizontalDivider()
         SectionHeader(stringResource(R.string.settings_appearance))
-        SettingsSwitchRow(
-            label = stringResource(R.string.settings_dark_theme),
-            checked = settings.darkTheme,
-            onCheckedChange = { dark -> container.store.update { it.copy(darkTheme = dark) } },
-        )
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        ) {
+            val options = Appearance.entries
+            options.forEachIndexed { index, option ->
+                SegmentedButton(
+                    selected = settings.appearance == option,
+                    onClick = { container.store.update { it.copy(appearance = option) } },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                ) {
+                    Text(
+                        stringResource(
+                            when (option) {
+                                Appearance.System -> R.string.settings_appearance_system
+                                Appearance.Light -> R.string.settings_appearance_light
+                                Appearance.Dark -> R.string.settings_appearance_dark
+                            }
+                        )
+                    )
+                }
+            }
+        }
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
         PlaybackSettings()
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+        SmartSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
         WallpaperSettings()
@@ -152,6 +183,109 @@ private fun PlaybackSettings() {
         enabled = settings.crossfadeEnabled,
         modifier = Modifier.padding(horizontal = 16.dp),
     )
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_sleep_fade),
+        checked = settings.sleepFadeOut,
+        onCheckedChange = { on -> store.update { it.copy(sleepFadeOut = on) } },
+    )
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_resume_long),
+        checked = settings.rememberLongTrackPosition,
+        onCheckedChange = { on -> store.update { it.copy(rememberLongTrackPosition = on) } },
+    )
+    Text(
+        text = stringResource(R.string.settings_resume_long_explanation),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+}
+
+/**
+ * "Analyze Your Songs' Key and BPM" and the Smart Options it unlocks
+ * (smart transitions, beat-matched crossfades, harmonic shuffle), as in the
+ * iOS app's Settings.
+ */
+@Composable
+private fun SmartSettings() {
+    val container = LocalAppContainer.current
+    val store = container.store
+    val settings by store.settings.collectAsStateWithLifecycle()
+    val tracks by container.library.tracks.collectAsStateWithLifecycle()
+    val analysis by container.analysis.analysis.collectAsStateWithLifecycle()
+    val progress by container.analyzer.progress.collectAsStateWithLifecycle()
+    val scanning by container.library.scanning.collectAsStateWithLifecycle()
+    val analyzed = remember(tracks, analysis) { container.analysis.analyzedCount(tracks) }
+
+    SectionHeader(stringResource(R.string.smart_options))
+    val running = progress
+    if (running != null) {
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.analysis_running, running.done, running.total), modifier = Modifier.weight(1f))
+                TextButton(onClick = container.analyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
+            }
+            LinearProgressIndicator(
+                progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = stringResource(R.string.analysis_background_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+    } else {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = tracks.isNotEmpty() && !scanning) { container.analyzer.start(tracks) }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(stringResource(R.string.analysis_start), color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = if (analyzed == tracks.size) stringResource(R.string.analysis_all_done, tracks.size)
+                else stringResource(R.string.analysis_some_done, analyzed, tracks.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    val locked = !settings.analysisCompleted
+    if (locked) {
+        Text(
+            text = stringResource(R.string.smart_locked),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+    }
+    SettingsSwitchRow(
+        label = stringResource(R.string.smart_transitions),
+        checked = settings.smartTransitions,
+        enabled = !locked,
+        onCheckedChange = { on -> store.update { it.copy(smartTransitions = on) } },
+    )
+    SettingsSwitchRow(
+        label = stringResource(R.string.smart_beat_matched),
+        checked = settings.beatMatchedCrossfade,
+        enabled = !locked && settings.crossfadeEnabled,
+        onCheckedChange = { on -> store.update { it.copy(beatMatchedCrossfade = on) } },
+    )
+    SettingsSwitchRow(
+        label = stringResource(R.string.smart_harmonic),
+        checked = settings.harmonicShuffle,
+        enabled = !locked,
+        onCheckedChange = { on -> store.update { it.copy(harmonicShuffle = on) } },
+    )
+    Text(
+        text = stringResource(R.string.smart_options_footer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
 }
 
 /** The desktop's Video Wallpaper settings: on/off and opacity. Videos are chosen in the Wallpapers tab. */
@@ -191,6 +325,17 @@ private fun LyricsSettings() {
     var keyText by remember(savedKey) { mutableStateOf(savedKey) }
 
     SectionHeader(stringResource(R.string.settings_lyrics))
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_lyrics_lock_screen),
+        checked = settings.lyricsOnNowPlaying,
+        onCheckedChange = { on -> store.update { it.copy(lyricsOnNowPlaying = on) } },
+    )
+    Text(
+        text = stringResource(R.string.settings_lyrics_lock_screen_explanation),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
     Text(
         text = stringResource(R.string.settings_lyrics_explanation),
         style = MaterialTheme.typography.bodySmall,
@@ -224,14 +369,18 @@ private fun LyricsSettings() {
 }
 
 @Composable
-private fun SettingsSwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SettingsSwitchRow(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Text(
+            text = label,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }

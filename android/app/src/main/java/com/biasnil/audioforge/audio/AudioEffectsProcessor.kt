@@ -25,6 +25,11 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
     @Volatile
     var gain = 1f
 
+    /** Where this player's output goes for the visualizer, while it's the one being heard. */
+    @Volatile
+    var visualizer: VisualizerTap? = null
+    private var sampleRate = 44_100
+
     private val eq = EqualizerDsp(equalizer)
     private var appliedGain = 1f
     private var encoding = C.ENCODING_INVALID
@@ -37,6 +42,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
         }
         encoding = format
         channels = inputAudioFormat.channelCount
+        sampleRate = inputAudioFormat.sampleRate
         eq.configure(inputAudioFormat.sampleRate, channels)
         return inputAudioFormat // same format out
     }
@@ -54,9 +60,12 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
         val startGain = appliedGain
         val endGain = gain
         val useEq = eq.isActive
+        val tap = visualizer?.takeIf { it.enabled }
+        tap?.sampleRate = sampleRate
 
         for (frame in 0 until frames) {
             val frameGain = if (frames > 1) startGain + (endGain - startGain) * frame / (frames - 1) else endGain
+            var mono = 0.0
             for (channel in 0 until channels) {
                 var sample = if (bytesPerSample == 2) {
                     inputBuffer.getShort() / 32768.0
@@ -65,12 +74,14 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
                 }
                 if (useEq) sample = eq.process(sample, channel)
                 val out = (sample * frameGain).coerceIn(-1.0, 1.0)
+                if (channel < 2) mono += out
                 if (bytesPerSample == 2) {
                     output.putShort((out * 32767.0).roundToInt().toShort())
                 } else {
                     output.putFloat(out.toFloat())
                 }
             }
+            tap?.push(mono.toFloat())
         }
         appliedGain = endGain
         inputBuffer.position(inputBuffer.limit()) // any partial trailing frame is dropped

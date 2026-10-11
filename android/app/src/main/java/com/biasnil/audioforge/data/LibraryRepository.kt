@@ -1,11 +1,18 @@
 package com.biasnil.audioforge.data
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
+import java.io.File
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -196,6 +203,175 @@ class LibraryRepository(
 
     fun deletePlaylist(id: String) =
         store.update { settings -> settings.copy(playlists = settings.playlists.filterNot { it.id == id }) }
+
+    fun renamePlaylist(id: String, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) updatePlaylist(id) { it.copy(name = trimmed) }
+    }
+
+    /** Replaces the playlist's contents (after reordering). */
+    fun setPlaylistUris(id: String, uris: List<String>) = updatePlaylist(id) { it.copy(trackUris = uris) }
+
+    /** Adds songs to the end, skipping any already in it (the iOS app's Add to Playlist). */
+    fun addToPlaylistUnique(id: String, uris: List<String>) = updatePlaylist(id) { playlist ->
+        val have = playlist.trackUris.toHashSet()
+        playlist.copy(trackUris = playlist.trackUris + uris.filter { have.add(it) })
+    }
+
+    // --- Playlist covers ---------------------------------------------------
+
+    fun coverFile(fileName: String): File = File(coverFolder(), fileName)
+
+    /** Uses a picked image as the playlist's cover. */
+    suspend fun setPlaylistCover(id: String, bytes: ByteArray, mimeType: String) {
+        val extension = if (mimeType == "image/png") "png" else "jpg"
+        val name = "$id-${System.currentTimeMillis()}.$extension"
+        withContext(Dispatchers.IO) { File(coverFolder(), name).writeBytes(bytes) }
+        val old = store.settings.value.playlists.firstOrNull { it.id == id }?.coverFile
+        updatePlaylist(id) { it.copy(coverFile = name) }
+        old?.let { withContext(Dispatchers.IO) { coverFile(it).delete() } }
+    }
+
+    /** Back to the grid of album covers. */
+    fun removePlaylistCover(id: String) {
+        val old = store.settings.value.playlists.firstOrNull { it.id == id }?.coverFile ?: return
+        updatePlaylist(id) { it.copy(coverFile = null) }
+        coverFile(old).delete()
+    }
+
+    private fun coverFolder(): File = File(context.filesDir, "PlaylistCovers").apply { mkdirs() }
+
+    // --- Smart playlists -----------------------------------------------------
+
+    /** Adds a new smart playlist or replaces the one with the same id. */
+    fun saveSmartPlaylist(playlist: SmartPlaylist) = store.update { settings ->
+        val exists = settings.smartPlaylists.any { it.id == playlist.id }
+        settings.copy(
+            smartPlaylists = if (exists) settings.smartPlaylists.map { if (it.id == playlist.id) playlist else it }
+            else settings.smartPlaylists + playlist
+        )
+    }
+
+    fun deleteSmartPlaylist(id: String) =
+        store.update { settings -> settings.copy(smartPlaylists = settings.smartPlaylists.filterNot { it.id == id }) }
+
+    // --- .m3u -------------------------------------------------------------------
+
+    /**
+     * Creates a playlist from an .m3u / .m3u8 file, matching its entries to
+     * library songs. Returns (playlist id, matched, total entries), or null
+     * if the file has no entries.
+     */
+    suspend fun importM3u(uri: Uri): Triple<String, Int, Int>? {
+        val (name, text) = withContext(Dispatchers.IO) {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
+            displayName(uri).substringBeforeLast('.') to decodeText(bytes)
+        } ?: return null
+        val entries = parseM3u(text)
+        if (entries.isEmpty()) return null
+        val matched = matchM3u(entries, _tracks.value, ::trackPath)
+        val id = createPlaylist(name.ifBlank { "Imported Playlist" })
+        addToPlaylist(id, matched.map { it.uri })
+        return Triple(id, matched.size, entries.size)
+    }
+
+    /** Writes a playlist as .m3u8 to [destination] (from the system "save as" picker). */
+    suspend fun exportM3u(tracks: List<Track>, destination: Uri) = withContext(Dispatchers.IO) {
+        context.contentResolver.openOutputStream(destination, "wt")?.use { out ->
+            out.write(writeM3u(tracks, ::trackPath).toByteArray(Charsets.UTF_8))
+        } ?: throw java.io.IOException("Couldn't open $destination")
+    }
+
+    /**
+     * A track's path inside its storage, as other apps (and AudioForge on the
+     * desktop and iOS) would write it in a playlist: "Music/Rock/a.mp3".
+     */
+    fun trackPath(track: Track): String {
+        if (track.folderKey.isNotEmpty()) return folderPath(track.folderKey) + "/" + track.fileName
+        return try {
+            DocumentsContract.getDocumentId(Uri.parse(track.uri)).substringAfter(':')
+        } catch (e: IllegalArgumentException) {
+            track.fileName
+        }
+    }
+
+    private fun displayName(uri: Uri): String =
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        } ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+
+    /** UTF-8 (with or without BOM), else Latin-1 -- old .m3u files are often the latter. */
+    private fun decodeText(bytes: ByteArray): String {
+        val decoder = Charsets.UTF_8.newDecoder()
+        return try {
+            decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        } catch (e: java.nio.charset.CharacterCodingException) {
+            String(bytes, Charsets.ISO_8859_1)
+        }
+    }
+
+    // --- Importing and deleting songs -----------------------------------------------
+
+    /**
+     * Copies picked audio files into Music/AudioForge on the phone, where the
+     * phone's music library picks them up. Returns how many were copied.
+     */
+    suspend fun importFiles(uris: List<Uri>): Int {
+        var copied = 0
+        withContext(Dispatchers.IO) {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            for (source in uris) {
+                try {
+                    val name = displayName(source).ifEmpty { "Imported ${System.currentTimeMillis()}" }
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                        put(MediaStore.MediaColumns.MIME_TYPE, resolver.getType(source) ?: "audio/mpeg")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/AudioForge")
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                    val target = resolver.insert(collection, values) ?: continue
+                    try {
+                        resolver.openInputStream(source)?.use { input ->
+                            resolver.openOutputStream(target)?.use { output -> input.copyTo(output) }
+                        } ?: throw java.io.IOException("Couldn't read $source")
+                        resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                        copied++
+                    } catch (e: Exception) {
+                        resolver.delete(target, null, null) // don't leave a half-written file
+                        throw e
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Couldn't import $source", e)
+                }
+            }
+        }
+        if (copied > 0) refresh()
+        return copied
+    }
+
+    /**
+     * Deletes songs' files. Files in added folders are deleted straight away;
+     * phone-library files need the system's confirmation, so for those this
+     * returns the request to show (then call [refresh] once it's answered).
+     */
+    suspend fun deleteTracks(tracks: List<Track>): IntentSender? {
+        val phone = tracks.filter { it.sourceFolder == null }.map { Uri.parse(it.uri) }
+        val documents = tracks.filter { it.sourceFolder != null }
+        var removedAny = false
+        withContext(Dispatchers.IO) {
+            for (track in documents) {
+                try {
+                    if (DocumentsContract.deleteDocument(context.contentResolver, Uri.parse(track.uri))) removedAny = true
+                } catch (e: Exception) {
+                    Log.w(TAG, "Couldn't delete ${track.fileName}", e)
+                }
+            }
+        }
+        if (removedAny) refresh()
+        if (phone.isEmpty()) return null
+        return MediaStore.createDeleteRequest(context.contentResolver, phone).intentSender
+    }
 
     private fun updatePlaylist(id: String, transform: (Playlist) -> Playlist) =
         store.update { settings ->
