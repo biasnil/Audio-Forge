@@ -1,5 +1,7 @@
 #include <QApplication>
 #include <QIcon>
+#include <QFont>
+#include <QFontDatabase>
 #include "audioforge/player_window.hpp"
 #include "audioforge/warnings.hpp"
 
@@ -42,6 +44,22 @@ int main(int argc, char** argv)
     // switching would silently do nothing without this.
     app.setStyle("Fusion");
     app.setWindowIcon(QIcon(":/icons/audioforge.png"));
+
+    // Bundled fonts (resources/fonts, SIL Open Font License): Inter for the
+    // interface, Playfair Display for big titles. Neither has Chinese/Japanese
+    // glyphs, so the family list falls back to YaHei for those characters.
+    for (const char* font : {":/fonts/Inter.ttf", ":/fonts/PlayfairDisplay.ttf", ":/fonts/PlayfairDisplay-Italic.ttf"})
+    {
+        if (QFontDatabase::addApplicationFont(QString::fromLatin1(font)) < 0)
+        {
+            audioforge::ErrorReporter::logOnly(QString("Couldn't load bundled font %1").arg(font));
+        }
+    }
+    QFont uiFont;
+    uiFont.setFamilies({"Inter", "Microsoft YaHei UI", "Segoe UI"});
+    uiFont.setPointSizeF(9.5);
+    uiFont.setHintingPreference(QFont::PreferNoHinting); // keeps Inter's shapes; Qt's default hinting squashes it on Windows
+    app.setFont(uiFont);
 
     audioforge::PlayerWindow window;
     window.show();

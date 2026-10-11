@@ -78,8 +78,12 @@ void AudioEngine::initEqualizerChain()
     m_eqBandsInitialized = true;
 }
 
-bool AudioEngine::loadAndPlay(const QString& path)
+bool AudioEngine::loadAndPlay(const QString& path, bool start)
 {
+    if (!m_engineInitialized)
+    {
+        return false; // no audio device -- init() already reported it; a sound can't exist without the engine
+    }
     if (m_slotLoaded[m_activeSlot])
     {
         ma_sound_uninit(&ActiveSound());
@@ -101,7 +105,10 @@ bool AudioEngine::loadAndPlay(const QString& path)
     routeSoundThroughEqualizer(ActiveSound());
 
     m_slotLoaded[m_activeSlot] = true;
-    ma_sound_start(&ActiveSound());
+    if (start)
+    {
+        ma_sound_start(&ActiveSound());
+    }
     return true;
 }
 
@@ -203,8 +210,13 @@ void AudioEngine::seekToSeconds(float seconds)
     }
 }
 
-bool AudioEngine::startCrossfadeTo(const QString& nextPath)
+bool AudioEngine::startCrossfadeTo(const QString& nextPath, float startSeconds, float delaySeconds,
+                                  float pitch, float initialVolume)
 {
+    if (!m_engineInitialized)
+    {
+        return false;
+    }
     int inactive = InactiveSlot();
     if (m_slotLoaded[inactive])
     {
@@ -218,13 +230,71 @@ bool AudioEngine::startCrossfadeTo(const QString& nextPath)
         return false;
     }
 
-    routeSoundThroughEqualizer(m_soundSlots[inactive]);
+    ma_sound& sound = m_soundSlots[inactive];
+    routeSoundThroughEqualizer(sound);
 
     m_slotLoaded[inactive] = true;
-    ma_sound_set_volume(&m_soundSlots[inactive], 0.0f);
-    ma_sound_start(&m_soundSlots[inactive]);
+    if (startSeconds > 0.0f)
+    {
+        ma_sound_seek_to_second(&sound, startSeconds);
+    }
+    m_incomingStartSeconds = startSeconds;
+    ma_sound_set_pitch(&sound, pitch);
+    ma_sound_set_volume(&sound, initialVolume);
+    if (delaySeconds > 0.0f)
+    {
+        ma_sound_set_start_time_in_pcm_frames(&sound, engineFramesFromNow(delaySeconds));
+    }
+    ma_sound_start(&sound);
     m_crossfading = true;
     return true;
+}
+
+bool AudioEngine::isIncomingAudible() const
+{
+    int inactive = InactiveSlot();
+    if (!m_crossfading || !m_slotLoaded[inactive])
+    {
+        return false;
+    }
+    float cursor = 0.0f;
+    ma_sound_get_cursor_in_seconds(&m_soundSlots[inactive], &cursor);
+    return cursor > m_incomingStartSeconds + 0.001f;
+}
+
+void AudioEngine::scheduleActiveStop(float delaySeconds)
+{
+    if (isLoaded())
+    {
+        ma_sound_set_stop_time_in_pcm_frames(&ActiveSound(), engineFramesFromNow(qMax(0.0f, delaySeconds)));
+    }
+}
+
+void AudioEngine::clearActiveStop()
+{
+    if (isLoaded())
+    {
+        ma_sound_set_stop_time_in_pcm_frames(&ActiveSound(), ~static_cast<ma_uint64>(0));
+    }
+}
+
+float AudioEngine::activePitch() const
+{
+    return isLoaded() ? ma_sound_get_pitch(&ActiveSound()) : 1.0f;
+}
+
+void AudioEngine::setActivePitch(float pitch)
+{
+    if (isLoaded())
+    {
+        ma_sound_set_pitch(&ActiveSound(), pitch);
+    }
+}
+
+ma_uint64 AudioEngine::engineFramesFromNow(float seconds) const
+{
+    const ma_uint64 now = ma_engine_get_time_in_pcm_frames(&m_engine);
+    return now + static_cast<ma_uint64>(seconds * ma_engine_get_sample_rate(&m_engine));
 }
 
 void AudioEngine::updateCrossfadeVolumes(float activeVolume, float nextVolume)
@@ -258,6 +328,9 @@ void AudioEngine::abortCrossfade()
         m_slotLoaded[inactive] = false;
     }
     m_crossfading = false;
+    // A gapless hand-off had scheduled the active sound to stop where the
+    // next one takes over -- without the hand-off it must play to its end.
+    clearActiveStop();
 }
 
 void AudioEngine::routeSoundThroughEqualizer(ma_sound& sound)

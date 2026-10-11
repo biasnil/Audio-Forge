@@ -22,6 +22,8 @@ struct TrackInfo
     int bitrateKbps = 0;
     int sampleRateHz = 0;
     int channels = 0;
+    double durationSeconds = 0.0; // 0 = unknown
+    qint64 modifiedMs = 0;        // file's last-modified time when these tags were read (library scans skip unchanged files)
     QByteArray coverArt; // raw image bytes (JPEG/PNG); empty if none OR not loaded --
                          // library scans skip it to save memory, see ReadCoverArt()
 };
@@ -36,5 +38,8 @@ struct PlaylistData
 // no audio-properties data (bitrateKbps <= 0). The format name comes from
 // the file extension.
 QString FormatAudioInfo(const TrackInfo& t);
+
+// "m:ss" (e.g. "4:03"; "72:15" past an hour).
+QString FormatDuration(int seconds);
 
 } // namespace audioforge

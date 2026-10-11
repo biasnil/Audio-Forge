@@ -25,9 +25,10 @@ public:
     bool init();
 
     // Hard cut: stops/unloads whatever was in the active slot (if anything)
-    // and loads+starts this file. Returns false if the file couldn't be
-    // opened (bad path, unsupported/corrupt file, etc.).
-    bool loadAndPlay(const QString& path);
+    // and loads+starts this file (or just loads it, paused, with start =
+    // false). Returns false if the file couldn't be opened (bad path,
+    // unsupported/corrupt file, etc.).
+    bool loadAndPlay(const QString& path, bool start = true);
 
     // play()/pause() act on BOTH slots while a crossfade is in progress, so
     // pausing mid-fade doesn't leave the incoming track playing on its own.
@@ -56,9 +57,28 @@ public:
 
     bool isCrossfading() const { return m_crossfading; }
 
-    // Starts preloading/playing `nextPath` silently in the inactive slot.
-    // Returns false if that file couldn't be opened (crossfade doesn't start).
-    bool startCrossfadeTo(const QString& nextPath);
+    // Loads `nextPath` into the inactive slot and starts it from
+    // `startSeconds`, at `initialVolume`, `delaySeconds` from now (0 = right
+    // away) -- a delayed start is sample-accurate, which is what gapless and
+    // beat-matched hand-offs rely on. `pitch` is the playback speed (1 =
+    // normal; it shifts the pitch too, like a turntable). Returns false if
+    // the file couldn't be opened (no crossfade starts).
+    bool startCrossfadeTo(const QString& nextPath, float startSeconds = 0.0f, float delaySeconds = 0.0f,
+                          float pitch = 1.0f, float initialVolume = 0.0f);
+
+    // True once the incoming slot's audio is actually playing (a delayed
+    // start hasn't been reached yet before that).
+    bool isIncomingAudible() const;
+
+    // Stops the active sound `delaySeconds` from now, sample-accurately (a
+    // trimmed ending / the gapless hand-off point); clearActiveStop() undoes it.
+    void scheduleActiveStop(float delaySeconds);
+    void clearActiveStop();
+
+    // Playback speed of the active sound (1 = normal). Kept by the incoming
+    // sound when it becomes active, so a beat-matched track can ease back.
+    float activePitch() const;
+    void setActivePitch(float pitch);
 
     // Called every tick while crossfading, with the two volumes the caller
     // has already computed for "how far through the fade we are".
@@ -103,12 +123,14 @@ private:
 
     void initEqualizerChain(); // builds the 10-node peak-filter chain; sets m_eqBandsInitialized
     void routeSoundThroughEqualizer(ma_sound& sound); // attaches to the EQ chain or straight to the endpoint, per m_eqEnabled
+    ma_uint64 engineFramesFromNow(float seconds) const; // absolute engine time `seconds` in the future
 
     ma_engine m_engine{};
     ma_sound m_soundSlots[2]{};
     bool m_slotLoaded[2] = {false, false};
     int m_activeSlot = 0;
     bool m_crossfading = false;
+    float m_incomingStartSeconds = 0.0f;
     bool m_engineInitialized = false;
 
     ma_peak_node m_eqBands[kEqBandCount]{};
