@@ -46,11 +46,15 @@ void VideoBackgroundWidget::setVideoPath(const QString& path)
     }
 
     m_player->setSource(QUrl::fromLocalFile(path));
-    m_player->play();
+    if (!m_paused)
+    {
+        m_player->play();
+    }
 }
 
 void VideoBackgroundWidget::setPaused(bool paused)
 {
+    m_paused = paused;
     if (paused)
     {
         m_player->pause();

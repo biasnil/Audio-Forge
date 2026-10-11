@@ -1,6 +1,7 @@
 #include "audioforge/track_metadata.hpp"
 
 #include <QFileInfo>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 
@@ -125,6 +126,7 @@ TrackInfo ReadTrackInfo(const QString& path, bool includeCoverArt)
     TrackInfo info;
     info.path = path;
     info.title = QFileInfo(path).fileName();
+    info.modifiedMs = QFileInfo(path).lastModified().toMSecsSinceEpoch();
 
     // Scoped in its own block so this handle is CLOSED before ReadMpegExtras
     // opens a second one below -- two simultaneous TagLib opens on the same
@@ -163,6 +165,7 @@ TrackInfo ReadTrackInfo(const QString& path, bool includeCoverArt)
             info.bitrateKbps = props->bitrate();
             info.sampleRateHz = props->sampleRate();
             info.channels = props->channels();
+            info.durationSeconds = props->lengthInMilliseconds() / 1000.0;
         }
     } // <-- `file` destructs here, releasing its handle on the file
 

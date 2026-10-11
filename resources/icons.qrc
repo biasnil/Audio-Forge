@@ -2,9 +2,53 @@
     Qt resource file: bundles audioforge.png into the binary so
     QApplication::setWindowIcon() works identically on every platform
     (the .rc file above only covers the Windows .exe icon itself).
+
+    ui/*.svg are the in-app interface icons (see theme.cpp). They're drawn
+    in currentColor, which theme::icon() swaps for the active theme color.
 -->
 <RCC>
     <qresource prefix="/icons">
         <file>audioforge.png</file>
+        <file>ui/album.svg</file>
+        <file>ui/artist.svg</file>
+        <file>ui/back.svg</file>
+        <file>ui/equalizer.svg</file>
+        <file>ui/folder.svg</file>
+        <file>ui/fullscreen.svg</file>
+        <file>ui/moon.svg</file>
+        <file>ui/next.svg</file>
+        <file>ui/open-file.svg</file>
+        <file>ui/pause.svg</file>
+        <file>ui/play.svg</file>
+        <file>ui/playlist.svg</file>
+        <file>ui/plus.svg</file>
+        <file>ui/previous.svg</file>
+        <file>ui/repeat-one.svg</file>
+        <file>ui/repeat.svg</file>
+        <file>ui/search.svg</file>
+        <file>ui/settings.svg</file>
+        <file>ui/shuffle-smart.svg</file>
+        <file>ui/shuffle.svg</file>
+        <file>ui/stop.svg</file>
+        <file>ui/sun.svg</file>
+        <file>ui/track.svg</file>
+        <file>ui/volume-mute.svg</file>
+        <file>ui/volume.svg</file>
+        <file>ui/wallpaper.svg</file>
+        <file>ui/wand.svg</file>
+        <file>ui/metronome.svg</file>
+        <file>ui/dial.svg</file>
+        <file>ui/lock.svg</file>
+        <file>ui/timer.svg</file>
+        <file>ui/chevron.svg</file>
+        <file>ui/queue.svg</file>
+        <file>ui/more.svg</file>
+        <file>ui/close.svg</file>
+    </qresource>
+    <!-- Inter (UI) and Playfair Display (titles), SIL Open Font License, see fonts/*-OFL.txt -->
+    <qresource prefix="/fonts">
+        <file alias="Inter.ttf">fonts/Inter.ttf</file>
+        <file alias="PlayfairDisplay.ttf">fonts/PlayfairDisplay.ttf</file>
+        <file alias="PlayfairDisplay-Italic.ttf">fonts/PlayfairDisplay-Italic.ttf</file>
     </qresource>
 </RCC>

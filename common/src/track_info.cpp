@@ -23,4 +23,9 @@ QString FormatAudioInfo(const TrackInfo& t)
         .arg(channelsText);
 }
 
+QString FormatDuration(int seconds)
+{
+    return QString("%1:%2").arg(seconds / 60).arg(seconds % 60, 2, 10, QChar('0'));
+}
+
 } // namespace audioforge
