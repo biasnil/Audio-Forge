@@ -10,13 +10,57 @@ data class TrackGroup(val name: String, val tracks: List<Track>)
 
 data class LibraryStats(val tracks: Int, val albums: Int, val artists: Int, val genres: Int)
 
-enum class TrackSort { Title, Artist, Album, Year }
+enum class TrackSort {
+    Title, Artist, Album, Year, RecentlyAdded, Bpm, Key;
+
+    /** Sorts with an A-Z index down the side. */
+    val isAlphabetical: Boolean get() = this == Title || this == Artist || this == Album
+}
 
 private val nameOrder: Comparator<String> = String.CASE_INSENSITIVE_ORDER
 
 fun albumGroups(tracks: List<Track>): List<TrackGroup> = groupsBy(tracks) { it.album }
 
 fun artistGroups(tracks: List<Track>): List<TrackGroup> = groupsBy(tracks) { it.artist }
+
+/** Like the iOS Genres tab: "" (no genre tag) is the Unknown Genre group, last. */
+fun genreGroups(tracks: List<Track>): List<TrackGroup> = groupsBy(tracks) { it.genre }
+
+/** A genre's tracks, album by album like an artist's. */
+fun tracksInGenre(tracks: List<Track>, genre: String): List<Track> =
+    tracks.filter { it.genre.trim() == genre }
+        .sortedWith(
+            compareBy<Track, String>(nameOrder) { it.artist }
+                .thenBy(nameOrder) { it.album }
+                .thenBy { it.trackNumber }
+                .thenBy(nameOrder) { it.title }
+        )
+
+/** An album's artist line: the one artist, or "" when several share it (shown as Various Artists). */
+fun albumArtist(group: TrackGroup): String? {
+    val artists = group.tracks.map { it.artist.trim() }.filter { it.isNotEmpty() }.toSet()
+    return when (artists.size) {
+        0 -> null
+        1 -> artists.first()
+        else -> ""
+    }
+}
+
+/** How many different albums an artist's tracks come from. */
+fun albumCount(tracks: List<Track>): Int = tracks.map { it.album.trim() }.toSet().size
+
+/** The A-Z index letter for a track under an alphabetical sort ("#" for digits, symbols, other scripts). */
+fun indexLetter(track: Track, sort: TrackSort): String {
+    val text = when (sort) {
+        TrackSort.Artist -> track.artist
+        TrackSort.Album -> track.album
+        else -> track.title
+    }
+    val first = java.text.Normalizer.normalize(text.trim(), java.text.Normalizer.Form.NFD)
+        .firstOrNull() ?: return "#"
+    val letter = first.uppercaseChar()
+    return if (letter in 'A'..'Z') letter.toString() else "#"
+}
 
 private fun groupsBy(tracks: List<Track>, key: (Track) -> String): List<TrackGroup> =
     tracks.groupBy { key(it).trim() }
@@ -82,7 +126,8 @@ fun libraryStats(tracks: List<Track>) = LibraryStats(
     genres = tracks.map { it.genre.trim() }.filter { it.isNotEmpty() }.toSet().size,
 )
 
-fun sortTracks(tracks: List<Track>, sort: TrackSort): List<Track> {
+/** BPM and Key sorts use [analysisFor] (songs without an analysis go last). */
+fun sortTracks(tracks: List<Track>, sort: TrackSort, analysisFor: (Track) -> SongAnalysis? = { null }): List<Track> {
     val byTitle = compareBy<Track, String>(nameOrder) { it.title }
     val comparator = when (sort) {
         TrackSort.Title -> byTitle
@@ -94,6 +139,12 @@ fun sortTracks(tracks: List<Track>, sort: TrackSort): List<Track> {
             .thenBy { it.trackNumber }
             .then(byTitle)
         TrackSort.Year -> compareByDescending<Track> { it.year }.then(byTitle)
+        TrackSort.RecentlyAdded -> compareByDescending<Track> { it.dateAddedMs }.then(byTitle)
+        TrackSort.Bpm -> compareBy<Track> { analysisFor(it)?.bpm ?: Double.MAX_VALUE }.then(byTitle)
+        // Camelot order: 1A, 1B, 2A, 2B...
+        TrackSort.Key -> compareBy<Track> { track ->
+            analysisFor(track)?.key?.let { it.camelotNumber * 2 + if (it.isMinor) 0 else 1 } ?: Int.MAX_VALUE
+        }.then(byTitle)
     }
     return tracks.sortedWith(comparator)
 }
@@ -138,8 +189,12 @@ fun formatAudioInfo(track: Track): String {
     return parts.joinToString("  •  ")
 }
 
-/** mm:ss, like the desktop time labels. */
+/** m:ss, or h:mm:ss for long tracks (like the iOS app). */
 fun formatTime(ms: Long): String {
     val totalSeconds = ms.coerceAtLeast(0) / 1000
-    return String.format(Locale.ROOT, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+    val hours = totalSeconds / 3600
+    val minutes = totalSeconds / 60 % 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
+    else String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
 }

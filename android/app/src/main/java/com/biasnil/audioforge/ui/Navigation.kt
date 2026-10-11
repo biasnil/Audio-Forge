@@ -10,8 +10,15 @@ import androidx.compose.runtime.saveable.listSaver
  */
 sealed interface Page {
     data object NowPlaying : Page
+    data object UpNext : Page
+    data object FullLyrics : Page
     data class AlbumDetail(val name: String) : Page
     data class ArtistDetail(val name: String) : Page
+    data class GenreDetail(val name: String) : Page
+    data class SmartPlaylistDetail(val id: String) : Page
+    /** null = a new smart playlist. */
+    data class SmartPlaylistEdit(val id: String?) : Page
+    data object Duplicates : Page
     data class PlaylistDetail(val id: String) : Page
     data class AddTracks(val playlistId: String) : Page
     data class EditTags(val trackUri: String) : Page
@@ -20,8 +27,14 @@ sealed interface Page {
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
+        UpNext -> "upnext"
+        FullLyrics -> "lyrics"
         is AlbumDetail -> "album:$name"
         is ArtistDetail -> "artist:$name"
+        is GenreDetail -> "genre:$name"
+        is SmartPlaylistDetail -> "smart:$id"
+        is SmartPlaylistEdit -> "smartedit:${id.orEmpty()}"
+        Duplicates -> "duplicates"
         is PlaylistDetail -> "playlist:$id"
         is AddTracks -> "add:$playlistId"
         is EditTags -> "tags:$trackUri"
@@ -31,8 +44,14 @@ sealed interface Page {
     companion object {
         fun decode(value: String): Page? = when {
             value == "now" -> NowPlaying
+            value == "upnext" -> UpNext
+            value == "lyrics" -> FullLyrics
             value.startsWith("album:") -> AlbumDetail(value.removePrefix("album:"))
             value.startsWith("artist:") -> ArtistDetail(value.removePrefix("artist:"))
+            value.startsWith("genre:") -> GenreDetail(value.removePrefix("genre:"))
+            value.startsWith("smartedit:") -> SmartPlaylistEdit(value.removePrefix("smartedit:").ifEmpty { null })
+            value.startsWith("smart:") -> SmartPlaylistDetail(value.removePrefix("smart:"))
+            value == "duplicates" -> Duplicates
             value.startsWith("playlist:") -> PlaylistDetail(value.removePrefix("playlist:"))
             value.startsWith("add:") -> AddTracks(value.removePrefix("add:"))
             value.startsWith("tags:") -> EditTags(value.removePrefix("tags:"))

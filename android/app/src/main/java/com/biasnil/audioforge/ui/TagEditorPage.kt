@@ -178,6 +178,28 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                             Text(stringResource(R.string.tags_add_field))
                         }
                     }
+                    // The analysis can fill the BPM and Key tags (when this format has them).
+                    val analysis = container.analysis.analysisFor(track)
+                    val canHold = { key: String -> currentFields.any { it.first == key } || key in addableKeys }
+                    if (analysis != null && (analysis.bpm != null || analysis.key != null) && (canHold("BPM") || canHold("KEY"))) {
+                        item {
+                            TextButton(
+                                onClick = {
+                                    var updated: List<Pair<String, String>> = currentFields
+                                    fun set(key: String, value: String) {
+                                        if (!canHold(key)) return
+                                        updated = if (updated.any { it.first == key }) updated.map { if (it.first == key) key to value else it }
+                                        else updated + (key to value)
+                                    }
+                                    analysis.bpm?.let { set("BPM", Math.round(it).toString()) }
+                                    analysis.key?.let { set("KEY", it.tagValue) }
+                                    fields = updated
+                                },
+                                enabled = !saving,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) { Text(stringResource(R.string.tags_fill_from_analysis)) }
+                        }
+                    }
                 }
             }
         }

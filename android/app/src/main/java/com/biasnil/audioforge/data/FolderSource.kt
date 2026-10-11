@@ -18,7 +18,7 @@ class FolderSource(private val context: Context) {
 
     private val resolver = context.contentResolver
 
-    private class Entry(val id: String, val name: String, val size: Long)
+    private class Entry(val id: String, val name: String, val size: Long, val modifiedMs: Long)
 
     suspend fun scan(treeUriString: String): List<Track> {
         val treeUri = Uri.parse(treeUriString)
@@ -46,6 +46,7 @@ class FolderSource(private val context: Context) {
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
             DocumentsContract.Document.COLUMN_MIME_TYPE,
             DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
         )
         try {
             resolver.query(children, projection, null, null, null)?.use { cursor ->
@@ -54,9 +55,10 @@ class FolderSource(private val context: Context) {
                     val name = cursor.getString(1).orEmpty()
                     val mime = cursor.getString(2).orEmpty()
                     val size = if (cursor.isNull(3)) 0L else cursor.getLong(3)
+                    val modified = if (cursor.isNull(4)) 0L else cursor.getLong(4)
                     when {
                         mime == DocumentsContract.Document.MIME_TYPE_DIR -> subdirectories += id
-                        isAudio(name, mime) -> audioFiles += Entry(id, name, size)
+                        isAudio(name, mime) -> audioFiles += Entry(id, name, size, modified)
                         isLyrics(name) -> {
                             val base = name.substringBeforeLast('.').lowercase(Locale.ROOT)
                             val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id).toString()
@@ -101,6 +103,7 @@ class FolderSource(private val context: Context) {
             sourceFolder = treeKey,
             folderCoverUri = coverUri,
             sidecarLyricsUri = lyricsUri,
+            dateAddedMs = entry.modifiedMs,
         )
         return try {
             readTags(context, base)

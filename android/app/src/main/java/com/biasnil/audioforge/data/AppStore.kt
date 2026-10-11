@@ -15,18 +15,29 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-data class Playlist(val id: String, val name: String, val trackUris: List<String>)
+data class Playlist(
+    val id: String,
+    val name: String,
+    val trackUris: List<String>,
+    /** Your own cover (file name in files/PlaylistCovers); null = a grid of its album covers. */
+    val coverFile: String? = null,
+)
 
 /** One video assigned to a set of songs (the desktop's WallpaperEntry). */
 data class WallpaperEntry(val id: String, val videoUri: String, val trackUris: List<String>)
 
+/** Light/dark: following the phone (System), or fixed. */
+enum class Appearance { System, Light, Dark }
+
 /** Everything the app remembers between launches (the desktop's AudioForge.ini). */
 data class AppSettings(
-    val darkTheme: Boolean = true,
+    val appearance: Appearance = Appearance.System,
     val includePhoneLibrary: Boolean = true,
     /** Tree URIs of added folders (read permission is persisted for each). */
     val folders: List<String> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    /** Your rule-based playlists (the built-in smart lists are SmartPlaylist.BUILT_IN). */
+    val smartPlaylists: List<SmartPlaylist> = emptyList(),
     /** Names of hidden LibraryTab entries. */
     val hiddenTabs: Set<String> = emptySet(),
     /** 0-200: above 100 is the desktop's volume boost. */
@@ -48,7 +59,25 @@ data class AppSettings(
     val wallpapers: List<WallpaperEntry> = emptyList(),
     /** Phone-library folders whose songs are hidden (Track.folderKey values; subfolders included). */
     val hiddenFolders: Set<String> = emptySet(),
+    /** Sleep timer: fade out over the last 30 s (10 s for "end of song"). */
+    val sleepFadeOut: Boolean = true,
+    /** Tracks of 10+ minutes continue where you stopped. */
+    val rememberLongTrackPosition: Boolean = true,
+    // Smart Options (need "Analyze Your Songs' Key and BPM" to have run once).
+    val analysisCompleted: Boolean = false,
+    /** Same-album songs play gapless, crossfades start at the real fade-out, silence is skipped. */
+    val smartTransitions: Boolean = false,
+    /** The next song's tempo is matched and its beats lined up during a crossfade. */
+    val beatMatchedCrossfade: Boolean = false,
+    /** Smart shuffle puts songs in compatible keys and similar tempos next to each other. */
+    val harmonicShuffle: Boolean = false,
+    /** The synced lyric line being sung, in place of the artist on the lock screen and Android Auto. */
+    val lyricsOnNowPlaying: Boolean = false,
 ) {
+    val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
+    val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
+    val harmonicEnabled: Boolean get() = analysisCompleted && harmonicShuffle
+
     companion object {
         const val EQ_BAND_COUNT = 10
         const val MAX_VOLUME_PERCENT = 200
@@ -82,7 +111,11 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
         return try {
             val root = JSONObject(file.readText())
             AppSettings(
-                darkTheme = root.optBoolean("darkTheme", true),
+                // Older versions only had a dark-theme switch.
+                appearance = Appearance.entries.firstOrNull { it.name == root.optString("appearance") }
+                    ?: if (root.has("darkTheme")) {
+                        if (root.optBoolean("darkTheme", true)) Appearance.Dark else Appearance.Light
+                    } else Appearance.System,
                 includePhoneLibrary = root.optBoolean("includePhoneLibrary", true),
                 folders = root.optJSONArray("folders").toStringList(),
                 playlists = root.optJSONArray("playlists").toObjects().map { obj ->
@@ -90,9 +123,19 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                         id = obj.getString("id"),
                         name = obj.optString("name"),
                         trackUris = obj.optJSONArray("tracks").toStringList(),
+                        coverFile = obj.optString("coverFile").ifEmpty { null },
                     )
                 },
-                hiddenTabs = root.optJSONArray("hiddenTabs").toStringList().toSet(),
+                smartPlaylists = root.optJSONArray("smartPlaylists").toObjects().map(::readSmartPlaylist),
+                // "Tracks" is now Songs, which can't be hidden.
+                hiddenTabs = root.optJSONArray("hiddenTabs").toStringList().toSet() - "Tracks",
+                sleepFadeOut = root.optBoolean("sleepFadeOut", true),
+                rememberLongTrackPosition = root.optBoolean("rememberLongTrackPosition", true),
+                analysisCompleted = root.optBoolean("analysisCompleted", false),
+                smartTransitions = root.optBoolean("smartTransitions", false),
+                beatMatchedCrossfade = root.optBoolean("beatMatchedCrossfade", false),
+                harmonicShuffle = root.optBoolean("harmonicShuffle", false),
+                lyricsOnNowPlaying = root.optBoolean("lyricsOnNowPlaying", false),
                 volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
                 replayGainEnabled = root.optBoolean("replayGainEnabled", true),
                 crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
@@ -123,7 +166,14 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
     private fun write(settings: AppSettings) {
         val root = JSONObject()
             .put("version", 1)
-            .put("darkTheme", settings.darkTheme)
+            .put("appearance", settings.appearance.name)
+            .put("sleepFadeOut", settings.sleepFadeOut)
+            .put("rememberLongTrackPosition", settings.rememberLongTrackPosition)
+            .put("analysisCompleted", settings.analysisCompleted)
+            .put("smartTransitions", settings.smartTransitions)
+            .put("beatMatchedCrossfade", settings.beatMatchedCrossfade)
+            .put("harmonicShuffle", settings.harmonicShuffle)
+            .put("lyricsOnNowPlaying", settings.lyricsOnNowPlaying)
             .put("includePhoneLibrary", settings.includePhoneLibrary)
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))
@@ -150,7 +200,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                     .put("id", playlist.id)
                     .put("name", playlist.name)
                     .put("tracks", JSONArray(playlist.trackUris))
+                    .put("coverFile", playlist.coverFile.orEmpty())
             }))
+            .put("smartPlaylists", JSONArray(settings.smartPlaylists.map(::writeSmartPlaylist)))
         try {
             // Write-then-rename so a crash mid-write never leaves a truncated file.
             val temp = File(file.parentFile, "$FILE_NAME.tmp")
@@ -168,6 +220,31 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
         const val FILE_NAME = "audioforge.json"
     }
 }
+
+private fun readSmartPlaylist(obj: JSONObject) = SmartPlaylist(
+    id = obj.getString("id"),
+    name = obj.optString("name"),
+    rules = obj.optJSONArray("rules").toObjects().map { rule ->
+        SmartRule(
+            field = SmartField.entries.firstOrNull { it.name == rule.optString("field") } ?: SmartField.Genre,
+            op = SmartOperator.entries.firstOrNull { it.name == rule.optString("op") } ?: SmartOperator.Contains,
+            value = rule.optString("value"),
+        )
+    },
+    matchAll = obj.optBoolean("matchAll", true),
+    limit = if (obj.has("limit")) obj.optInt("limit").takeIf { it > 0 } else null,
+    sort = SmartSort.entries.firstOrNull { it.name == obj.optString("sort") } ?: SmartSort.Title,
+)
+
+private fun writeSmartPlaylist(playlist: SmartPlaylist): JSONObject = JSONObject()
+    .put("id", playlist.id)
+    .put("name", playlist.name)
+    .put("matchAll", playlist.matchAll)
+    .put("limit", playlist.limit ?: 0)
+    .put("sort", playlist.sort.name)
+    .put("rules", JSONArray(playlist.rules.map { rule ->
+        JSONObject().put("field", rule.field.name).put("op", rule.op.name).put("value", rule.value)
+    }))
 
 private fun JSONArray?.toStringList(): List<String> =
     if (this == null) emptyList() else (0 until length()).mapNotNull { optString(it, null) }

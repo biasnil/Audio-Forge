@@ -26,7 +26,7 @@
     <string name="refresh_library">Refresh library</string>
 
     <!-- Tracks tab -->
-    <string name="search_hint">Search your music…</string>
+    <string name="search_hint">Songs, artists, albums</string>
     <string name="clear_search">Clear search</string>
     <string name="search_no_results">No tracks match your search.</string>
     <string name="sort_by">Sort: %1$s</string>
@@ -47,7 +47,7 @@
 
     <!-- Playlists -->
     <string name="playlists_empty">No playlists yet.</string>
-    <string name="playlist_new">New playlist</string>
+    <string name="playlist_new">New Playlist</string>
     <string name="playlist_name_hint">Enter name for the playlist</string>
     <string name="playlist_create">Create</string>
     <string name="playlist_add_tracks">Add tracks</string>
@@ -157,5 +157,186 @@
     <string name="folder_hide">Hide folder “%1$s”</string>
     <string name="folder_hidden">Hid the “%1$s” folder. Show it again in the Folders tab.</string>
     <string name="undo">Undo</string>
+
+    <!-- Queue -->
+    <string name="more_options">More options</string>
+    <string name="queue_play_next">Play next</string>
+    <string name="queue_add">Add to queue</string>
+    <string name="queue_playing_next_one">“%1$s” will play next.</string>
+    <plurals name="queue_playing_next_many">
+        <item quantity="one">%d song will play next.</item>
+        <item quantity="other">%d songs will play next.</item>
+    </plurals>
+    <string name="queue_added_one">Added “%1$s” to the queue.</string>
+    <plurals name="queue_added_many">
+        <item quantity="one">Added %d song to the queue.</item>
+        <item quantity="other">Added %d songs to the queue.</item>
+    </plurals>
+    <string name="up_next">Up Next</string>
+    <string name="queue_played">Played</string>
+    <string name="queue_now_playing">Now Playing</string>
+    <string name="queue_nothing_next">Nothing else is queued. Playback stops after this song.</string>
+    <string name="queue_then_random">Then random songs from the queue.</string>
+    <string name="queue_then_repeat">Then the queue starts over (Repeat All).</string>
+    <string name="queue_clear">Clear</string>
+    <string name="queue_clear_title">Clear Up next</string>
+    <string name="queue_clear_confirm">Remove every song waiting to play? The current song keeps playing.</string>
+    <string name="queue_save_playlist">Save as playlist</string>
+    <plurals name="queue_saved_playlist">
+        <item quantity="one">Saved %1$d song as “%2$s”.</item>
+        <item quantity="other">Saved %1$d songs as “%2$s”.</item>
+    </plurals>
+    <string name="queue_reorder">Drag to reorder</string>
+    <string name="queue_history">History</string>
+    <string name="queue_playing_next">Playing Next</string>
+    <string name="queue_clear_playing_next">Clear Playing Next</string>
+    <string name="queue_next_from">Next From %1$s</string>
+    <string name="queue_next_from_list">Next From Your List</string>
+    <string name="queue_random_note">Random shuffle picks each next song when it\'s needed.</string>
+    <string name="queue_smart_footer">Smart shuffle: every song plays once, in this order.</string>
+    <string name="queue_nothing_after">Nothing after this song.</string>
+    <string name="queue_repeating">Repeating.</string>
+    <string name="done">Done</string>
+
+    <!-- iOS-style tabs and lists -->
+    <string name="tab_songs">Songs</string>
+    <string name="tab_genres">Genres</string>
+    <string name="tab_more">More</string>
+    <string name="unknown_genre">Unknown Genre</string>
+    <string name="various_artists">Various Artists</string>
+    <string name="sort_recent">Recently Added</string>
+    <plurals name="song_count">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="album_count">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+
+    <!-- Now Playing extras -->
+    <string name="love">Love</string>
+    <string name="unlove">Unlove</string>
+    <string name="back_15">Back 15 seconds</string>
+    <string name="forward_15">Forward 15 seconds</string>
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_minutes">%1$d minutes</string>
+    <string name="sleep_end_of_song">End of current song</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance_system">System</string>
+    <string name="settings_appearance_light">Light</string>
+    <string name="settings_appearance_dark">Dark</string>
+    <string name="settings_sleep_fade">Fade out sleep timer</string>
+    <string name="settings_resume_long">Resume long tracks</string>
+    <!-- Multi-select, import, delete -->
+    <string name="select_songs">Select Songs</string>
+    <string name="select_all">All</string>
+    <string name="select_none">None</string>
+    <string name="selected_count">%1$d Selected</string>
+    <string name="selection">Selection</string>
+    <string name="delete_ellipsis">Delete…</string>
+    <string name="delete_song">Delete Song</string>
+    <string name="delete_one_title">Delete “%1$s”?</string>
+    <string name="delete_many_title">Delete %1$d songs?</string>
+    <string name="delete_warning">The file is removed from this phone. It can\'t be undone.</string>
+    <string name="import_songs">Import songs</string>
+    <plurals name="imported_songs">
+        <item quantity="one">Imported %d song into Music/AudioForge.</item>
+        <item quantity="other">Imported %d songs into Music/AudioForge.</item>
+    </plurals>
+
+    <!-- Playlists -->
+    <string name="playlist_add_to_title">Add to Playlist</string>
+    <string name="playlist_new_ellipsis">New Playlist…</string>
+    <plurals name="playlist_added_songs">
+        <item quantity="one">Added %1$d song to %2$s.</item>
+        <item quantity="other">Added %1$d songs to %2$s.</item>
+    </plurals>
+    <string name="playlist_rename">Rename Playlist</string>
+    <string name="rename">Rename</string>
+    <string name="playlist_use_album_covers">Use Album Covers</string>
+    <string name="m3u_import">Import .m3u Playlist…</string>
+    <string name="m3u_export">Export .m3u Playlist</string>
+    <string name="m3u_imported">%1$s: %2$d of %3$d songs found</string>
+    <string name="m3u_nothing_found">No songs found in that playlist.</string>
+    <string name="m3u_exported">Saved %1$s as .m3u8.</string>
+    <string name="m3u_export_failed">Couldn\'t save the playlist file.</string>
+
+    <!-- Smart playlists -->
+    <string name="smart_lists">Smart Lists</string>
+    <string name="smart_loved">Loved</string>
+    <string name="smart_most_played">Most Played</string>
+    <string name="smart_recently_played">Recently Played</string>
+    <string name="smart_recently_added">Recently Added</string>
+    <string name="smart_never_played">Never Played</string>
+    <string name="smart_playlist">Smart Playlist</string>
+    <string name="smart_new">New Smart Playlist</string>
+    <string name="smart_edit_rules">Edit Rules</string>
+    <string name="smart_empty_builtin">Songs appear here as you play and love them.</string>
+    <string name="smart_empty">No songs match the rules yet.</string>
+    <string name="smart_name">Name</string>
+    <string name="smart_match">Match</string>
+    <string name="smart_match_all">All rules</string>
+    <string name="smart_match_any">Any rule</string>
+    <string name="smart_rules">Rules</string>
+    <string name="smart_add_rule">Add Rule</string>
+    <string name="smart_sort_by">Sort By</string>
+    <string name="smart_limit">Limit</string>
+    <string name="smart_limit_songs">%1$d songs</string>
+    <string name="smart_footer">Smart playlists update by themselves as your library, play counts and loved songs change.</string>
+    <string name="smart_number">Number</string>
+    <string name="smart_text">Text</string>
+    <string name="smart_field_genre">Genre</string>
+    <string name="smart_field_play_count">Play Count</string>
+    <string name="smart_field_last_played">Last Played (days ago)</string>
+    <string name="smart_field_added">Added (days ago)</string>
+    <string name="smart_field_minutes">Length (minutes)</string>
+    <string name="smart_op_contains">contains</string>
+    <string name="smart_op_is">is</string>
+    <string name="smart_op_is_not">is not</string>
+    <string name="smart_op_more">is more than</string>
+    <string name="smart_op_less">is less than</string>
+    <string name="smart_op_yes">yes</string>
+    <string name="smart_op_no">no</string>
+
+    <!-- Analysis and Smart Options -->
+    <string name="sort_bpm">BPM</string>
+    <string name="sort_key">Key</string>
+    <string name="smart_field_key">Key (e.g. 8A or Am)</string>
+    <string name="smart_options">Smart Options</string>
+    <string name="analysis_start">Analyze Your Songs\' Key and BPM</string>
+    <string name="analysis_all_done">All %1$d songs analyzed</string>
+    <string name="analysis_some_done">%1$d of %2$d songs analyzed</string>
+    <string name="analysis_running">Analyzing… %1$d of %2$d</string>
+    <string name="analysis_stop">Stop</string>
+    <string name="analysis_background_note">You can keep using the app. While it\'s in the background, analysis only continues when the phone is charging.</string>
+    <string name="smart_locked">Run “Analyze Your Songs\' Key and BPM” (above) to unlock these.</string>
+    <string name="smart_transitions">Smart Transitions</string>
+    <string name="smart_beat_matched">Beat-Matched Crossfades</string>
+    <string name="smart_harmonic">Harmonic Shuffle</string>
+    <string name="smart_options_footer">Smart Transitions: songs from the same album play gapless, crossfades start where a song\'s ending actually fades out, and silence at the start and end is skipped. Beat-Matched Crossfades (needs Crossfade on): the next song\'s tempo is matched and its beats lined up during the fade, then it eases back to normal speed. Harmonic Shuffle: Smart shuffle plays songs in compatible keys and similar tempos next to each other.</string>
+    <string name="tags_fill_from_analysis">Fill BPM and Key from analysis</string>
+
+    <!-- Lyrics, visualizer, Android Auto, skipping -->
+    <string name="close">Close</string>
+    <string name="lyrics_full_screen">Full-screen lyrics</string>
+    <string name="lyrics_earlier">− Earlier</string>
+    <string name="lyrics_later">Later +</string>
+    <string name="lyrics_in_sync">In sync</string>
+    <string name="lyrics_reset">Reset</string>
+    <string name="visualizer">Visualizer</string>
+    <string name="settings_lyrics_lock_screen">Lyrics on Lock Screen &amp; Android Auto</string>
+    <string name="settings_lyrics_lock_screen_explanation">Shows the line being sung (synced lyrics) in place of the artist in the playback notification, on the lock screen and in the car.</string>
+    <string name="auto_nothing_playing">Nothing Playing</string>
+    <string name="error_skipped">Couldn\'t play “%1$s” — skipped.</string>
+
+    <!-- Duplicates -->
+    <string name="duplicates">Duplicates</string>
+    <string name="duplicates_find">Find Duplicates</string>
+    <string name="duplicates_none">No duplicates. Every song is stored once.</string>
+    <string name="duplicates_group">%1$s — %2$d copies</string>
+
+    <string name="settings_resume_long_explanation">Songs of 10 minutes or more (audiobooks, mixes) continue where you stopped them.</string>
 </resources>
 

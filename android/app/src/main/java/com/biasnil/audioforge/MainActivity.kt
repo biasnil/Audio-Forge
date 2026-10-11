@@ -15,6 +15,7 @@ import androidx.media3.session.SessionToken
 import com.biasnil.audioforge.playback.PlaybackService
 import com.biasnil.audioforge.ui.AudioForgeApp
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
+import com.biasnil.audioforge.ui.theme.isDark
 import com.google.common.util.concurrent.ListenableFuture
 
 class MainActivity : ComponentActivity() {
@@ -30,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settings by container.store.settings.collectAsStateWithLifecycle()
-            val darkTheme = settings.darkTheme
+            val darkTheme = isDark(settings.appearance)
 
             // The app's theme is independent of the phone's, so the system bar
             // icons (clock, battery...) have to be switched to match it.
@@ -46,6 +47,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        container.appVisible.value = true
         // Connecting a controller starts PlaybackService, which publishes the
         // media session (notification, lock screen, headphone buttons). The
         // UI itself talks to PlaybackManager directly, so the controller isn't
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        container.appVisible.value = false
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
         super.onStop()

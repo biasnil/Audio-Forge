@@ -1,6 +1,7 @@
 package com.biasnil.audioforge.playback
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -21,13 +22,19 @@ import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
+import com.biasnil.audioforge.audio.VisualizerTap
 import com.biasnil.audioforge.audio.EqualizerSettings
 import com.biasnil.audioforge.audio.dbToLinear
 import com.biasnil.audioforge.audio.parseReplayGainDb
 import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.AppStore
+import com.biasnil.audioforge.data.AnalysisStore
+import com.biasnil.audioforge.data.SongAnalysis
+import com.biasnil.audioforge.data.SongDataStore
+import com.biasnil.audioforge.data.harmonicOrder
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +45,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+sealed interface SleepTimer {
+    data object Off : SleepTimer
+    data class Minutes(val minutes: Int) : SleepTimer
+    /** Stop when the current song ends. */
+    data object EndOfTrack : SleepTimer
+}
+
+/** Off -> A marked -> looping A..B -> Off. */
+sealed interface AbRepeat {
+    data object Off : AbRepeat
+    data class ASet(val aMs: Long) : AbRepeat
+    data class Looping(val aMs: Long, val bMs: Long) : AbRepeat
+}
+
 /** What the UI shows about playback. The position isn't in here -- it's polled, see [PlaybackManager.positionMs]. */
 data class PlaybackState(
     val current: Track? = null,
@@ -47,6 +68,30 @@ data class PlaybackState(
     val repeatMode: RepeatMode = RepeatMode.Off,
     /** 0-200; above 100 boosts. */
     val volumePercent: Int = 100,
+    /** Playback speed (pitch is kept). */
+    val rate: Float = 1f,
+    val sleepTimer: SleepTimer = SleepTimer.Off,
+    /** System.currentTimeMillis() when a Minutes timer runs out. */
+    val sleepEndsAtMs: Long? = null,
+    val abRepeat: AbRepeat = AbRepeat.Off,
+) {
+    /** 10 minutes or more (audiobooks, mixes): ±15 s buttons, and the position is remembered. */
+    val isLongTrack: Boolean get() = durationMs >= PlaybackManager.LONG_TRACK_MS
+}
+
+/** The queue as the Up next screen shows it. */
+data class QueueSnapshot(
+    /** Oldest first, not counting [current]. */
+    val played: List<QueueEntry<Track>> = emptyList(),
+    val current: QueueEntry<Track>? = null,
+    /** In play order. In Random shuffle, only the songs added with Play next / Add to queue. */
+    val upcoming: List<QueueEntry<Track>> = emptyList(),
+    /** More songs follow [upcoming]: random picks, or Repeat All starting over. */
+    val continuesAfter: Boolean = false,
+    /** How many of [upcoming], from the start, were added with Play next / Add to queue ("Playing Next"). */
+    val queuedCount: Int = 0,
+    /** Where playback was started from ("Songs", an album's name...), for "Next From ...". */
+    val contextName: String? = null,
 )
 
 /**
@@ -63,6 +108,9 @@ data class PlaybackState(
 class PlaybackManager(
     context: Context,
     private val store: AppStore,
+    private val queueStore: QueueStore,
+    private val songData: SongDataStore,
+    private val analysisStore: AnalysisStore,
     private val scope: CoroutineScope,
 ) {
     private val appContext: Context = context.applicationContext
@@ -78,6 +126,12 @@ class PlaybackManager(
         val player: ExoPlayer = buildPlayer(appContext, effects)
         var track: Track? = null
         var replayGainDb = 0f
+        var analysis: SongAnalysis? = null
+        /** Smart transitions: where the audio really starts and ends (silence skipped); else 0 / MAX. */
+        var beginMs = 0L
+        var endMs = Long.MAX_VALUE
+        /** Beat-matched crossfade: this slot's tempo adjustment, eased back to 1 afterwards. */
+        var rateFactor = 1f
 
         init {
             player.addListener(SlotListener(this))
@@ -89,12 +143,43 @@ class PlaybackManager(
     private val active: Slot get() = slots[activeIndex]
     private val incoming: Slot get() = slots[1 - activeIndex]
     private var crossfading = false
+    /** This crossfade's length, in real time. */
+    private var fadeLengthMs = 0f
+    /** Gapless: the next song is queued in the active player, which moves to it on the exact sample. */
+    private var gaplessQueued = false
+    /** A beat-matched crossfade waiting to start the next song on a beat. */
+    private var beatStartJob: Job? = null
 
     private val queue = PlaybackQueue<Track>()
     private var volumePercent = store.settings.value.volumePercent
+    private var contextName: String? = null
+
+    private var rate = 1f
+    private var sleepTimer: SleepTimer = SleepTimer.Off
+    private var sleepEndsAtMs: Long? = null
+    /** The sleep timer's fade-out, applied on top of the volume. */
+    private var sleepVolume = 1f
+    private var abRepeat: AbRepeat = AbRepeat.Off
+    /** The track whose play has been counted (once per time it's played). */
+    private var countedUri: String? = null
+    /** The settings last applied (declared before init, which applies the first ones). */
+    private var appliedSettings: AppSettings? = null
+    /** Songs that failed in a row (skipping stops after a run of them, so a dead queue can't spin). */
+    private var consecutiveFailures = 0
+    /** The lyric line shown on the lock screen / Android Auto in place of the artist (null = the artist). */
+    private var nowPlayingLine: String? = null
+
+    /** Spectrum of what's being heard, for the Now Playing visualizer. */
+    val visualizer = VisualizerTap()
 
     private val _state = MutableStateFlow(PlaybackState(volumePercent = volumePercent))
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
+
+    private val _queue = MutableStateFlow(QueueSnapshot())
+    val queueState: StateFlow<QueueSnapshot> = _queue.asStateFlow()
+    private var publishedQueueVersion = queue.version
+    private var queueSaveJob: Job? = null
+    private var lastPositionSaveMs = 0L
 
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 4)
     /** File name of a track that couldn't be played. */
@@ -109,6 +194,7 @@ class PlaybackManager(
 
     init {
         active.player.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+        active.effects.visualizer = visualizer
 
         scope.launch {
             store.settings.collect { settings -> applyAudioSettings(settings) }
@@ -124,13 +210,20 @@ class PlaybackManager(
 
     // --- Transport ---------------------------------------------------------
 
-    /** Replaces the queue and starts [startIndex] -- the desktop's setQueueAndPlay(). */
-    fun playQueue(tracks: List<Track>, startIndex: Int) {
+    /**
+     * Replaces the queue and starts [startIndex] -- the desktop's
+     * setQueueAndPlay(). [from] names the list for Up next ("Next From ...").
+     */
+    fun playQueue(tracks: List<Track>, startIndex: Int, from: String? = null) {
         if (tracks.isEmpty()) return
         abortCrossfade()
+        contextName = from
         queue.setQueue(tracks, startIndex)
         queue.currentItem?.let(::load)
     }
+
+    /** The list in a random order (the iOS album page's Shuffle button). */
+    fun playShuffled(tracks: List<Track>, from: String? = null) = playQueue(tracks.shuffled(), 0, from)
 
     fun togglePlayPause() {
         if (active.player.isPlaying) pause() else play()
@@ -155,10 +248,17 @@ class PlaybackManager(
         advance(fromAutoAdvance = false)
     }
 
+    /** More than 3 s in: back to the start of this song (like iOS); otherwise the previous song. */
     fun previous() {
         abortCrossfade()
         queue.cancelPendingNext()
-        if (queue.movePrevious()) queue.currentItem?.let(::load)
+        if (active.track != null && active.player.currentPosition > active.beginMs + RESTART_THRESHOLD_MS) {
+            seekTo(active.beginMs)
+        } else if (queue.movePrevious()) {
+            queue.currentItem?.let(::load)
+        } else {
+            seekTo(active.beginMs)
+        }
     }
 
     /**
@@ -169,18 +269,151 @@ class PlaybackManager(
      */
     fun seekTo(positionMs: Long) {
         abortCrossfade()
-        active.player.seekTo(positionMs.coerceAtLeast(0))
+        val target = positionMs.coerceAtLeast(0)
+        val ab = abRepeat
+        if (ab is AbRepeat.Looping && (target < ab.aMs || target > ab.bMs)) {
+            abRepeat = AbRepeat.Off
+            publish()
+        }
+        active.player.seekTo(target)
+    }
+
+    /** ±15 s on long tracks. */
+    fun skipBy(deltaMs: Long) {
+        val duration = active.player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: Long.MAX_VALUE
+        seekTo((active.player.currentPosition + deltaMs).coerceIn(0, duration))
+    }
+
+    /** Playback speed; the pitch stays the same. */
+    fun setRate(newRate: Float) {
+        rate = newRate.coerceIn(0.25f, 4f)
+        slots.forEach(::applyRate)
+        publish()
+    }
+
+    fun setSleepTimer(timer: SleepTimer) {
+        sleepTimer = timer
+        sleepEndsAtMs = (timer as? SleepTimer.Minutes)?.let { System.currentTimeMillis() + it.minutes * 60_000L }
+        setSleepVolume(1f)
+        if (timer == SleepTimer.EndOfTrack && crossfading) {
+            // Stop after the song that's playing: don't hand over to the next one.
+            abortCrossfade()
+            queue.cancelPendingNext()
+        }
+        publish()
+    }
+
+    /** Measure the spectrum only while the visualizer is on screen (it costs a little CPU per sample). */
+    fun setVisualizerActive(on: Boolean) {
+        visualizer.enabled = on
+    }
+
+    /**
+     * Lyrics on the lock screen / Android Auto: shows [line] in place of the
+     * artist (null = the artist again). Called when the line being sung changes.
+     */
+    fun setNowPlayingLine(line: String?) {
+        if (line == nowPlayingLine) return
+        nowPlayingLine = line
+        (_sessionPlayer.value as? QueueForwardingPlayer)?.lyricLine = line
+    }
+
+    /** Off -> mark A (here) -> mark B (here; loops A..B) -> off. */
+    fun cycleAbRepeat() {
+        if (active.track == null) return
+        val now = active.player.currentPosition
+        abRepeat = when (val ab = abRepeat) {
+            AbRepeat.Off -> AbRepeat.ASet(now)
+            is AbRepeat.ASet -> if (now > ab.aMs + 1_000) AbRepeat.Looping(ab.aMs, now) else AbRepeat.Off
+            is AbRepeat.Looping -> AbRepeat.Off
+        }
+        if (abRepeat is AbRepeat.Looping && crossfading) {
+            abortCrossfade()
+            queue.cancelPendingNext()
+        }
+        publish()
     }
 
     fun positionMs(): Long = active.player.currentPosition
 
-    fun cycleShuffleMode() {
-        queue.cycleShuffleMode()
-        publish()
+    fun cycleShuffleMode() = editQueue { queue.cycleShuffleMode() }
+
+    fun cycleRepeatMode() = editQueue { queue.cycleRepeatMode() }
+
+    // --- Queue editing (Play next / Add to queue / Up next) -----------------
+
+    /** Returns false if nothing was playing, in which case [tracks] start playing instead. */
+    fun playNext(tracks: List<Track>): Boolean {
+        if (tracks.isEmpty()) return false
+        if (queue.isEmpty) {
+            playQueue(tracks, 0)
+            return false
+        }
+        editQueue { queue.playNext(tracks) }
+        return true
     }
 
-    fun cycleRepeatMode() {
-        queue.cycleRepeatMode()
+    /** Returns false if nothing was playing, in which case [tracks] start playing instead. */
+    fun addToQueue(tracks: List<Track>): Boolean {
+        if (tracks.isEmpty()) return false
+        if (queue.isEmpty) {
+            playQueue(tracks, 0)
+            return false
+        }
+        editQueue { queue.addToQueue(tracks) }
+        return true
+    }
+
+    fun moveUpcoming(entryId: Long, toIndex: Int) = editQueue { queue.moveUpcoming(entryId, toIndex) }
+
+    fun removeUpcoming(entryId: Long) = editQueue { queue.removeUpcoming(entryId) }
+
+    fun clearUpcoming() = editQueue { queue.clearUpcoming() }
+
+    /** Just the "Playing Next" songs. */
+    fun clearQueued() = editQueue { queue.clearQueued() }
+
+    /** Plays queue entry [entryId] now (a tap in Up next). */
+    fun jumpTo(entryId: Long) {
+        abortCrossfade()
+        if (queue.jumpTo(entryId)) queue.currentItem?.let(::load)
+    }
+
+    /** Every song in the queue, in queue order (for Save as playlist). */
+    fun queuedTracks(): List<Track> = queue.items
+
+    /**
+     * Brings back last session's queue, paused where it was. Does nothing if
+     * something has started playing meanwhile. Songs no longer in the
+     * library (looked up with [trackFor]) are dropped.
+     */
+    fun restoreQueue(saved: SavedQueue<String>, position: SavedPosition?, trackFor: (String) -> Track?) {
+        if (!queue.isEmpty) return
+        val resolved = saved.mapItemsNotNull(trackFor) ?: return
+        contextName = saved.context
+        queue.restore(resolved)
+        val track = queue.currentItem ?: return
+        val startMs = position?.takeIf { it.uri == track.uri }?.positionMs ?: 0L
+        load(track, startMs = startMs, play = false)
+    }
+
+    /**
+     * Runs a queue edit. The queue drops its next pick on any edit; if a
+     * crossfade is already fading into that song and it's still next
+     * afterwards, the fade carries on, otherwise it's dropped (and starts
+     * again into the new next song on the next tick).
+     */
+    private fun editQueue(edit: () -> Unit) {
+        val fadingInto = if (crossfading || gaplessQueued) queue.pendingNextEntry?.id else null
+        edit()
+        if (fadingInto != null) {
+            val stillNext = queue.peekNext() && queue.pendingNextEntry?.id == fadingInto &&
+                (queue.repeatMode != RepeatMode.One || crossfading) // a queued gapless song would still play
+            if (!stillNext) {
+                abortCrossfade()
+                queue.cancelPendingNext()
+            }
+        }
         publish()
     }
 
@@ -233,8 +466,16 @@ class PlaybackManager(
 
     private fun advance(fromAutoAdvance: Boolean) {
         if (queue.isEmpty) return
-        if (fromAutoAdvance && queue.repeatMode == RepeatMode.One) {
+        if (fromAutoAdvance && sleepTimer == SleepTimer.EndOfTrack) {
+            // Sleep timer "end of current song": stop here, rewound.
+            setSleepTimer(SleepTimer.Off)
+            active.player.pause()
             active.player.seekTo(0)
+            return
+        }
+        if (fromAutoAdvance && queue.repeatMode == RepeatMode.One) {
+            countedUri = null // each repeat counts as a play
+            active.player.seekTo(active.beginMs)
             active.player.play()
             return
         }
@@ -245,56 +486,291 @@ class PlaybackManager(
     }
 
     /** Hard cut to [track] on the active player. */
-    private fun load(track: Track) {
+    private fun load(track: Track) = load(track, startMs = 0L, play = true)
+
+    private fun load(track: Track, startMs: Long, play: Boolean) {
+        rememberLongTrackPosition() // of the song being left
         val slot = active
-        slot.track = track
-        slot.replayGainDb = 0f // until this file's tags are read, see onTracksChanged
-        applyGain(slot)
+        prepareSlot(slot, track)
+        songStarted()
         slot.player.volume = 1f
-        slot.player.setMediaItem(track.toMediaItem())
+        val start = if (startMs == 0L) resumePositionFor(track) ?: slot.beginMs else startMs
+        slot.player.setMediaItem(track.toMediaItem(), start)
         slot.player.prepare()
-        slot.player.play()
+        if (play) slot.player.play()
         publish()
     }
 
+    /** Sets [slot] up for [track]: its analysis, silence trim (smart transitions), normal speed, gain. */
+    private fun prepareSlot(slot: Slot, track: Track) {
+        slot.track = track
+        slot.replayGainDb = 0f // until this file's tags are read, see onTracksChanged
+        slot.analysis = analysisStore.analysisFor(track)
+        slot.rateFactor = 1f
+        applyRate(slot)
+        applyTrim(slot)
+        applyGain(slot)
+    }
+
+    /** Smart transitions: skip the silence at the start and end of the song. */
+    private fun applyTrim(slot: Slot) {
+        slot.beginMs = 0L
+        slot.endMs = Long.MAX_VALUE
+        val analysis = slot.analysis ?: return
+        if (!store.settings.value.smartEnabled) return
+        if (analysis.audioStartMs > 300) slot.beginMs = (analysis.audioStartMs - 50).coerceAtLeast(0)
+        if (analysis.audioEndMs < analysis.durationMs - 300) slot.endMs = analysis.audioEndMs + 100
+        if (slot.endMs <= slot.beginMs + 1_000) {
+            slot.beginMs = 0L
+            slot.endMs = Long.MAX_VALUE
+        }
+    }
+
+    private fun applyRate(slot: Slot) = slot.player.setPlaybackSpeed(rate * slot.rateFactor)
+
+    private fun effectiveRate(slot: Slot): Float = rate * slot.rateFactor
+
+    /** Bookkeeping when a new song becomes the current one. */
+    private fun songStarted() {
+        countedUri = null
+        abRepeat = AbRepeat.Off
+    }
+
     private fun tick() {
+        val now = System.currentTimeMillis()
+        sleepEndsAtMs?.let { end ->
+            if (now >= end) {
+                pause()
+                setSleepTimer(SleepTimer.Off)
+            }
+        }
+
         val player = active.player
-        if (active.track == null) return
+        val track = active.track ?: return
         val length = player.duration
         if (length == C.TIME_UNSET || length <= 0) return
         val cursor = player.currentPosition
+
+        // While playing, remember the position every few seconds in case the app is killed.
+        if (player.isPlaying && now - lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS) {
+            lastPositionSaveMs = now
+            queueStore.savePosition(track.uri, cursor)
+            rememberLongTrackPosition()
+        }
+        if (player.isPlaying) {
+            val ab = abRepeat
+            if (ab is AbRepeat.Looping && cursor >= ab.bMs) player.seekTo(ab.aMs)
+            countPlayIfDue(track, cursor, length)
+        }
+        updateSleepFade(cursor, length)
 
         if (crossfading) {
             updateCrossfade(cursor, length)
             return
         }
-        val settings = store.settings.value
-        if (settings.crossfadeEnabled && player.isPlaying && length - cursor <= settings.crossfadeSeconds * 1000L) {
-            tryStartCrossfade()
+        // Glide back to normal speed after a beat-matched crossfade.
+        if (active.rateFactor != 1f) {
+            val difference = 1f - active.rateFactor
+            active.rateFactor = if (kotlin.math.abs(difference) < 0.002f) 1f else active.rateFactor + difference * 0.06f
+            applyRate(active)
+        }
+        if (!player.isPlaying) return
+        // Smart transitions: the trimmed end (silence after the music) counts as the end.
+        if (active.endMs < length - 300 && cursor >= active.endMs) {
+            if (gaplessQueued) player.seekToNextMediaItem() else advance(fromAutoAdvance = true)
+            return
+        }
+        if (sleepTimer != SleepTimer.EndOfTrack && abRepeat == AbRepeat.Off && queue.repeatMode != RepeatMode.One) {
+            prepareHandOff(cursor, length)
         }
     }
 
-    private fun tryStartCrossfade() {
-        if (queue.repeatMode == RepeatMode.One) return // restarting the same track doesn't need a fade
-        if (!queue.peekNext()) return // end of the queue: nothing to fade into
+    /**
+     * Lines up the next song before this one ends: a crossfade, or a
+     * gapless hand-off (the next song queued in this player, which starts it
+     * on the exact sample this one ends) -- the iOS app's prepareHandOff().
+     */
+    private fun prepareHandOff(cursor: Long, length: Long) {
+        if (gaplessQueued) return
+        val settings = store.settings.value
+        val end = minOf(active.endMs, length)
+        val remaining = (end - cursor) / effectiveRate(active)
+        val fade = settings.crossfadeSeconds * 1000f
+        // Don't decide anything until the end is near.
+        if (remaining > maxOf(fade * 2.5f, 12_000f)) return
+        if (!queue.peekNext()) return
         val next = queue.pendingNextItem ?: return
+        val current = active.track ?: return
 
+        var useCrossfade = settings.crossfadeEnabled && length > fade * 2
+        // Smart: consecutive songs of the same album stay gapless (live albums, DJ mixes). The
+        // artist must match too: untagged songs get their folder's name as album ("Music").
+        if (useCrossfade && settings.smartEnabled && current.album.isNotBlank() &&
+            current.album.trim().equals(next.album.trim(), ignoreCase = true) &&
+            current.artist.trim().equals(next.artist.trim(), ignoreCase = true)
+        ) {
+            useCrossfade = false
+        }
+        if (useCrossfade) {
+            var fadeLength = fade
+            // Smart: a long fade-out at the end becomes the crossfade.
+            if (settings.smartEnabled) {
+                active.analysis?.let { analysis ->
+                    val outro = end - analysis.outroStartMs
+                    if (outro > fade) fadeLength = minOf(outro.toFloat(), fade * 2, 12_000f)
+                }
+            }
+            if (remaining <= fadeLength) startCrossfade(next, fadeLength)
+        } else if (remaining <= GAPLESS_QUEUE_AHEAD_MS) {
+            // Queued well ahead, so the player has the next file open in time.
+            active.player.addMediaItem(next.toMediaItem())
+            gaplessQueued = true
+            Log.i(TAG, "Gapless: queued ${next.fileName}")
+        }
+    }
+
+    /** The gapless hand-off happened: the active player moved on to the queued song. */
+    private fun completeGapless() {
+        gaplessQueued = false
+        val slot = active
+        // The song that just ended played to its end: nothing to resume.
+        slot.track?.let { finished -> if (finished.durationMs >= LONG_TRACK_MS) songData.setResumePosition(finished.uri, null) }
+        queue.commitPendingNext()
+        val track = queue.currentItem ?: return
+        prepareSlot(slot, track)
+        songStarted()
+        val index = slot.player.currentMediaItemIndex
+        if (index > 0) slot.player.removeMediaItems(0, index) // the finished song
+        if (slot.beginMs > 0) slot.player.seekTo(slot.beginMs)
+        publish()
+    }
+
+    /** Takes a queued gapless song back out of the active player. */
+    private fun cancelGapless() {
+        if (!gaplessQueued) return
+        gaplessQueued = false
+        val player = active.player
+        val after = player.currentMediaItemIndex + 1
+        if (after < player.mediaItemCount) player.removeMediaItems(after, player.mediaItemCount)
+    }
+
+    /** Counts a play once half the song (or 4 minutes) has been heard. */
+    private fun countPlayIfDue(track: Track, cursor: Long, length: Long) {
+        if (countedUri == track.uri) return
+        val needed = (length / 2).coerceIn(1_000L, 240_000L)
+        if (cursor >= needed) {
+            countedUri = track.uri
+            songData.recordPlay(track.uri)
+        }
+    }
+
+    /** Fades out over the last 30 s of a sleep timer (last 10 s of the song for "end of song"). */
+    private fun updateSleepFade(cursor: Long, length: Long) {
+        var volume = 1f
+        if (store.settings.value.sleepFadeOut && active.player.isPlaying) {
+            val end = sleepEndsAtMs
+            if (end != null) {
+                volume = ((end - System.currentTimeMillis()) / 30_000f).coerceIn(0f, 1f)
+            } else if (sleepTimer == SleepTimer.EndOfTrack) {
+                volume = ((length - cursor) / rate / 10_000f).coerceIn(0f, 1f)
+            }
+        }
+        setSleepVolume(volume)
+    }
+
+    private fun setSleepVolume(volume: Float) {
+        if (kotlin.math.abs(volume - sleepVolume) < 0.005f && (volume != 1f || sleepVolume == 1f)) return
+        sleepVolume = volume
+        slots.forEach(::applyGain)
+    }
+
+    /** Where a long track was left, if it should continue from there. */
+    private fun resumePositionFor(track: Track): Long? {
+        if (!store.settings.value.rememberLongTrackPosition || track.durationMs < LONG_TRACK_MS) return null
+        val saved = songData.statsFor(track.uri).resumePositionMs ?: return null
+        return saved.takeIf { it > 15_000 && it < track.durationMs - 30_000 }
+    }
+
+    /** Saves (or clears, near the start or end) the position of the long track that's playing. */
+    private fun rememberLongTrackPosition() {
+        if (!store.settings.value.rememberLongTrackPosition) return
+        val track = active.track ?: return
+        val duration = active.player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: track.durationMs
+        if (duration < LONG_TRACK_MS) return
+        val position = active.player.currentPosition
+        val keep = position > 15_000 && position < duration - 30_000
+        songData.setResumePosition(track.uri, if (keep) position else null)
+    }
+
+    private fun startCrossfade(next: Track, fadeLength: Float) {
         val slot = incoming
-        slot.track = next
-        slot.replayGainDb = 0f
-        applyGain(slot)
+        prepareSlot(slot, next)
         slot.player.volume = 0f
-        slot.player.setMediaItem(next.toMediaItem())
+        var startMs = slot.beginMs
+        var waitMs = 0L
+        if (store.settings.value.beatMatchEnabled) {
+            beatMatch(slot)?.let { match ->
+                slot.rateFactor = match.rateFactor
+                applyRate(slot)
+                startMs = match.startMs
+                waitMs = match.waitMs
+            }
+        }
+        Log.i(TAG, "Crossfade ${fadeLength.toInt()} ms into ${next.fileName}, start $startMs ms, " +
+            "beat wait $waitMs ms, tempo x${slot.rateFactor}")
+        slot.player.setMediaItem(next.toMediaItem(), startMs)
         slot.player.prepare()
-        slot.player.play()
+        fadeLengthMs = maxOf(fadeLength, 1_000f)
         crossfading = true
+        if (waitMs <= 0) {
+            slot.player.play()
+        } else {
+            // Start on the outgoing song's beat: once the player is ready, wait out the rest.
+            val target = SystemClock.elapsedRealtime() + waitMs
+            beatStartJob = scope.launch {
+                while (slot.player.playbackState != Player.STATE_READY && SystemClock.elapsedRealtime() < target) delay(5)
+                delay((target - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                if (crossfading && slot === incoming && active.player.playWhenReady) slot.player.play()
+            }
+        }
+    }
+
+    private class BeatMatch(val rateFactor: Float, val startMs: Long, val waitMs: Long)
+
+    /**
+     * Beat-matched crossfade: the next song's tempo is adjusted to this one's
+     * (if they're within 8%, counting half/double time) and it starts on its
+     * first beat on one of this song's beats. null when either song's beat
+     * isn't reliable. ExoPlayer can't start on an exact sample the way iOS
+     * schedules it, so the start is timed from here (within a few ms).
+     */
+    private fun beatMatch(slot: Slot): BeatMatch? {
+        val outgoing = active.analysis ?: return null
+        val incomingAnalysis = slot.analysis ?: return null
+        if (!outgoing.isBeatReliable || !incomingAnalysis.isBeatReliable) return null
+        val outBpm = outgoing.bpm ?: return null
+        val inBpm = incomingAnalysis.bpm ?: return null
+        val outPeriod = outgoing.beatPeriodMs ?: return null
+        val inPeriod = incomingAnalysis.beatPeriodMs ?: return null
+        val ratio = listOf(outBpm / inBpm, outBpm * 2 / inBpm, outBpm / (inBpm * 2)).minBy { kotlin.math.abs(it - 1) }
+        if (kotlin.math.abs(ratio - 1) > 0.08) return null
+
+        // This song's next beat, far enough away for the next song's player to get ready.
+        val now = active.player.currentPosition.toDouble()
+        var beatTime = outgoing.firstBeatMs + kotlin.math.ceil((now - outgoing.firstBeatMs) / outPeriod) * outPeriod
+        while (beatTime - now < BEAT_START_LEAD_MS) beatTime += outPeriod
+        val waitMs = ((beatTime - now) / effectiveRate(active)).toLong()
+        // The next song's first beat at or after where its audio starts.
+        val skipped = maxOf(0.0, kotlin.math.ceil((slot.beginMs - incomingAnalysis.firstBeatMs) / inPeriod))
+        val startMs = maxOf(0.0, incomingAnalysis.firstBeatMs + skipped * inPeriod).toLong()
+        return BeatMatch(ratio.toFloat(), startMs, waitMs)
     }
 
     private fun updateCrossfade(cursor: Long, length: Long) {
-        val remaining = length - cursor
-        val fadeMs = store.settings.value.crossfadeSeconds * 1000f
-        val progress = 1f - (remaining / fadeMs).coerceIn(0f, 1f)
+        val remaining = (minOf(active.endMs, length) - cursor) / effectiveRate(active)
+        val progress = 1f - (remaining / fadeLengthMs).coerceIn(0f, 1f)
         active.player.volume = 1f - progress
+        // The incoming song may not have started yet (beat-matched start on a beat).
         incoming.player.volume = progress
         if (remaining <= 50 || active.player.playbackState == Player.STATE_ENDED) {
             finalizeCrossfade()
@@ -305,8 +781,14 @@ class PlaybackManager(
     private fun finalizeCrossfade() {
         if (!crossfading) return
         crossfading = false
+        beatStartJob?.cancel()
+        beatStartJob = null
+        // Still waiting for its beat (the outgoing song ran out first): start it now.
+        if (!incoming.player.isPlaying && active.player.playWhenReady) incoming.player.play()
+        rememberLongTrackPosition()
         val old = active
         activeIndex = 1 - activeIndex
+        songStarted()
 
         // Hand audio focus over: only the active player holds it, or the two would take it from each other.
         active.player.setAudioAttributes(audioAttributes, true)
@@ -315,25 +797,55 @@ class PlaybackManager(
         old.player.stop()
         old.player.clearMediaItems()
         old.track = null
+        old.analysis = null
+        old.rateFactor = 1f
+        applyRate(old)
+
+        // The visualizer follows the player that's heard.
+        old.effects.visualizer = null
+        active.effects.visualizer = visualizer
 
         queue.commitPendingNext()
-        _sessionPlayer.value = QueueForwardingPlayer(active.player, this)
+        _sessionPlayer.value = QueueForwardingPlayer(active.player, this).also { it.lyricLine = nowPlayingLine }
         publish()
     }
 
-    /** Drops a fade in progress, leaving the current track playing at full volume. Doesn't touch the queue. */
+    /**
+     * Drops a hand-off in progress (a fade, or a queued gapless song),
+     * leaving the current track playing at full volume. Doesn't touch the queue.
+     */
     private fun abortCrossfade() {
+        cancelGapless()
         if (!crossfading) return
         crossfading = false
+        beatStartJob?.cancel()
+        beatStartJob = null
         incoming.player.stop()
         incoming.player.clearMediaItems()
         incoming.track = null
+        incoming.analysis = null
         active.player.volume = 1f
     }
 
     private fun applyAudioSettings(settings: AppSettings) {
+        val old = appliedSettings
+        appliedSettings = settings
         equalizer.update(settings.eqEnabled, settings.eqBandGainsDb)
         slots.forEach(::applyGain)
+        if (!settings.crossfadeEnabled && crossfading) abortCrossfade()
+        if (old != null && (old.smartEnabled != settings.smartEnabled)) {
+            // Trim points only change for songs loaded from now on; the current one keeps its own.
+            if (!crossfading) {
+                abortCrossfade()
+                queue.cancelPendingNext()
+            }
+        }
+        if (old == null || old.harmonicEnabled != settings.harmonicEnabled) {
+            queue.smartOrder = if (settings.harmonicEnabled) {
+                { items, start -> harmonicOrder(items, start, analysisStore::analysisFor) }
+            } else null
+            if (old != null) editQueue { queue.reshuffle() }
+        }
     }
 
     /** The desktop's baseVolumeFor(): volume x ReplayGain (if on) x EQ post-gain (if the EQ is on). */
@@ -342,7 +854,7 @@ class PlaybackManager(
         var gain = volumePercent / 100f
         if (settings.replayGainEnabled) gain *= dbToLinear(slot.replayGainDb)
         if (settings.eqEnabled) gain *= dbToLinear(settings.eqPostGainDb)
-        slot.effects.gain = gain
+        slot.effects.gain = gain * sleepVolume
     }
 
     private fun publish() {
@@ -356,13 +868,45 @@ class PlaybackManager(
             shuffleMode = queue.shuffleMode,
             repeatMode = queue.repeatMode,
             volumePercent = volumePercent,
+            rate = rate,
+            sleepTimer = sleepTimer,
+            sleepEndsAtMs = sleepEndsAtMs,
+            abRepeat = abRepeat,
         )
+        if (queue.version != publishedQueueVersion) {
+            publishedQueueVersion = queue.version
+            _queue.value = QueueSnapshot(
+                played = queue.played(),
+                current = queue.currentEntry,
+                upcoming = queue.upcoming(),
+                continuesAfter = queue.continuesAfterUpcoming(),
+                queuedCount = queue.queuedCount(),
+                contextName = contextName,
+            )
+            scheduleQueueSave()
+        }
+    }
+
+    /** Saves the queue a moment after it last changed, so a burst of edits is one write. */
+    private fun scheduleQueueSave() {
+        queueSaveJob?.cancel()
+        queueSaveJob = scope.launch {
+            delay(QUEUE_SAVE_DELAY_MS)
+            queueStore.save(queue.save()?.let { saved -> saved.mapItemsNotNull { it.uri }?.copy(context = contextName) })
+        }
     }
 
     private inner class SlotListener(private val slot: Slot) : Player.Listener {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (slot === active) publish()
+            if (slot !== active) return
+            if (isPlaying) consecutiveFailures = 0
+            // Paused (or stopped): where to resume next launch.
+            if (!isPlaying) {
+                slot.track?.let { queueStore.savePosition(it.uri, slot.player.currentPosition) }
+                rememberLongTrackPosition()
+            }
+            publish()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -386,6 +930,13 @@ class PlaybackManager(
             }
         }
 
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // The active player reached the queued gapless song (on its own, or skipped there at a trimmed end).
+            if (slot !== active || !gaplessQueued) return
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) return
+            if (mediaItem?.mediaId == queue.pendingNextItem?.uri) completeGapless() else cancelGapless()
+        }
+
         override fun onTracksChanged(tracks: Tracks) {
             slot.replayGainDb = readReplayGainDb(tracks) ?: 0f
             applyGain(slot)
@@ -394,8 +945,16 @@ class PlaybackManager(
         override fun onPlayerError(error: PlaybackException) {
             if (slot === active) {
                 val track = slot.track
-                _errors.tryEmit(track?.fileName?.ifEmpty { track.title }.orEmpty())
-                publish()
+                Log.w(TAG, "Couldn't play ${track?.fileName}", error)
+                abortCrossfade()
+                // Like the iOS app: skip it with a short message instead of stopping the queue
+                // (up to a run of failures, so a queue of missing files doesn't spin).
+                consecutiveFailures++
+                val wasPlaying = slot.player.playWhenReady
+                val skipped = consecutiveFailures <= MAX_SKIPPED_IN_A_ROW && wasPlaying && queue.moveNext()
+                val name = track?.title?.ifEmpty { track.fileName }.orEmpty()
+                _errors.tryEmit(if (skipped) "skipped:$name" else name)
+                if (skipped) queue.currentItem?.let(::load) else publish()
             } else {
                 // The next track failed to load for a crossfade: drop the fade;
                 // it gets another go (and reports the error) on the normal advance.
@@ -406,8 +965,18 @@ class PlaybackManager(
         }
     }
 
-    private companion object {
-        const val TAG = "PlaybackManager"
+    companion object {
+        /** Tracks this long get ±15 s buttons and remember where you stopped. */
+        const val LONG_TRACK_MS = 10 * 60_000L
+        private const val TAG = "PlaybackManager"
+        private const val POSITION_SAVE_INTERVAL_MS = 5_000L
+        private const val QUEUE_SAVE_DELAY_MS = 1_000L
+        private const val RESTART_THRESHOLD_MS = 3_000L
+        /** How early the next song is queued for a gapless hand-off. */
+        private const val GAPLESS_QUEUE_AHEAD_MS = 10_000f
+        /** A beat-matched start is at least this far ahead, so the next song's player is ready. */
+        private const val BEAT_START_LEAD_MS = 600.0
+        private const val MAX_SKIPPED_IN_A_ROW = 10
     }
 }
 
