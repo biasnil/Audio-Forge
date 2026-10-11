@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 /// What the app learns about a song while you use it.
 nonisolated struct SongStats: Codable, Equatable, Sendable {
@@ -257,6 +258,22 @@ final class LibraryAnalyzer: ObservableObject {
         task?.cancel()
     }
 
+    /// Analysis decodes whole songs and heats the phone: in the background it only carries on
+    /// while charging. Otherwise it waits (the songs already started finish) until the app is
+    /// back on screen or the phone is plugged in.
+    private func waitUntilAllowed() async {
+        while !Task.isCancelled && !Self.mayRunNow {
+            try? await Task.sleep(for: .seconds(5))
+        }
+    }
+
+    private static var mayRunNow: Bool {
+        if UIApplication.shared.applicationState != .background { return true }
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
+        return device.batteryState == .charging || device.batteryState == .full
+    }
+
     private func run(_ todo: [Song]) async {
         var done = 0
         await withTaskGroup(of: (String, SongAnalysis?).self) { group in
@@ -271,6 +288,7 @@ final class LibraryAnalyzer: ObservableObject {
                 if let result { store.store(result, for: key) }
                 done += 1
                 progress = (done, todo.count)
+                await waitUntilAllowed()
                 if Task.isCancelled {
                     group.cancelAll()
                     continue

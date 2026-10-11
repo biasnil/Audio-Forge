@@ -52,6 +52,9 @@ final class LibraryManager: ObservableObject {
     /// Linked folders whose security scope is open (kept open while the app runs).
     private var openFolders: [UUID: URL] = [:]
     private var reloadTask: Task<Void, Never>?
+    /// When the last scan started, and the Documents folder's modification date then.
+    private var lastScan: Date?
+    private var lastDocumentsChange: Date?
     /// Display names of the roots from the last scan ("docs" -> "On This iPhone", ...).
     private var rootNames: [String: String] = [:]
     private var cancellables = Set<AnyCancellable>()
@@ -96,10 +99,21 @@ final class LibraryManager: ObservableObject {
     /// While files are being read: (read so far, to read). nil otherwise.
     @Published private(set) var scanProgress: (done: Int, total: Int)?
 
-    /// Rescans when coming back to the app. Unchanged files aren't re-read, and the library
-    /// is only replaced (and the tabs redrawn) if something actually changed.
+    /// Rescans when coming back to the app: right away if files were added to or removed from
+    /// Documents itself, otherwise at most every 2 minutes (switching apps back and forth used
+    /// to rescan everything, linked folders included, each time). Changes in subfolders and
+    /// linked folders show up within 2 minutes; pull to refresh always rescans. Unchanged files
+    /// aren't re-read, and the library is only replaced if something actually changed.
     func reloadIfStale() async {
+        if let lastScan, Date().timeIntervalSince(lastScan) < 120,
+           documentsModified() == lastDocumentsChange {
+            return
+        }
         await reload()
+    }
+
+    private func documentsModified() -> Date? {
+        (try? documents.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
     }
 
     /// Rescans everything. Unchanged files are taken from the previous scan, so this is quick.
@@ -115,6 +129,8 @@ final class LibraryManager: ObservableObject {
     }
 
     private func performReload() async {
+        lastScan = Date()
+        lastDocumentsChange = documentsModified()
         isScanning = true
         defer {
             isScanning = false
