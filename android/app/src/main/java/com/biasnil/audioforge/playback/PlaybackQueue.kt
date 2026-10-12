@@ -146,66 +146,71 @@ class PlaybackQueue<T>(private val random: Random = Random.Default) {
     fun peekNext(): Boolean {
         if (pending != null) return true
         val playing = current ?: return false
-
-        when (shuffleMode) {
-            ShuffleMode.Random -> {
-                val queued = userQueued.firstOrNull()?.let(::entryFor)
-                if (queued != null) {
-                    pending = queued
-                } else {
-                    // Picks with replacement, so there's no natural end: without
-                    // Repeat All, stop once a full queue's worth has played.
-                    if (repeatMode != RepeatMode.All && history.size >= queue.size) return false
-                    pending = if (queue.size > 1) {
-                        var pick: QueueEntry<T>
-                        do {
-                            pick = queue[random.nextInt(queue.size)]
-                        } while (pick.id == playing.id)
-                        pick
-                    } else {
-                        playing
-                    }
-                }
-            }
-            ShuffleMode.Smart -> {
-                if (shuffleOrder.isEmpty()) resetSmartShuffle(emptyList())
-                val order: List<Long>
-                if (shufflePos + 1 >= shuffleOrder.size) {
-                    // Every track has played once this lap.
-                    if (repeatMode != RepeatMode.All) return false
-                    val build = smartOrder
-                    val lap = if (build != null) {
-                        // A fresh lap that continues from the current song; it plays last this lap.
-                        val built = build(queue.map { it.item }, currentIndex).map { queue[it].id }
-                        (built.drop(1) + playing.id).toMutableList()
-                    } else {
-                        queue.map { it.id }.shuffled(random).toMutableList().also { order ->
-                            if (order.size > 1 && order[0] == playing.id) {
-                                // avoid an immediate repeat across the lap boundary
-                                order[0] = order[1]
-                                order[1] = playing.id
-                            }
-                        }
-                    }
-                    pendingShuffleOrder = lap
-                    pendingShufflePos = 0
-                    order = lap
-                } else {
-                    pendingShufflePos = shufflePos + 1
-                    order = shuffleOrder
-                }
-                pending = entryFor(order[pendingShufflePos])
-            }
-            ShuffleMode.Off -> {
-                var index = currentIndex + 1
-                if (index >= queue.size) {
-                    if (repeatMode != RepeatMode.All) return false
-                    index = 0
-                }
-                pending = queue[index]
-            }
+        pending = when (shuffleMode) {
+            ShuffleMode.Random -> pickRandom(playing)
+            ShuffleMode.Smart -> pickSmart(playing)
+            ShuffleMode.Off -> pickInOrder()
         }
         return pending != null
+    }
+
+    /** Random: a song added to play next first, else any song but the current one. */
+    private fun pickRandom(playing: QueueEntry<T>): QueueEntry<T>? {
+        userQueued.firstOrNull()?.let(::entryFor)?.let { return it }
+        // Picks with replacement, so there's no natural end: without
+        // Repeat All, stop once a full queue's worth has played.
+        if (repeatMode != RepeatMode.All && history.size >= queue.size) return null
+        if (queue.size <= 1) return playing
+        var pick: QueueEntry<T>
+        do {
+            pick = queue[random.nextInt(queue.size)]
+        } while (pick.id == playing.id)
+        return pick
+    }
+
+    /**
+     * Smart: the next song in this lap's shuffle order. At the end of a lap
+     * (every song played once) a new lap is built, but only kept in
+     * [pendingShuffleOrder] until [commitPendingNext].
+     */
+    private fun pickSmart(playing: QueueEntry<T>): QueueEntry<T>? {
+        if (shuffleOrder.isEmpty()) resetSmartShuffle(emptyList())
+        if (shufflePos + 1 < shuffleOrder.size) {
+            pendingShufflePos = shufflePos + 1
+            return entryFor(shuffleOrder[pendingShufflePos])
+        }
+        if (repeatMode != RepeatMode.All) return null
+        val lap = newSmartLap(playing)
+        pendingShuffleOrder = lap
+        pendingShufflePos = 0
+        return entryFor(lap[0])
+    }
+
+    /** The next lap's Smart-shuffle order, continuing from [playing]. */
+    private fun newSmartLap(playing: QueueEntry<T>): MutableList<Long> {
+        val build = smartOrder
+        if (build != null) {
+            // Built from the current song, which then plays last this lap.
+            val built = build(queue.map { it.item }, currentIndex).map { queue[it].id }
+            return (built.drop(1) + playing.id).toMutableList()
+        }
+        return queue.map { it.id }.shuffled(random).toMutableList().also { order ->
+            if (order.size > 1 && order[0] == playing.id) {
+                // avoid an immediate repeat across the lap boundary
+                order[0] = order[1]
+                order[1] = playing.id
+            }
+        }
+    }
+
+    /** Shuffle off: the entry after the current one (back to the first with Repeat All). */
+    private fun pickInOrder(): QueueEntry<T>? {
+        val index = currentIndex + 1
+        return when {
+            index < queue.size -> queue[index]
+            repeatMode == RepeatMode.All -> queue[0]
+            else -> null
+        }
     }
 
     fun commitPendingNext() {

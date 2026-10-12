@@ -160,9 +160,11 @@ data/
   Analysis.kt            # analysis results, MusicKey (Camelot), harmonic order
   SmartPlaylists.kt      # smart playlist rules
   CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
-lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing
+lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker
+                         # follows the line being sung (lock screen, Android Auto)
 tags/                    # tag and cover writing (jaudiotagger)
-ui/                      # Compose screens: one file per tab or page, Common.kt for shared rows
+ui/                      # Compose screens: one file per tab or page; Common.kt (shared rows,
+                         # buttons) and Bars.kt (top bar, tab bar, ⋮ menu) are shared by them
 ```
 
 Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native
