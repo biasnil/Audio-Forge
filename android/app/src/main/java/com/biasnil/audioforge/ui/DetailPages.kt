@@ -31,11 +31,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -43,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,35 +58,6 @@ import com.biasnil.audioforge.data.Track
 import com.biasnil.audioforge.data.TrackSort
 import com.biasnil.audioforge.data.searchTracks
 import com.biasnil.audioforge.data.sortTracks
-
-/** Top bar with a back arrow, shared by every detail page. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun DetailTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
-    TopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(AppIcons.Back, contentDescription = stringResource(R.string.back))
-            }
-        },
-        actions = { actions() },
-    )
-}
-
-/** A ⋮ button with a dropdown; each item gets a `close` to call when tapped. */
-@Composable
-internal fun OverflowMenu(content: @Composable (close: () -> Unit) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(AppIcons.MoreVert, contentDescription = stringResource(R.string.more_options))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            content { expanded = false }
-        }
-    }
-}
 
 /** Play next / Add to queue for a whole album, artist or playlist. */
 @Composable
@@ -258,35 +225,15 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                 IconButton(onClick = { onOpenPage(Page.AddTracks(playlistId)) }) {
                     Icon(AppIcons.Add, contentDescription = stringResource(R.string.playlist_add_tracks))
                 }
-                OverflowMenu { close ->
-                    QueueMenuItems(playable, close)
-                    HorizontalDivider()
-                    DropdownMenuItem(text = { Text(stringResource(R.string.cover_change)) }, onClick = {
-                        close()
-                        changeCover(playlistId)
-                    })
-                    if (playlist.coverFile != null) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.playlist_use_album_covers)) }, onClick = {
-                            close()
-                            container.library.removePlaylistCover(playlistId)
-                        })
-                    }
-                    DropdownMenuItem(text = { Text(stringResource(R.string.m3u_export)) }, enabled = playable.isNotEmpty(), onClick = {
-                        close()
-                        export.launch(playlist.name.replace('/', '-') + ".m3u8")
-                    })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = {
-                        close()
-                        renaming = true
-                    })
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.playlist_delete), color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            close()
-                            confirmingDelete = true
-                        },
-                    )
-                }
+                PlaylistMenu(
+                    playable = playable,
+                    hasOwnCover = playlist.coverFile != null,
+                    onChangeCover = { changeCover(playlistId) },
+                    onUseAlbumCovers = { container.library.removePlaylistCover(playlistId) },
+                    onExport = { export.launch(playlist.name.replace('/', '-') + ".m3u8") },
+                    onRename = { renaming = true },
+                    onDelete = { confirmingDelete = true },
+                )
             }
         },
         bottomBar = {
@@ -344,30 +291,15 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                     Modifier.animateItem()
                 }
                 val trailing: @Composable () -> Unit = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = {
-                                val position = entries.indexOfFirst { it.key == row.key }
-                                if (position >= 0) container.library.removeFromPlaylist(playlistId, position)
-                            },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(AppIcons.Close, contentDescription = stringResource(R.string.remove), modifier = Modifier.size(18.dp))
-                        }
-                        Icon(
-                            imageVector = AppIcons.DragHandle,
-                            contentDescription = stringResource(R.string.queue_reorder),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .padding(8.dp)
-                                .then(
-                                    reorder.handleModifier(row.key, { latestEntries.value }) { moved ->
-                                        container.library.setPlaylistUris(playlistId, moved.map { it.uri })
-                                    }
-                                ),
-                        )
-                    }
+                    RemoveAndDragControls(
+                        onRemove = {
+                            val position = entries.indexOfFirst { it.key == row.key }
+                            if (position >= 0) container.library.removeFromPlaylist(playlistId, position)
+                        },
+                        dragHandle = reorder.handleModifier(row.key, { latestEntries.value }) { moved ->
+                            container.library.setPlaylistUris(playlistId, moved.map { it.uri })
+                        },
+                    )
                 }
                 val track = row.track
                 if (track != null) {
@@ -426,25 +358,69 @@ fun PlaylistPage(playlistId: String, onBack: () -> Unit, onOpenPage: (Page) -> U
     }
 }
 
-/** One playlist entry: [key] is unique even when a song is in the playlist twice. */
-private data class PlaylistRow(val key: String, val uri: String, val track: Track?)
-
-/** The iOS-style Play / Shuffle pair under a cover. */
+/** A playlist page's ⋮ menu: queueing, the cover, .m3u export, rename and delete. */
 @Composable
-fun PlayShuffleButtons(onPlay: () -> Unit, onShuffle: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        FilledTonalButton(onClick = onPlay, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) {
-            Icon(AppIcons.Play, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.play))
+private fun PlaylistMenu(
+    playable: List<Track>,
+    hasOwnCover: Boolean,
+    onChangeCover: () -> Unit,
+    onUseAlbumCovers: () -> Unit,
+    onExport: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    OverflowMenu { close ->
+        QueueMenuItems(playable, close)
+        HorizontalDivider()
+        DropdownMenuItem(text = { Text(stringResource(R.string.cover_change)) }, onClick = {
+            close()
+            onChangeCover()
+        })
+        if (hasOwnCover) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.playlist_use_album_covers)) }, onClick = {
+                close()
+                onUseAlbumCovers()
+            })
         }
-        FilledTonalButton(onClick = onShuffle, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) {
-            Icon(AppIcons.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.shuffle))
-        }
+        DropdownMenuItem(text = { Text(stringResource(R.string.m3u_export)) }, enabled = playable.isNotEmpty(), onClick = {
+            close()
+            onExport()
+        })
+        DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = {
+            close()
+            onRename()
+        })
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.playlist_delete), color = MaterialTheme.colorScheme.error) },
+            onClick = {
+                close()
+                onDelete()
+            },
+        )
     }
 }
+
+/** A playlist row's ✕ (remove) button and drag handle; [dragHandle] comes from [ReorderState.handleModifier]. */
+@Composable
+private fun RemoveAndDragControls(onRemove: () -> Unit, dragHandle: Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+            Icon(AppIcons.Close, contentDescription = stringResource(R.string.remove), modifier = Modifier.size(18.dp))
+        }
+        Icon(
+            imageVector = AppIcons.DragHandle,
+            contentDescription = stringResource(R.string.queue_reorder),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(40.dp)
+                .padding(8.dp)
+                .then(dragHandle),
+        )
+    }
+}
+
+/** One playlist entry: [key] is unique even when a song is in the playlist twice. */
+private data class PlaylistRow(val key: String, val uri: String, val track: Track?)
 
 /** Every library track not already in the playlist, with checkboxes -- the desktop's "Add Tracks..." picker. */
 @Composable

@@ -52,6 +52,7 @@ import com.biasnil.audioforge.data.genreGroups
 import com.biasnil.audioforge.data.tracksByArtist
 import com.biasnil.audioforge.data.tracksInAlbum
 import com.biasnil.audioforge.data.tracksInGenre
+import com.biasnil.audioforge.playback.PlaybackError
 import kotlinx.coroutines.launch
 
 @Composable
@@ -79,10 +80,9 @@ fun AudioForgeApp(container: AppContainer) {
         )
         LaunchedEffect(Unit) {
             container.playback.errors.collect { error ->
-                val message = if (error.startsWith("skipped:")) {
-                    context.getString(R.string.error_skipped, error.removePrefix("skipped:"))
-                } else {
-                    context.getString(R.string.error_cannot_play, error)
+                val message = when (error) {
+                    is PlaybackError.Skipped -> context.getString(R.string.error_skipped, error.name)
+                    is PlaybackError.Failed -> context.getString(R.string.error_cannot_play, error.name)
                 }
                 snackbarHostState.showSnackbar(message)
             }

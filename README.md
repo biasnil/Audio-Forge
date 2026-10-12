@@ -13,6 +13,10 @@ audioforge/
 ├── CMakeLists.txt
 ├── README.md
 ├── resources/                   # app icon (.png for Qt, .ico/.rc for the Windows .exe)
+├── scripts/                     # deploy_windows.sh, build_installer.sh
+├── installer/                   # audioforge.iss (Inno Setup script for the Windows installer)
+├── android/                     # Android app (Kotlin + Compose), see "Android app" below
+├── ios/                         # iPhone app (SwiftUI), see ios/AudioForge/README.md
 ├── vendor/
 │   └── miniaudio.h              # third-party, single-header audio library
 │
@@ -91,7 +95,9 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
 
 ## Android app
 
-`android/` is a Kotlin port of the desktop app, built in stages:
+`android/` is a Kotlin port of the desktop app. It now has the same features as the
+iOS app (see below), except the home screen widget; Android Auto takes CarPlay's place.
+It was built in stages:
 
 1. Project setup. **Done.**
 2. Playback, library, queue, playlists. **Done:** the phone's music library plus
@@ -118,6 +124,48 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
    videos behind Now Playing (first matching assignment wins, like the
    desktop), muted and looping, paused in the background; on/off and opacity
    in Settings.
+7. iOS parity. **Done:** the iOS tab bar (Songs, Albums, Artists, Genres,
+   Folders, Playlists, Equalizer, Wallpapers, Settings, with "More" past five);
+   Play next / Add to queue and an Up Next page (history, reorder, remove,
+   Save as playlist), remembered across launches; gapless playback; speed,
+   sleep timer (with fade-out), A–B repeat, ±15 s and resume for long tracks;
+   play counts, Loved songs, smart lists and rule-based smart playlists,
+   .m3u import/export, playlist covers; multi-select, import and delete, A–Z
+   index, duplicate finder; full-screen word-by-word lyrics with a timing
+   offset, the lyric line on the lock screen, a visualizer and cover colours
+   on Now Playing; key/BPM analysis with Smart Transitions, Beat-Matched
+   Crossfades and Harmonic Shuffle; Android Auto (browse the library, Lyrics
+   list).
+
+Code layout (`android/app/src/main/java/com/biasnil/audioforge/`):
+```
+AppContainer.kt          # app-wide objects (store, library, player, lyrics...); restores the queue
+MainActivity.kt          # Compose entry point; starts PlaybackService
+playback/
+  PlaybackManager.kt     # two ExoPlayers: crossfade, gapless, beat-match, speed, sleep timer, A–B
+  PlaybackQueue.kt       # queue, shuffle (Off/Random/Smart), repeat, history, Play next / Up Next edits
+  QueueStore.kt          # queue + position saved between launches (files/queue.json)
+  PlaybackService.kt     # media session (notification, lock screen) and Android Auto browsing
+  QueueForwardingPlayer.kt # adds next/previous and the lyric line to the media session
+audio/
+  AudioEffectsProcessor.kt, Equalizer.kt # EQ + gain inside each player's audio pipeline
+  AudioAnalyzer.kt, AnalysisMath.kt      # decode a song and find BPM, beats, key, silence, outro
+  LibraryAnalyzer.kt     # runs the analysis over the library (background only while charging)
+  Visualizer.kt          # spectrum for Now Playing
+data/
+  AppStore.kt            # settings + playlists (files/audioforge.json)
+  LibraryRepository.kt   # the library: MediaStoreSource (phone) + FolderSource (added folders)
+  Track.kt, TrackTags.kt, LibraryModel.kt # song model, tag reading, grouping/sorting/search
+  SongData.kt            # play counts, Loved, long-track positions, lyrics offsets
+  Analysis.kt            # analysis results, MusicKey (Camelot), harmonic order
+  SmartPlaylists.kt      # smart playlist rules
+  CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
+lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker
+                         # follows the line being sung (lock screen, Android Auto)
+tags/                    # tag and cover writing (jaudiotagger)
+ui/                      # Compose screens: one file per tab or page; Common.kt (shared rows,
+                         # buttons) and Bars.kt (top bar, tab bar, ⋮ menu) are shared by them
+```
 
 Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native
 code, so it runs on both 4 KB and 16 KB memory page size devices.
@@ -134,9 +182,9 @@ with presets and post-gain, ReplayGain and volume up to 200%. The app also has
 Off/Random/Smart shuffle with play history, a tag and cover editor (MP3, FLAC, M4A),
 lyrics from LRCLIB and Musixmatch with plain lyrics and a cache, and folders linked
 from the Files app (subfolders included). The rest of the Android features are there
-too: video wallpapers, a Settings tab and hideable tabs. Playback speed, a sleep timer
-and resuming the last song on launch are iOS-only for now. See
-`ios/AudioForge/README.md` for the Xcode setup.
+too: video wallpapers, a Settings tab and hideable tabs. The home screen Now Playing
+widget is iOS-only for now. See `ios/AudioForge/README.md` for the Xcode setup and the
+list of source files.
 
 ## Settings
 
