@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
@@ -24,6 +25,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
+
+/** The permission that lets the app read the phone's music library on this Android version. */
+val audioPermission: String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
+    else Manifest.permission.READ_EXTERNAL_STORAGE
 
 /**
  * The music library: the phone's music (MediaStore) plus added folders,
@@ -379,7 +385,7 @@ class LibraryRepository(
         }
 
     private fun checkAudioPermission(): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) ==
+        ContextCompat.checkSelfPermission(context, audioPermission) ==
             PackageManager.PERMISSION_GRANTED
 
     private companion object {

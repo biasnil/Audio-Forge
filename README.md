@@ -167,7 +167,7 @@ ui/                      # Compose screens: one file per tab or page; Common.kt 
                          # buttons) and Bars.kt (top bar, tab bar, ⋮ menu) are shared by them
 ```
 
-Requirements: Android 14+ (minSdk 34), targeting API 36. The app has no native
+Requirements: Android 12+ (minSdk 31), targeting API 36. The app has no native
 code, so it runs on both 4 KB and 16 KB memory page size devices.
 
 To build, open the `android/` folder in Android Studio (**File → Open**), let

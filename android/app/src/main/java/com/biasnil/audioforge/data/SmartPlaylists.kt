@@ -191,7 +191,7 @@ fun parseM3u(text: String): List<M3uEntry> {
     val entries = ArrayList<M3uEntry>()
     var pendingLabel: String? = null
     for (raw in text.lineSequence()) {
-        val line = raw.trim().removePrefix("﻿")
+        val line = raw.trim().removePrefix("\uFEFF") // byte-order mark
         if (line.isEmpty()) continue
         if (line.uppercase().startsWith("#EXTINF:")) {
             pendingLabel = line.substringAfter(',', "").trim().ifEmpty { null }

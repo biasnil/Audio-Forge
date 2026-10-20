@@ -12,11 +12,11 @@ android {
 
     defaultConfig {
         applicationId = "com.biasnil.audioforge"
-        // Android 14+. The app is pure Kotlin/Java (no native .so files), so
+        // Android 12+. The app is pure Kotlin/Java (no native .so files), so
         // it runs unchanged on both 4 KB and 16 KB memory page size devices.
-        minSdk = 34
+        minSdk = 31
         targetSdk = 36
-        versionCode = 5
+        versionCode = 6
         versionName = "1.0.0"
     }
 
@@ -37,6 +37,13 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    lint {
+        // Android Auto voice search ("play X on AudioForge") isn't supported
+        // yet; adding the intent filter without handling the search would
+        // advertise a feature the app doesn't have.
+        disable += "MissingIntentFilterForMediaSearch"
     }
 }
 

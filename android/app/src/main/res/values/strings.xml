@@ -20,7 +20,7 @@
 
     <!-- Library -->
     <string name="library_scanning">Scanning your music…</string>
-    <string name="library_needs_permission">AudioForge needs access to your music to show the phone\'s music library.</string>
+    <string name="library_needs_permission">AudioForge needs access to the music on this phone to show its music library. It only reads audio files.</string>
     <string name="library_empty">No music found. Add a folder in the Folders tab, or check that your music is on this phone.</string>
     <string name="allow_access">Allow access</string>
     <string name="refresh_library">Refresh library</string>

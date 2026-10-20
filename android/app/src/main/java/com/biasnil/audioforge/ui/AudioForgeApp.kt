@@ -1,6 +1,5 @@
 package com.biasnil.audioforge.ui
 
-import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +47,7 @@ import com.biasnil.audioforge.AppContainer
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.TrackSort
 import com.biasnil.audioforge.data.artistGroups
+import com.biasnil.audioforge.data.audioPermission
 import com.biasnil.audioforge.data.genreGroups
 import com.biasnil.audioforge.data.tracksByArtist
 import com.biasnil.audioforge.data.tracksInAlbum
@@ -301,7 +301,7 @@ private fun MoreList(tabs: List<LibraryTab>, onOpen: (LibraryTab) -> Unit) {
 }
 
 /**
- * Asks for READ_MEDIA_AUDIO. Asked once at startup if the phone library is
+ * Asks for [audioPermission] (READ_MEDIA_AUDIO, or storage on Android 12). Asked once at startup if the phone library is
  * on and access isn't granted yet; after that, only from the "Allow access"
  * buttons (Android itself stops showing the prompt after two refusals).
  */
@@ -312,7 +312,7 @@ private fun rememberAudioPermissionRequest(): () -> Unit {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         library.onAppResumed() // rescans if access changed
     }
-    val request = remember(launcher) { { launcher.launch(Manifest.permission.READ_MEDIA_AUDIO) } }
+    val request = remember(launcher) { { launcher.launch(audioPermission) } }
     var askedAtStartup by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!askedAtStartup && settings.value.includePhoneLibrary && !library.hasAudioPermission.value) {

@@ -6,7 +6,7 @@ import android.provider.MediaStore
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-/** The phone's own music index (needs READ_MEDIA_AUDIO). Fast: no file is opened. */
+/** The phone's own music index (needs [audioPermission]). Fast: no file is opened. */
 class MediaStoreSource(private val resolver: ContentResolver) {
 
     suspend fun queryMusic(): List<Track> {
