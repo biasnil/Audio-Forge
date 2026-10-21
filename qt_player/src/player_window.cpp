@@ -1,6 +1,8 @@
 #include "audioforge/player_window.hpp"
 #include "audioforge/track_metadata.hpp"
 #include "audioforge/warnings.hpp"
+#include "audioforge/widgets/card_list_widget.hpp"
+#include "audioforge/windows_integration.hpp"
 #include "audioforge/widgets/clickable_widget.hpp"
 #include "audioforge/widgets/click_seek_slider.hpp"
 #include "audioforge/widgets/single_page_stacked_widget.hpp"
@@ -12,6 +14,14 @@
 #include "audioforge/dialogs/manual_tag_dialog.hpp"
 #include "audioforge/dialogs/wallpaper_track_picker_dialog.hpp"
 #include "audioforge/dialogs/duplicates_dialog.hpp"
+#include "audioforge/dialogs/text_page_dialog.hpp"
+#include "audioforge/dialogs/smart_playlist_dialog.hpp"
+#include "audioforge/dialogs/visualizer_media_dialog.hpp"
+#include "audioforge/widgets/visualizer_style_grid.hpp"
+#include "audioforge/widgets/visualizer_widget.hpp"
+#include "audioforge/m3u.hpp"
+#include "audioforge/podcasts.hpp"
+#include "audioforge/update_checker.hpp"
 #include "audioforge/widgets/toggle_switch.hpp"
 #include "audioforge/widgets/up_next_panel.hpp"
 #include "audioforge/track_metadata_tags.hpp"
@@ -21,6 +31,8 @@
 #include "audioforge/secret_store.hpp"
 #include "audioforge/theme.hpp"
 #include "audioforge/app_files.hpp"
+#include "audioforge/app_info.hpp"
+#include "audioforge/translations.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -75,9 +87,24 @@
 #include <QThread>
 #include <QScreen>
 #include <QElapsedTimer>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QSystemTrayIcon>
+#include <QLinearGradient>
+#include <QGraphicsOpacityEffect>
+#include <QGraphicsDropShadowEffect>
 #include <QPainter>
 #include <QProgressBar>
 #include <QStyleHints>
+#include <QClipboard>
+#include <QDesktopServices>
+#include <QMessageBox>
+#include <QProcess>
+#include <QSysInfo>
+#include <QLocale>
+#include <QRegularExpression>
+#include <QUuid>
 
 #include <cmath>
 
@@ -139,48 +166,11 @@ static QVector<TrackInfo> TracksInFolders(const QVector<TrackInfo>& tracks, cons
 // "Resume Long Tracks" applies to tracks at least this long (audiobooks, mixes).
 static constexpr float kLongTrackSeconds = 600.0f;
 
-// Averages a downscaled version of the image to get a representative color
-// -- used to tint the Now Playing page's background to roughly match the
-// cover art, the way several music apps do. Falls back to a neutral dark
-// gray for tracks with no embedded art.
-static QColor AverageColor(const QByteArray& imageBytes)
-{
-    QColor fallback(35, 36, 40);
-    if (imageBytes.isEmpty())
-    {
-        return fallback;
-    }
-
-    QImage image;
-    if (!image.loadFromData(imageBytes))
-    {
-        return fallback;
-    }
-
-    QImage small = image.scaled(24, 24, Qt::IgnoreAspectRatio, Qt::FastTransformation).convertToFormat(QImage::Format_RGB32);
-    qint64 r = 0, g = 0, b = 0;
-    int count = small.width() * small.height();
-    if (count == 0)
-    {
-        return fallback;
-    }
-
-    for (int y = 0; y < small.height(); ++y)
-    {
-        const QRgb* line = reinterpret_cast<const QRgb*>(small.constScanLine(y));
-        for (int x = 0; x < small.width(); ++x)
-        {
-            QRgb px = line[x];
-            r += qRed(px);
-            g += qGreen(px);
-            b += qBlue(px);
-        }
-    }
-
-    // Darken a bit so white text stays readable on top of it.
-    QColor avg(static_cast<int>(r / count * 0.55), static_cast<int>(g / count * 0.55), static_cast<int>(b / count * 0.55));
-    return avg;
-}
+// Album / artist rows: the plain name (the row's text adds a translated "(N tracks)").
+static constexpr int kGroupNameRole = Qt::UserRole + 1;
+// Playlist rows: a smart playlist's id (empty for a regular one, whose index is Qt::UserRole).
+static constexpr int kSmartIdRole = Qt::UserRole + 2;
+static constexpr int kNewCardRole = Qt::UserRole + 3; // the Playlists tab's "+ New" cards
 
 // Scales `imageBytes` to fill `targetSize` exactly, cropping the overflow
 // off whichever dimension ends up larger -- rather than stretching the
@@ -221,11 +211,12 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
 
     if (!m_engine.init())
     {
-        ErrorReporter::warn(this, "Audio engine failed to start",
-            "The audio engine could not be initialized (no audio device found?). Playback controls won't work.");
+        ErrorReporter::warn(this, tr("Audio engine failed to start"),
+            tr("The audio engine could not be initialized (no audio device found?). Playback controls won't work."));
     }
 
     m_network = new QNetworkAccessManager(this);
+    m_updateChecker = new UpdateChecker(m_network, this); // before the Settings tab, which shows its state
 
     m_stack = new SinglePageStackedWidget();
     auto* outerLayout = new QVBoxLayout(this);
@@ -246,6 +237,17 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     m_analyzer = new LibraryAnalyzer(m_songData);
     connect(m_analyzer, &LibraryAnalyzer::progressChanged, this, &PlayerWindow::updateAnalysisProgressUi);
     connect(m_analyzer, &LibraryAnalyzer::finished, this, &PlayerWindow::onAnalysisFinished);
+    m_genreAnalyzer = new GenreAnalyzer(m_songData);
+    connect(m_genreAnalyzer, &GenreAnalyzer::progressChanged, this, &PlayerWindow::updateGenreProgressUi);
+    connect(m_genreAnalyzer, &GenreAnalyzer::finished, this, [this]() {
+        updateGenreProgressUi();
+        // Newly detected genres replace empty and "Music"-like ones in the list.
+        refreshTracksTable();
+        updateLibraryStatsUi();
+    });
+
+    m_visualizerMedia.load();
+    m_smartPlaylists = LoadSmartPlaylists();
 
     // Theme "System" follows Windows' light/dark setting, live.
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
@@ -275,14 +277,14 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
 
     m_searchBar = new QLineEdit();
     m_searchBar->setObjectName("SearchBar");
-    m_searchBar->setPlaceholderText("Search songs, artists, albums...");
+    m_searchBar->setPlaceholderText(tr("Search songs, artists, albums..."));
     m_searchBar->setClearButtonEnabled(true);
     m_searchBar->setFixedWidth(320);
     m_searchIconAction = m_searchBar->addAction(QIcon(), QLineEdit::LeadingPosition);
     connect(m_searchBar, &QLineEdit::textChanged, this, &PlayerWindow::applySearchFilter);
     topBar->addWidget(m_searchBar);
 
-    m_themeButton = MakeIconButton(36, 18, "Toggle light / dark theme");
+    m_themeButton = MakeIconButton(36, 18, tr("Toggle light / dark theme"));
     connect(m_themeButton, &QPushButton::clicked, this, &PlayerWindow::toggleTheme);
     topBar->addWidget(m_themeButton);
     rootLayout->addLayout(topBar);
@@ -292,7 +294,7 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     auto* scanLayout = new QHBoxLayout(m_scanBar);
     scanLayout->setContentsMargins(4, 0, 4, 0);
     scanLayout->setSpacing(12);
-    m_scanLabel = new QLabel("Loading library\u2026");
+    m_scanLabel = new QLabel(tr("Loading library\u2026"));
     m_scanLabel->setObjectName("MutedLabel");
     scanLayout->addWidget(m_scanLabel);
     m_scanProgress = new QProgressBar();
@@ -388,20 +390,22 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     m_toastTimer->setSingleShot(true);
     connect(m_toastTimer, &QTimer::timeout, m_toast, &QWidget::hide);
 
-    m_tabs->addTab(buildAlbumsTab(), "Albums");     // index 0
-    m_tabs->addTab(buildTracksTab(), "Tracks");      // index 1
-    m_tabs->addTab(buildArtistsTab(), "Artists");    // index 2
-    m_tabs->addTab(buildFoldersTab(), "Folders");    // index 3
-    m_tabs->addTab(buildPlaylistsTab(), "Playlists");// index 4
-    m_tabs->addTab(buildEqualizerTab(), "Equalizer"); // index 5 (always visible, not in the visibility config)
-    m_tabs->addTab(buildWallpapersTab(), "Wallpapers"); // index 6 (always visible, not in the visibility config)
-    m_tabs->addTab(buildSettingsTab(), "Settings");  // index 7 (always visible, not in the visibility config)
+    m_tabs->addTab(buildAlbumsTab(), tr("Albums"));     // index 0
+    m_tabs->addTab(buildTracksTab(), tr("Tracks"));      // index 1
+    m_tabs->addTab(buildArtistsTab(), tr("Artists"));    // index 2
+    m_tabs->addTab(buildFoldersTab(), tr("Folders"));    // index 3
+    m_tabs->addTab(buildPlaylistsTab(), tr("Playlists"));// index 4
+    m_tabs->addTab(buildEqualizerTab(), tr("Equalizer")); // index 5 (always visible, not in the visibility config)
+    m_tabs->addTab(buildWallpapersTab(), tr("Wallpapers")); // index 6 (always visible, not in the visibility config)
+    m_tabs->addTab(buildSettingsTab(), tr("Settings"));  // index 7 (always visible, not in the visibility config)
+    m_tabs->addTab(buildPodcastsTab(), tr("Podcasts"));  // index 8 (shown with the library tabs)
     rootLayout->addWidget(buildPlayerBar());
 
     libraryLayout->addWidget(buildSidebar());
     libraryLayout->addWidget(mainArea, 1);
 
     connect(m_tabs, &QTabWidget::currentChanged, this, &PlayerWindow::onTabChanged);
+    connect(m_tabs, &QTabWidget::currentChanged, this, &PlayerWindow::fitTracksColumnsOnce); // if Tracks wasn't showing at start
     m_tabs->setCurrentIndex(1); // Tracks
     onTabChanged(m_tabs->currentIndex()); // setCurrentIndex(1) may not emit if 1 was already current
 
@@ -414,6 +418,7 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     m_wallpaperWidget->setPaused(true);
     connect(m_stack, &QStackedWidget::currentChanged, this, [this](int index) {
         m_wallpaperWidget->setPaused(index != 1 || isMinimized());
+        updateVisualizerActive();
     });
 
     // Qt apps are event-loop driven, not a manual render loop -- a timer is
@@ -427,6 +432,44 @@ PlayerWindow::PlayerWindow(QWidget* parent) : QWidget(parent)
     loadSettings();
     restoreQueueState(); // needs the library (loadSettings) to look tracks up
     startLibraryScan();  // checks the cached library against the disk, in the background
+    QTimer::singleShot(0, this, &PlayerWindow::fitTracksColumnsOnce); // once the window is on screen
+
+    setupWindowsIntegration();
+    QTimer::singleShot(3000, this, [this]() { m_startupSettled = true; }); // the restored song isn't "new"
+    setAcceptDrops(true); // music files to play, folders to add (dropEvent)
+    connect(qApp, &QCoreApplication::aboutToQuit, this, &PlayerWindow::saveBeforeExit); // e.g. Windows shutting down while in the tray
+
+    // Development aid: AUDIOFORGE_SNAPSHOT="4:playlists.png;nowplaying:np.png" saves
+    // pictures of those pages (a tab index, or "nowplaying") a few seconds after
+    // start, then quits. Unset, nothing happens.
+    const QString snapshots = qEnvironmentVariable("AUDIOFORGE_SNAPSHOT");
+    if (!snapshots.isEmpty())
+    {
+        QTimer::singleShot(4000, this, [this, snapshots]() {
+            for (const QString& entry : snapshots.split(';', Qt::SkipEmptyParts))
+            {
+                const QString page = entry.section(':', 0, 0);
+                const QString file = entry.section(':', 1);
+                if (page == QLatin1String("nowplaying"))
+                {
+                    m_stack->setCurrentIndex(1);
+                }
+                else
+                {
+                    m_stack->setCurrentIndex(0);
+                    m_tabs->setCurrentIndex(page.toInt());
+                }
+                QElapsedTimer settle;
+                settle.start();
+                while (settle.elapsed() < 1500)
+                {
+                    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+                }
+                grab().save(file);
+            }
+            QCoreApplication::exit(0);
+        });
+    }
 }
 
 PlayerWindow::~PlayerWindow()
@@ -436,23 +479,213 @@ PlayerWindow::~PlayerWindow()
         m_scanCancel->store(true); // it stops after the file it's reading
         m_scanThread->wait();
     }
-    // Analyzer first: cancelling it writes into the store. Disconnected so
-    // its "finished" signal can't reach this half-destroyed window.
+    // Analyzers first: cancelling them writes into the store. Disconnected so
+    // their "finished" signals can't reach this half-destroyed window.
     m_analyzer->disconnect();
     delete m_analyzer;
+    m_genreAnalyzer->disconnect();
+    delete m_genreAnalyzer;
     delete m_songData; // saves anything pending
     // AudioEngine's own destructor tears down miniaudio
 }
 
 void PlayerWindow::closeEvent(QCloseEvent* event)
 {
+    // "Keep playing in the tray": closing only hides the window. Quit is in the tray icon's menu.
+    if (m_keepPlayingInTray && !m_quitting && m_tray && m_tray->isVisible())
+    {
+        hide();
+        event->ignore();
+        if (!m_trayHintShown)
+        {
+            m_trayHintShown = true;
+            m_tray->showMessage(QStringLiteral("AudioForge"),
+                                tr("AudioForge keeps playing here. Right-click the icon to quit."),
+                                windowIcon(), 5000);
+        }
+        return;
+    }
+    saveBeforeExit();
+    QWidget::closeEvent(event);
+}
+
+void PlayerWindow::saveBeforeExit()
+{
+    if (m_savedForExit)
+    {
+        return; // closeEvent and aboutToQuit can both come
+    }
+    m_savedForExit = true;
     rememberLongTrackPosition();
     m_songData->saveNow();
     saveQueueState();
-    MusicLibrary::SaveCache(m_library.tracks()); // keeps tag edits made since the last scan
+    MusicLibrary::SaveCache(m_library.allTracks()); // keeps tag edits made since the last scan (podcasts too)
     saveSettings();
     m_wallpaperLibrary.save();
-    QWidget::closeEvent(event);
+}
+
+void PlayerWindow::setupWindowsIntegration()
+{
+    // The Windows media controls (overlay, lock screen, background media keys) and the taskbar buttons.
+    m_windowsMedia = new WindowsMediaControls(this);
+    connect(m_windowsMedia, &WindowsMediaControls::playPauseRequested, this, &PlayerWindow::togglePlayPause);
+    connect(m_windowsMedia, &WindowsMediaControls::playRequested, this, [this]() {
+        if (!m_engine.isPlaying())
+        {
+            togglePlayPause();
+        }
+    });
+    connect(m_windowsMedia, &WindowsMediaControls::pauseRequested, this, [this]() {
+        if (m_engine.isPlaying())
+        {
+            togglePlayPause();
+        }
+    });
+    connect(m_windowsMedia, &WindowsMediaControls::nextRequested, this, [this]() { next(false); });
+    connect(m_windowsMedia, &WindowsMediaControls::previousRequested, this, &PlayerWindow::previous);
+    if (!m_queue.isEmpty() && m_engine.isLoaded()) // the song restored at start
+    {
+        const TrackInfo& info = m_queue.currentTrack();
+        m_windowsMedia->setTrack(info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
+                                 info.artist, info.album, info.coverArt.isEmpty() ? ReadCoverArt(info.path) : info.coverArt);
+        m_windowsMedia->setPlaybackState(true, m_engine.isPlaying());
+    }
+
+    // The tray icon: Play/Pause, Next, Previous, Show, Quit; a click brings the window back.
+    if (!QSystemTrayIcon::isSystemTrayAvailable())
+    {
+        return;
+    }
+    m_tray = new QSystemTrayIcon(windowIcon(), this);
+    m_tray->setToolTip(QStringLiteral("AudioForge"));
+    auto* menu = new QMenu(this);
+    m_trayPlayAction = menu->addAction(tr("Play"), this, &PlayerWindow::togglePlayPause);
+    menu->addAction(tr("Next"), this, [this]() { next(false); });
+    menu->addAction(tr("Previous"), this, &PlayerWindow::previous);
+    menu->addSeparator();
+    menu->addAction(tr("Show AudioForge"), this, &PlayerWindow::showFromTray);
+    menu->addAction(tr("Quit"), this, [this]() {
+        m_quitting = true;
+        close(); // saves
+        QCoreApplication::quit();
+    });
+    m_tray->setContextMenu(menu);
+    connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
+        {
+            showFromTray();
+        }
+    });
+    connect(m_tray, &QSystemTrayIcon::messageClicked, this, &PlayerWindow::showFromTray);
+    m_tray->show();
+}
+
+void PlayerWindow::showFromTray()
+{
+    if (isMinimized())
+    {
+        showNormal();
+    }
+    else
+    {
+        show();
+    }
+    raise();
+    activateWindow();
+}
+
+void PlayerWindow::notifySongStarted(const TrackInfo& info, const QByteArray& coverArt)
+{
+    // Only when AudioForge isn't what you're looking at, and not for the song restored at start.
+    if (!m_songNotifications || !m_tray || !m_startupSettled || (isVisible() && isActiveWindow() && !isMinimized()))
+    {
+        return;
+    }
+    QPixmap cover;
+    if (coverArt.isEmpty() || !cover.loadFromData(coverArt))
+    {
+        cover = theme::generatedArt(info.title, 64, 8);
+    }
+    QString details = info.artist;
+    if (!info.album.isEmpty())
+    {
+        details += (details.isEmpty() ? QString() : QStringLiteral(" • ")) + info.album;
+    }
+    m_tray->showMessage(info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title, details,
+                        QIcon(cover), 5000);
+}
+
+bool PlayerWindow::nativeEvent(const QByteArray& eventType, void* message, qintptr* result)
+{
+    if (m_windowsMedia && eventType == "windows_generic_MSG" && m_windowsMedia->handleNativeEvent(message, result))
+    {
+        return true;
+    }
+    return QWidget::nativeEvent(eventType, message, result);
+}
+
+namespace {
+
+// What a drop can hold: folders to add, and the files AudioForge plays.
+bool IsPlayableFile(const QString& path)
+{
+    static const QStringList kExtensions = {"mp3", "flac", "wav", "m4a", "m4b", "aac"};
+    return kExtensions.contains(QFileInfo(path).suffix().toLower());
+}
+
+} // namespace
+
+void PlayerWindow::dragEnterEvent(QDragEnterEvent* event)
+{
+    for (const QUrl& url : event->mimeData()->urls())
+    {
+        const QString path = url.toLocalFile();
+        if (!path.isEmpty() && (QFileInfo(path).isDir() || IsPlayableFile(path)))
+        {
+            event->acceptProposedAction();
+            return;
+        }
+    }
+}
+
+void PlayerWindow::dropEvent(QDropEvent* event)
+{
+    QVector<TrackInfo> tracks;
+    QStringList addedFolders;
+    for (const QUrl& url : event->mimeData()->urls())
+    {
+        const QString path = url.toLocalFile();
+        if (path.isEmpty())
+        {
+            continue;
+        }
+        if (QFileInfo(path).isDir())
+        {
+            if (m_library.addFolder(path))
+            {
+                addedFolders << QDir::toNativeSeparators(path);
+            }
+        }
+        else if (IsPlayableFile(path))
+        {
+            tracks << m_library.findTrackInfo(path);
+        }
+    }
+    event->acceptProposedAction();
+    if (!addedFolders.isEmpty())
+    {
+        refreshFoldersList();
+        startLibraryScan(); // reads the new folders' songs in the background
+    }
+    if (!tracks.isEmpty())
+    {
+        setQueueAndPlay(tracks, 0, tr("Dropped files"));
+    }
+    if (!addedFolders.isEmpty())
+    {
+        showToast(addedFolders.size() == 1 ? tr("Added %1 to the library.").arg(addedFolders.first())
+                                           : tr("Added %1 folders to the library.").arg(addedFolders.size()));
+    }
 }
 
 void PlayerWindow::changeEvent(QEvent* event)
@@ -460,6 +693,7 @@ void PlayerWindow::changeEvent(QEvent* event)
     if (event->type() == QEvent::WindowStateChange)
     {
         m_wallpaperWidget->setPaused(isMinimized() || m_stack->currentIndex() != 1);
+        updateVisualizerActive();
     }
     QWidget::changeEvent(event);
 }
@@ -488,7 +722,7 @@ QWidget* PlayerWindow::buildAlbumsTab()
     auto* l = new QVBoxLayout(w);
     m_albumsList = new QListWidget();
     connect(m_albumsList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
-        openGroupTracks(item->text(), item->data(Qt::UserRole).toStringList());
+        openGroupTracks(item->data(kGroupNameRole).toString(), item->data(Qt::UserRole).toStringList());
     });
     enableTracksMenu(m_albumsList, /*playlistRows=*/false);
 
@@ -502,7 +736,7 @@ QWidget* PlayerWindow::buildArtistsTab()
     auto* l = new QVBoxLayout(w);
     m_artistsList = new QListWidget();
     connect(m_artistsList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
-        openGroupTracks(item->text(), item->data(Qt::UserRole).toStringList());
+        openGroupTracks(item->data(kGroupNameRole).toString(), item->data(Qt::UserRole).toStringList());
     });
     enableTracksMenu(m_artistsList, /*playlistRows=*/false);
 
@@ -516,10 +750,22 @@ QWidget* PlayerWindow::buildTracksTab()
     auto* l = new QVBoxLayout(w);
 
     m_tracksTable = new QTableWidget(0, 5);
-    m_tracksTable->setHorizontalHeaderLabels({"Title", "Artist", "Album", "Genre", "Year"});
-    m_tracksTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    m_tracksTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents); // Year
-    m_tracksTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents); // Genre
+    m_tracksTable->setHorizontalHeaderLabels({tr("Title"), tr("Artist"), tr("Album"), tr("Genre"), tr("Year")});
+    {
+        // Every column can be resized (drag its edge; double-click the edge to
+        // fit it) and moved (drag its name); both are remembered (saveSettings).
+        QHeaderView* header = m_tracksTable->horizontalHeader();
+        header->setSectionResizeMode(QHeaderView::Interactive);
+        header->setSectionsMovable(true);
+        header->setStretchLastSection(false);
+        header->setMinimumSectionSize(48);
+        header->setTextElideMode(Qt::ElideRight);
+        const int widths[] = {440, 220, 220, 160, 64}; // Title, Artist, Album, Genre, Year
+        for (int i = 0; i < 5; ++i)
+        {
+            header->resizeSection(i, widths[i]);
+        }
+    }
     m_tracksTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_tracksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_tracksTable->setSelectionMode(QAbstractItemView::ExtendedSelection); // Ctrl/Shift-click several to queue them
@@ -536,14 +782,14 @@ QWidget* PlayerWindow::buildTracksTab()
     l->addWidget(m_tracksTable);
 
     auto* buttonRow = new QHBoxLayout();
-    m_musicBrainzButton = new QPushButton("Tag Music");
+    m_musicBrainzButton = new QPushButton(tr("Edit Tags..."));
     m_musicBrainzButton->setEnabled(false);
-    connect(m_musicBrainzButton, &QPushButton::clicked, this, &PlayerWindow::openTagMusicMenu);
+    connect(m_musicBrainzButton, &QPushButton::clicked, this, [this]() { openManualTagDialog(); });
     buttonRow->addWidget(m_musicBrainzButton);
 
-    m_changeCoverButton = new QPushButton("Change Cover...");
+    m_changeCoverButton = new QPushButton(tr("Change Cover..."));
     m_changeCoverButton->setEnabled(false);
-    connect(m_changeCoverButton, &QPushButton::clicked, this, &PlayerWindow::openChangeCoverDialog);
+    connect(m_changeCoverButton, &QPushButton::clicked, this, [this]() { openChangeCoverDialog(); });
     buttonRow->addWidget(m_changeCoverButton);
 
     connect(m_tracksTable, &QTableWidget::itemSelectionChanged, this, [this]() {
@@ -563,9 +809,19 @@ QWidget* PlayerWindow::buildFoldersTab()
     auto* l = new QVBoxLayout(w);
 
     m_foldersList = new QListWidget();
+    m_foldersList->setObjectName("FoldersList");
+    m_foldersList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_foldersList->setResizeMode(QListView::Adjust); // rows follow the list's width
     l->addWidget(m_foldersList);
 
-    auto* addFolderButton = new QPushButton("Add Folder...");
+    auto* podcastNote = new QLabel(tr(
+        "Tick Podcast for a folder of podcasts: its episodes only show in the Podcasts tab (never in Tracks, "
+        "Albums, playlists or shuffle), continue where you left them, and .m4a files in it are found too."));
+    podcastNote->setObjectName("MutedLabel");
+    podcastNote->setWordWrap(true);
+    l->addWidget(podcastNote);
+
+    auto* addFolderButton = new QPushButton(tr("Add Folder..."));
     connect(addFolderButton, &QPushButton::clicked, this, &PlayerWindow::addFolder);
 
     auto* row = new QHBoxLayout();
@@ -579,32 +835,302 @@ QWidget* PlayerWindow::buildFoldersTab()
 
 QWidget* PlayerWindow::buildPlaylistsTab()
 {
-    auto* w = new QWidget();
-    auto* l = new QVBoxLayout(w);
+    // Two sections of cards on one scrolling page: the user's own playlists
+    // (cover mosaics, plus a "New" card), then the smart ones.
+    auto* scroll = new QScrollArea();
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    auto* page = new QWidget();
+    auto* l = new QVBoxLayout(page);
+    l->setContentsMargins(0, 0, 8, 16);
 
-    m_playlistsList = new QListWidget();
-    connect(m_playlistsList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
-        int index = item->data(Qt::UserRole).toInt();
-        openPlaylistTracks(index);
+    auto heading = [](const QString& text) {
+        auto* label = new QLabel(text);
+        label->setObjectName("SectionHeading");
+        return label;
+    };
+
+    l->addWidget(heading(tr("Your Playlists")));
+    m_playlistsList = new CardListWidget(QSize(150, 150), QSize(176, 214));
+    l->addWidget(m_playlistsList);
+    l->addSpacing(12);
+    l->addWidget(heading(tr("Smart Playlists")));
+    m_smartPlaylistsList = new CardListWidget(QSize(72, 72), QSize(140, 134));
+    l->addWidget(m_smartPlaylistsList);
+    l->addStretch();
+
+    for (QListWidget* list : {m_playlistsList, m_smartPlaylistsList})
+    {
+        connect(list, &QListWidget::itemDoubleClicked, this, &PlayerWindow::activatePlaylistItem);
+        // The "New" cards open their menu on a single click.
+        connect(list, &QListWidget::itemClicked, this, [this, list](QListWidgetItem* item) {
+            if (!item->data(kNewCardRole).toBool())
+            {
+                return;
+            }
+            list->clearSelection();
+            if (list == m_smartPlaylistsList)
+            {
+                editSmartPlaylist(QString());
+            }
+            else
+            {
+                showNewPlaylistMenu(list->viewport(), list->visualItemRect(item).bottomLeft());
+            }
+        });
+        enableTracksMenu(list, /*playlistRows=*/true);
+    }
+
+    scroll->setWidget(page);
+    return scroll;
+}
+
+// --- Podcasts ----------------------------------------------------------------------
+
+QWidget* PlayerWindow::buildPodcastsTab()
+{
+    m_podcastsStack = new QStackedWidget();
+
+    // Page 0: the shows.
+    auto* showsPage = new QWidget();
+    auto* showsLayout = new QVBoxLayout(showsPage);
+    m_podcastsEmptyLabel = new QLabel(tr("No podcasts yet. In the Folders tab, tick Podcast for a folder of podcasts."));
+    m_podcastsEmptyLabel->setObjectName("MutedLabel");
+    m_podcastsEmptyLabel->setWordWrap(true);
+    m_podcastsEmptyLabel->setAlignment(Qt::AlignCenter);
+    showsLayout->addWidget(m_podcastsEmptyLabel, 1);
+    m_podcastShowsList = new QListWidget();
+    m_podcastShowsList->setIconSize(QSize(44, 44));
+    m_podcastShowsList->setSpacing(2);
+    connect(m_podcastShowsList, &QListWidget::itemActivated, this, [this](QListWidgetItem* item) {
+        openPodcastShow(item->data(Qt::UserRole).toString());
     });
-    enableTracksMenu(m_playlistsList, /*playlistRows=*/true);
+    showsLayout->addWidget(m_podcastShowsList, 1);
+    m_podcastsStack->addWidget(showsPage);
 
-    l->addWidget(m_playlistsList, 1);
+    // Page 1: one show's episodes, newest first.
+    auto* episodesPage = new QWidget();
+    auto* episodesLayout = new QVBoxLayout(episodesPage);
+    auto* header = new QHBoxLayout();
+    m_podcastBackButton = MakeIconButton(32, 18, tr("All podcasts"));
+    connect(m_podcastBackButton, &QPushButton::clicked, this, [this]() {
+        m_openPodcastShow.clear();
+        m_podcastsStack->setCurrentIndex(0);
+    });
+    header->addWidget(m_podcastBackButton);
+    m_podcastShowTitle = new QLabel();
+    m_podcastShowTitle->setObjectName("SettingsSectionTitle");
+    header->addWidget(m_podcastShowTitle, 1);
+    episodesLayout->addLayout(header);
+    m_podcastEpisodesList = new QListWidget();
+    m_podcastEpisodesList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_podcastEpisodesList, &QListWidget::customContextMenuRequested, this, &PlayerWindow::showPodcastEpisodeMenu);
+    connect(m_podcastEpisodesList, &QListWidget::itemActivated, this, [this](QListWidgetItem* item) {
+        for (const PodcastShow& show : PodcastShows(m_library))
+        {
+            if (show.name == m_openPodcastShow)
+            {
+                // From this episode on; each one continues where it was left.
+                setQueueAndPlay(show.episodes, m_podcastEpisodesList->row(item), show.name);
+                return;
+            }
+        }
+    });
+    episodesLayout->addWidget(m_podcastEpisodesList, 1);
+    auto* hint = new QLabel(tr("Double-click an episode to play it; right-click to mark it played or unplayed."));
+    hint->setObjectName("MutedLabel");
+    episodesLayout->addWidget(hint);
+    m_podcastsStack->addWidget(episodesPage);
+    return m_podcastsStack;
+}
 
-    auto* addPlaylistButton = new QPushButton("+");
-    addPlaylistButton->setFixedSize(44, 44);
-    QFont f = addPlaylistButton->font();
-    f.setPointSize(f.pointSize() + 4);
-    addPlaylistButton->setFont(f);
-    connect(addPlaylistButton, &QPushButton::clicked, this, &PlayerWindow::openCreatePlaylistDialog);
+void PlayerWindow::refreshPodcasts()
+{
+    if (!m_podcastShowsList)
+    {
+        return;
+    }
+    const QVector<PodcastShow> shows = PodcastShows(m_library);
+    const QHash<QString, SongStats>& stats = m_songData->allStats();
 
-    auto* row = new QHBoxLayout();
-    row->addStretch();
-    row->addWidget(addPlaylistButton);
-    row->addStretch();
-    l->addLayout(row);
+    m_podcastShowsList->clear();
+    const QPixmap placeholder = theme::icon(theme::Icon::Podcast, theme::tokens(m_darkMode).muted, QColor(), QColor(), 44).pixmap(44, 44);
+    for (const PodcastShow& show : shows)
+    {
+        int unplayed = 0;
+        for (const TrackInfo& e : show.episodes)
+        {
+            unplayed += stats.value(e.path).played ? 0 : 1;
+        }
+        const QPixmap cover = ScaledCoverArt(ReadCoverArt(show.episodes.first().path), QSize(88, 88));
+        auto* item = new QListWidgetItem(QIcon(cover.isNull() ? placeholder : theme::roundedPixmap(cover, 8)),
+                                         show.name + '\n' + tr("%1 episodes · %2 unplayed").arg(show.episodes.size()).arg(unplayed));
+        item->setData(Qt::UserRole, show.name);
+        m_podcastShowsList->addItem(item);
+    }
+    m_podcastsEmptyLabel->setVisible(shows.isEmpty());
+    m_podcastShowsList->setVisible(!shows.isEmpty());
 
-    return w;
+    // The open show's episodes (it may have gone: folder unmarked, or emptied).
+    const PodcastShow* open = nullptr;
+    for (const PodcastShow& show : shows)
+    {
+        if (show.name == m_openPodcastShow)
+        {
+            open = &show;
+        }
+    }
+    if (!open)
+    {
+        m_openPodcastShow.clear();
+        m_podcastsStack->setCurrentIndex(0);
+        return;
+    }
+    const int row = m_podcastEpisodesList->currentRow();
+    m_podcastEpisodesList->clear();
+    const QString playing = !m_queue.isEmpty() && m_engine.isLoaded() ? m_queue.currentTrack().path : QString();
+    for (const TrackInfo& e : open->episodes)
+    {
+        const SongStats s = stats.value(e.path);
+        const double resume = m_songData->resumePosition(e.path);
+        QString status;
+        if (s.played)
+        {
+            status = QStringLiteral("✓ ") + tr("Played");
+        }
+        else if (resume > 0.0 && e.durationSeconds > resume)
+        {
+            status = tr("%1 left").arg(FormatDuration(static_cast<int>(e.durationSeconds - resume)));
+        }
+        else
+        {
+            status = FormatDuration(static_cast<int>(e.durationSeconds + 0.5));
+        }
+        const QString date = e.addedMs > 0 ? QLocale().toString(QDateTime::fromMSecsSinceEpoch(e.addedMs).date(), QLocale::ShortFormat)
+                                           : QString();
+        auto* item = new QListWidgetItem((e.title.isEmpty() ? QFileInfo(e.path).completeBaseName() : e.title) + '\n'
+                                         + (date.isEmpty() ? status : date + QStringLiteral("  ·  ") + status));
+        item->setData(Qt::UserRole, e.path);
+        item->setToolTip(QDir::toNativeSeparators(e.path));
+        if (e.path == playing)
+        {
+            QFont font = item->font();
+            font.setBold(true);
+            item->setFont(font);
+        }
+        if (s.played)
+        {
+            item->setForeground(theme::tokens(m_darkMode).muted);
+        }
+        m_podcastEpisodesList->addItem(item);
+    }
+    m_podcastEpisodesList->setCurrentRow(qMin(row, m_podcastEpisodesList->count() - 1));
+}
+
+void PlayerWindow::openPodcastShow(const QString& name)
+{
+    m_openPodcastShow = name;
+    m_podcastShowTitle->setText(name);
+    m_podcastEpisodesList->clear();
+    refreshPodcasts();
+    if (!m_openPodcastShow.isEmpty())
+    {
+        m_podcastsStack->setCurrentIndex(1);
+    }
+}
+
+void PlayerWindow::showPodcastEpisodeMenu(const QPoint& pos)
+{
+    QListWidgetItem* item = m_podcastEpisodesList->itemAt(pos);
+    if (!item)
+    {
+        return;
+    }
+    const QString path = item->data(Qt::UserRole).toString();
+    const bool played = m_songData->statsFor(path).played;
+    const TrackInfo episode = m_library.findTrackInfo(path);
+    QMenu menu(this);
+    menu.addAction(played ? tr("Mark as Unplayed") : tr("Mark as Played"), this, [this, path, played]() {
+        m_songData->setPlayed(path, !played);
+        refreshPodcasts();
+    });
+    menu.addSeparator();
+    menu.addAction(MenuIcon(theme::Icon::Next, m_darkMode), tr("Play Next"), this, [this, episode]() { playNextTracks({episode}); });
+    menu.addAction(MenuIcon(theme::Icon::Queue, m_darkMode), tr("Add to Queue"), this, [this, episode]() { addTracksToQueue({episode}); });
+    menu.addAction(tr("Show in Folder"), this, [path]() { ShowInFileManager(path); });
+    menu.exec(m_podcastEpisodesList->viewport()->mapToGlobal(pos));
+}
+
+// --- A-B repeat ---------------------------------------------------------------------
+
+void PlayerWindow::cycleAbRepeat()
+{
+    if (!m_engine.isLoaded())
+    {
+        clearAbRepeat();
+        return;
+    }
+    const float now = m_engine.cursorSeconds();
+    switch (m_abState)
+    {
+        case AbState::Off:
+            m_abState = AbState::ASet;
+            m_abA = now;
+            break;
+        case AbState::ASet:
+            if (now > m_abA + 1.0f)
+            {
+                m_abState = AbState::Looping;
+                m_abB = now;
+                if (m_engine.isCrossfading())
+                {
+                    abortCrossfade(); // the loop replaces the hand-off to the next song
+                    applyVolume();
+                }
+            }
+            else
+            {
+                m_abState = AbState::Off; // B at (or before) A: cancel
+            }
+            break;
+        case AbState::Looping:
+            m_abState = AbState::Off;
+            break;
+    }
+    updateAbButton();
+}
+
+void PlayerWindow::clearAbRepeat()
+{
+    m_abState = AbState::Off;
+    updateAbButton();
+}
+
+void PlayerWindow::updateAbButton()
+{
+    if (!m_abButton)
+    {
+        return;
+    }
+    m_abButton->setChecked(m_abState == AbState::Looping);
+    m_abButton->setText(m_abState == AbState::ASet ? QStringLiteral("A–") : QStringLiteral("A–B"));
+    // A set, waiting for B: the accent colour, not yet filled.
+    m_abButton->setStyleSheet(m_abState == AbState::ASet
+        ? QString("QPushButton { color: %1; }").arg(theme::tokens(m_darkMode).accent.name())
+        : QString());
+    switch (m_abState)
+    {
+        case AbState::Off:
+            m_abButton->setToolTip(tr("A–B repeat: click to set the start (A)"));
+            break;
+        case AbState::ASet:
+            m_abButton->setToolTip(tr("A–B repeat: click again to set the end (B)"));
+            break;
+        case AbState::Looping:
+            m_abButton->setToolTip(tr("Repeating %1 to %2. Click to stop.")
+                                       .arg(FormatDuration(static_cast<int>(m_abA)), FormatDuration(static_cast<int>(m_abB))));
+            break;
+    }
 }
 
 namespace {
@@ -731,9 +1257,24 @@ QWidget* PlayerWindow::buildSettingsTab()
         return row;
     };
 
+    // A whole row, chevron included, that opens a dialog, a page or a link.
+    // (A QLabel, not a button: a button turns the "&" of "Terms & Conditions" into a shortcut.)
+    auto chevronRow = [this](const SettingsCard& card, const QString& text, const std::function<void()>& onClick) {
+        auto* chevron = new QLabel();
+        m_settingsIcons << qMakePair(chevron, theme::Icon::Chevron);
+        auto* row = new ClickableWidget();
+        row->setMinimumHeight(46);
+        connect(row, &ClickableWidget::clicked, this, onClick);
+        auto* rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(16, 8, 16, 8);
+        rowLayout->addWidget(new QLabel(text), 1);
+        rowLayout->addWidget(chevron);
+        AddSettingsRow(card, row);
+    };
+
     // --- Library ---------------------------------------------------------
-    SettingsCard library = AddSettingsSection(l, "Library");
-    for (const QString& name : {QStringLiteral("Songs"), QStringLiteral("Albums"), QStringLiteral("Artists"), QStringLiteral("Genres")})
+    SettingsCard library = AddSettingsSection(l, tr("Library"));
+    for (const QString& name : {tr("Songs"), tr("Albums"), tr("Artists"), tr("Genres")})
     {
         QLabel* value = MakeValueLabel();
         m_statValueLabels << value;
@@ -741,7 +1282,7 @@ QWidget* PlayerWindow::buildSettingsTab()
     }
 
     {
-        m_refreshLibraryButton = new QPushButton("Refresh Library");
+        m_refreshLibraryButton = new QPushButton(tr("Refresh Library"));
         m_refreshLibraryButton->setObjectName("LinkButton");
         m_refreshLibraryButton->setCursor(Qt::PointingHandCursor);
         connect(m_refreshLibraryButton, &QPushButton::clicked, this, &PlayerWindow::refreshLibrary);
@@ -762,13 +1303,13 @@ QWidget* PlayerWindow::buildSettingsTab()
         rowLayout->setContentsMargins(16, 10, 16, 10);
         rowLayout->setSpacing(4);
         auto* top = new QHBoxLayout();
-        m_analyzeButton = new QPushButton("Analyze Your Songs' Key and BPM");
+        m_analyzeButton = new QPushButton(tr("Analyze Your Songs' Key and BPM"));
         m_analyzeButton->setObjectName("LinkButton");
         m_analyzeButton->setCursor(Qt::PointingHandCursor);
         connect(m_analyzeButton, &QPushButton::clicked, this, &PlayerWindow::startAnalysis);
         top->addWidget(m_analyzeButton);
         top->addStretch();
-        m_analyzeStopButton = new QPushButton("Stop");
+        m_analyzeStopButton = new QPushButton(tr("Stop"));
         m_analyzeStopButton->setObjectName("LinkButton");
         m_analyzeStopButton->setCursor(Qt::PointingHandCursor);
         connect(m_analyzeStopButton, &QPushButton::clicked, this, [this]() { m_analyzer->cancel(); });
@@ -784,31 +1325,48 @@ QWidget* PlayerWindow::buildSettingsTab()
     }
 
     {
-        auto* chevron = new QLabel();
-        m_settingsIcons << qMakePair(chevron, theme::Icon::Chevron);
-        auto* duplicatesButton = new QPushButton("Find Duplicates");
-        duplicatesButton->setObjectName("RowButton");
-        duplicatesButton->setCursor(Qt::PointingHandCursor);
-        connect(duplicatesButton, &QPushButton::clicked, this, &PlayerWindow::openDuplicates);
+        // Detect Genres: like Analyze above.
         auto* row = new QWidget();
-        row->setMinimumHeight(46);
-        auto* rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(16, 8, 16, 8);
-        rowLayout->addWidget(duplicatesButton, 1);
-        rowLayout->addWidget(chevron);
+        auto* rowLayout = new QVBoxLayout(row);
+        rowLayout->setContentsMargins(16, 10, 16, 10);
+        rowLayout->setSpacing(4);
+        auto* top = new QHBoxLayout();
+        m_genreButton = new QPushButton(tr("Detect Genres"));
+        m_genreButton->setObjectName("LinkButton");
+        m_genreButton->setCursor(Qt::PointingHandCursor);
+        connect(m_genreButton, &QPushButton::clicked, this, &PlayerWindow::startGenreDetection);
+        top->addWidget(m_genreButton);
+        top->addStretch();
+        m_genreStopButton = new QPushButton(tr("Stop"));
+        m_genreStopButton->setObjectName("LinkButton");
+        m_genreStopButton->setCursor(Qt::PointingHandCursor);
+        connect(m_genreStopButton, &QPushButton::clicked, this, [this]() { m_genreAnalyzer->cancel(); });
+        top->addWidget(m_genreStopButton);
+        rowLayout->addLayout(top);
+        m_genreProgress = new QProgressBar();
+        m_genreProgress->setTextVisible(false);
+        rowLayout->addWidget(m_genreProgress);
+        m_genreStatusLabel = new QLabel();
+        m_genreStatusLabel->setObjectName("SettingsSubtitle");
+        rowLayout->addWidget(m_genreStatusLabel);
         AddSettingsRow(library, row);
     }
-    AddSettingsFooter(l,
+    chevronRow(library, tr("Find Duplicates"), [this]() { openDuplicates(); });
+    AddSettingsFooter(l, tr(
+        "Detect Genres listens to 30 seconds of each song on this computer (nothing is uploaded) and suggests a "
+        "genre and subgenre, like Electronic · House. Use Fill Genre from analysis in the tag editor to save it "
+        "to the song."));
+    AddSettingsFooter(l, tr(
         "Analysis finds each song's tempo (BPM), key, and where its sound starts and ends, on this "
         "computer (nothing is uploaded). It unlocks Smart Options. Select a song in Tracks to edit its "
-        "tags or change its cover.");
+        "tags or change its cover."));
 
     // --- Smart Options -----------------------------------------------------
-    SettingsCard smart = AddSettingsSection(l, "Smart Options");
+    SettingsCard smart = AddSettingsSection(l, tr("Smart Options"));
     {
         QLabel* lockIcon = nullptr;
         QLabel* lockText = nullptr;
-        m_smartLockRow = MakeSettingsRow("Run \"Analyze Your Songs' Key and BPM\" (above) to unlock these.",
+        m_smartLockRow = MakeSettingsRow(tr("Run \"Analyze Your Songs' Key and BPM\" (above) to unlock these."),
                                          nullptr, &lockIcon, &lockText);
         lockText->setObjectName("SettingsValue");
         m_settingsIcons << qMakePair(lockIcon, theme::Icon::Lock);
@@ -822,36 +1380,51 @@ QWidget* PlayerWindow::buildSettingsTab()
             m_queue.cancelPendingNext(); // trim points are worked out again for what plays next
         }
     });
-    iconRow(smart, "Smart Transitions", theme::Icon::Wand, m_smartTransitionsSwitch);
+    iconRow(smart, tr("Smart Transitions"), theme::Icon::Wand, m_smartTransitionsSwitch);
 
     m_beatMatchSwitch = new ToggleSwitch();
     connect(m_beatMatchSwitch, &QAbstractButton::toggled, this, [this](bool on) { m_beatMatchedCrossfade = on; });
-    iconRow(smart, "Beat-Matched Crossfades", theme::Icon::Metronome, m_beatMatchSwitch);
+    iconRow(smart, tr("Beat-Matched Crossfades"), theme::Icon::Metronome, m_beatMatchSwitch);
 
     m_harmonicShuffleSwitch = new ToggleSwitch();
     connect(m_harmonicShuffleSwitch, &QAbstractButton::toggled, this, [this](bool on) {
         m_harmonicShuffle = on;
         updateSmartOrder();
     });
-    iconRow(smart, "Harmonic Shuffle", theme::Icon::Dial, m_harmonicShuffleSwitch);
-    AddSettingsFooter(l,
+    iconRow(smart, tr("Harmonic Shuffle"), theme::Icon::Dial, m_harmonicShuffleSwitch);
+    AddSettingsFooter(l, tr(
         "Smart Transitions: songs from the same album play gapless, crossfades start where a song's ending "
         "actually fades out, and silence at the start and end is skipped. Beat-Matched Crossfades (needs "
         "Crossfade on): the next song's tempo is matched and its beats lined up during the fade, then it "
         "eases back to normal speed. Harmonic Shuffle: Smart shuffle plays songs in compatible keys and "
         "similar tempos next to each other. Songs that haven't been analyzed, or have no steady beat, use "
-        "normal transitions.");
+        "normal transitions."));
 
     // --- Appearance --------------------------------------------------------
-    SettingsCard appearance = AddSettingsSection(l, "Appearance");
+    SettingsCard appearance = AddSettingsSection(l, tr("Appearance"));
     m_themeCombo = new QComboBox();
-    m_themeCombo->addItems({"System", "Light", "Dark"});
+    m_themeCombo->addItems({tr("System"), tr("Light"), tr("Dark")});
     m_themeCombo->setMinimumWidth(130);
     connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PlayerWindow::setThemeMode);
-    AddSettingsRow(appearance, MakeSettingsRow("Theme", m_themeCombo));
+    AddSettingsRow(appearance, MakeSettingsRow(tr("Theme"), m_themeCombo));
+
+    m_languageCombo = new QComboBox();
+    for (const LanguageOption& option : LanguageOptions())
+    {
+        // Each language under its own name, so it can be found whatever the current one is.
+        m_languageCombo->addItem(option.code == QLatin1String("system") ? tr("System default") : option.nativeName,
+                                 option.code);
+    }
+    m_languageCombo->setMinimumWidth(130);
+    m_languageCombo->setCurrentIndex(qMax(0, m_languageCombo->findData(SavedLanguage())));
+    connect(m_languageCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PlayerWindow::onLanguageChosen);
+    AddSettingsRow(appearance, MakeSettingsRow(tr("Language"), m_languageCombo));
+    AddSettingsFooter(l, tr(
+        "A new language is used after AudioForge restarts. System default follows the Windows display "
+        "language, or English if it isn't one of these."));
 
     // --- Playback ----------------------------------------------------------
-    SettingsCard playback = AddSettingsSection(l, "Playback");
+    SettingsCard playback = AddSettingsSection(l, tr("Playback"));
     m_replayGainSwitch = new ToggleSwitch();
     m_replayGainSwitch->setChecked(m_replayGainEnabled);
     connect(m_replayGainSwitch, &QAbstractButton::toggled, this, [this](bool on) {
@@ -860,7 +1433,7 @@ QWidget* PlayerWindow::buildSettingsTab()
             toggleReplayGain(); // keeps the player bar's ReplayGain pill in step
         }
     });
-    AddSettingsRow(playback, MakeSettingsRow("ReplayGain", m_replayGainSwitch));
+    AddSettingsRow(playback, MakeSettingsRow(tr("ReplayGain"), m_replayGainSwitch));
 
     m_crossfadeCheckbox = new ToggleSwitch();
     connect(m_crossfadeCheckbox, &QAbstractButton::toggled, this, [this](bool checked) {
@@ -874,13 +1447,13 @@ QWidget* PlayerWindow::buildSettingsTab()
         }
         updateSmartOptionsUi(); // Beat-Matched Crossfades needs Crossfade on
     });
-    AddSettingsRow(playback, MakeSettingsRow("Crossfade", m_crossfadeCheckbox));
+    AddSettingsRow(playback, MakeSettingsRow(tr("Crossfade"), m_crossfadeCheckbox));
 
     {
         auto* row = new QWidget();
         auto* rowLayout = new QVBoxLayout(row);
         rowLayout->setContentsMargins(16, 10, 16, 10);
-        m_crossfadeLabel = new QLabel("Crossfade length: 5 s");
+        m_crossfadeLabel = new QLabel(tr("Crossfade length: %1 s").arg(5));
         rowLayout->addWidget(m_crossfadeLabel);
         m_crossfadeSlider = new QSlider(Qt::Horizontal);
         m_crossfadeSlider->setRange(2, 15);
@@ -888,7 +1461,7 @@ QWidget* PlayerWindow::buildSettingsTab()
         m_crossfadeSlider->setFocusPolicy(Qt::NoFocus);
         connect(m_crossfadeSlider, &QSlider::valueChanged, this, [this](int value) {
             m_crossfadeSeconds = value;
-            m_crossfadeLabel->setText(QString("Crossfade length: %1 s").arg(value));
+            m_crossfadeLabel->setText(tr("Crossfade length: %1 s").arg(value));
         });
         rowLayout->addWidget(m_crossfadeSlider);
         AddSettingsRow(playback, row);
@@ -904,19 +1477,35 @@ QWidget* PlayerWindow::buildSettingsTab()
             applyVolume();
         }
     });
-    AddSettingsRow(playback, MakeSettingsRow("Fade Out Sleep Timer", m_sleepFadeSwitch));
+    AddSettingsRow(playback, MakeSettingsRow(tr("Fade Out Sleep Timer"), m_sleepFadeSwitch));
 
     m_resumeLongSwitch = new ToggleSwitch();
     m_resumeLongSwitch->setChecked(m_rememberLongTracks);
     connect(m_resumeLongSwitch, &QAbstractButton::toggled, this, [this](bool on) { m_rememberLongTracks = on; });
-    AddSettingsRow(playback, MakeSettingsRow("Resume Long Tracks", m_resumeLongSwitch));
-    AddSettingsFooter(l,
+    AddSettingsRow(playback, MakeSettingsRow(tr("Resume Long Tracks"), m_resumeLongSwitch));
+    AddSettingsFooter(l, tr(
         "ReplayGain evens out loudness between songs using the gain stored in their tags. With crossfade "
         "off, songs play gapless. The sleep timer is on the Now Playing screen. Resume Long Tracks: "
-        "audiobooks and mixes (10 minutes or longer) continue where you stopped.");
+        "audiobooks and mixes (10 minutes or longer) continue where you stopped."));
+
+    // --- Windows -------------------------------------------------------------
+    {
+        SettingsCard windowsCard = AddSettingsSection(l, tr("Windows"));
+        m_trayKeepSwitch = new ToggleSwitch();
+        connect(m_trayKeepSwitch, &QAbstractButton::toggled, this, [this](bool on) { m_keepPlayingInTray = on; });
+        AddSettingsRow(windowsCard, MakeSettingsRow(tr("Keep Playing in the Tray When Closed"), m_trayKeepSwitch));
+        m_notifySwitch = new ToggleSwitch();
+        connect(m_notifySwitch, &QAbstractButton::toggled, this, [this](bool on) { m_songNotifications = on; });
+        AddSettingsRow(windowsCard, MakeSettingsRow(tr("Notify When a Song Starts"), m_notifySwitch));
+        AddSettingsFooter(l, tr(
+            "The song, its cover and the play buttons also show in Windows' media controls (the volume overlay "
+            "and the lock screen), and the keyboard's media keys work while AudioForge is in the background. "
+            "The taskbar preview has Previous / Play / Next. Notifications only show while you're in another app. "
+            "With Keep Playing in the Tray on, closing the window keeps the music going; quit from the tray icon."));
+    }
 
     // --- Video Wallpaper ---------------------------------------------------
-    SettingsCard wallpaper = AddSettingsSection(l, "Video Wallpaper");
+    SettingsCard wallpaper = AddSettingsSection(l, tr("Video Wallpaper"));
     m_videoWallpaperCheckbox = new ToggleSwitch();
     connect(m_videoWallpaperCheckbox, &QAbstractButton::toggled, this, [this](bool checked) {
         m_videoWallpaperEnabled = checked;
@@ -929,7 +1518,7 @@ QWidget* PlayerWindow::buildSettingsTab()
             updateWallpaperForTrack(m_queue.currentTrack());
         }
     });
-    AddSettingsRow(wallpaper, MakeSettingsRow("Show Video Wallpapers", m_videoWallpaperCheckbox));
+    AddSettingsRow(wallpaper, MakeSettingsRow(tr("Show Video Wallpapers"), m_videoWallpaperCheckbox));
 
     {
         auto* row = new QWidget();
@@ -941,50 +1530,70 @@ QWidget* PlayerWindow::buildSettingsTab()
         m_videoWallpaperOpacitySlider->setRange(0, 100);
         m_videoWallpaperOpacitySlider->setValue(m_videoWallpaperOpacityPercent);
         m_videoWallpaperOpacitySlider->setFocusPolicy(Qt::NoFocus);
-        opacityLabel->setText(QString("Opacity: %1%").arg(m_videoWallpaperOpacityPercent));
+        opacityLabel->setText(tr("Opacity: %1%").arg(m_videoWallpaperOpacityPercent));
         connect(m_videoWallpaperOpacitySlider, &QSlider::valueChanged, this, [this, opacityLabel](int value) {
             m_videoWallpaperOpacityPercent = value;
             m_wallpaperWidget->setOpacity(value / 100.0);
-            opacityLabel->setText(QString("Opacity: %1%").arg(value));
+            opacityLabel->setText(tr("Opacity: %1%").arg(value));
         });
         rowLayout->addWidget(m_videoWallpaperOpacitySlider);
         AddSettingsRow(wallpaper, row);
     }
 
+    // --- Visualizer ----------------------------------------------------------
+    SettingsCard visualizer = AddSettingsSection(l, tr("Visualizer"));
+    {
+        // Every style as a live preview, like the Android app; click one to use it.
+        m_visualizerStyleGrid = new VisualizerStyleGrid(&m_engine.visualizer());
+        connect(m_visualizerStyleGrid, &VisualizerStyleGrid::styleChosen, this, [this](int index) {
+            m_visualizerStyle = qBound(0, index, kVisualizerStyleCount - 1);
+            m_visualizer->setStyle(static_cast<VisualizerStyle>(m_visualizerStyle));
+        });
+        auto* row = new QWidget();
+        auto* rowLayout = new QVBoxLayout(row);
+        rowLayout->setContentsMargins(16, 14, 16, 10);
+        rowLayout->addWidget(m_visualizerStyleGrid);
+        AddSettingsRow(visualizer, row);
+    }
+    chevronRow(visualizer, tr("Custom GIFs and Videos"), [this]() { openVisualizerMediaDialog(); });
+    AddSettingsFooter(l, tr(
+        "Shows in place of the cover when you click the visualizer button on Now Playing. Colours follow the "
+        "song's cover. A GIF or looping video can show instead, for every song or for chosen songs."));
+
     // --- Lyrics Lookup -----------------------------------------------------
-    SettingsCard lyrics = AddSettingsSection(l, "Lyrics Lookup");
+    SettingsCard lyrics = AddSettingsSection(l, tr("Lyrics Lookup"));
     {
         auto* row = new QWidget();
         auto* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(16, 10, 16, 10);
         m_musixmatchApiKeyEdit = new QLineEdit();
         m_musixmatchApiKeyEdit->setEchoMode(QLineEdit::Password);
-        m_musixmatchApiKeyEdit->setPlaceholderText("Musixmatch API key (optional)");
+        m_musixmatchApiKeyEdit->setPlaceholderText(tr("Musixmatch API key (optional)"));
         connect(m_musixmatchApiKeyEdit, &QLineEdit::textChanged, this, [this](const QString& text) {
             m_musixmatchApiKey = text.trimmed();
         });
         rowLayout->addWidget(m_musixmatchApiKeyEdit);
         AddSettingsRow(lyrics, row);
     }
-    AddSettingsFooter(l,
+    AddSettingsFooter(l, tr(
         "Lyrics are looked up on LRCLIB (free, no key), then Musixmatch if you add an API key (free-tier "
         "keys only return a snippet), then a same-name .lrc or .txt file next to the song. The key is "
-        "stored encrypted for your Windows account.");
+        "stored encrypted for your Windows account."));
 
     // --- Discord Rich Presence --------------------------------------------------
-    SettingsCard discord = AddSettingsSection(l, "Discord Rich Presence");
+    SettingsCard discord = AddSettingsSection(l, tr("Discord Rich Presence"));
     m_discordPresenceCheckbox = new ToggleSwitch();
     connect(m_discordPresenceCheckbox, &QAbstractButton::toggled, this, [this](bool checked) {
         m_discordPresenceEnabled = checked;
         m_discordPresence.setEnabled(checked);
     });
-    AddSettingsRow(discord, MakeSettingsRow("Show what I'm playing on Discord", m_discordPresenceCheckbox));
+    AddSettingsRow(discord, MakeSettingsRow(tr("Show what I'm playing on Discord"), m_discordPresenceCheckbox));
     {
         auto* row = new QWidget();
         auto* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(16, 10, 16, 10);
         m_discordClientIdEdit = new QLineEdit();
-        m_discordClientIdEdit->setPlaceholderText("Discord Application Client ID");
+        m_discordClientIdEdit->setPlaceholderText(tr("Discord Application Client ID"));
         connect(m_discordClientIdEdit, &QLineEdit::textChanged, this, [this](const QString& text) {
             m_discordClientId = text.trimmed();
             m_discordPresence.init(m_discordClientId);
@@ -992,16 +1601,17 @@ QWidget* PlayerWindow::buildSettingsTab()
         rowLayout->addWidget(m_discordClientIdEdit);
         AddSettingsRow(discord, row);
     }
-    AddSettingsFooter(l,
+    AddSettingsFooter(l, tr(
         "Needs a free \"Application\" client ID from discord.com/developers/applications (create one and "
-        "copy its Client ID -- nothing needs to be published). Discord's desktop app must be running.");
+        "copy its Client ID -- nothing needs to be published). Discord's desktop app must be running."));
 
     // --- Visible Tabs ------------------------------------------------------
-    SettingsCard tabs = AddSettingsSection(l, "Visible Tabs");
-    // The library tabs (0-4) can be hidden; Equalizer, Wallpapers and
-    // Settings always stay. (Built while Settings is added as the last tab,
-    // so the five before it already exist.)
-    for (int tabIndex = 0; tabIndex < 5; ++tabIndex)
+    SettingsCard tabs = AddSettingsSection(l, tr("Visible Tabs"));
+    // The library tabs (0-4) and Podcasts (8) can be hidden; Equalizer,
+    // Wallpapers and Settings always stay. (Built while Settings is added,
+    // so the five before it exist; Podcasts comes after it, so its row is
+    // filled in by name.) m_tabVisibilityCheckboxes[5] is Podcasts' switch.
+    for (int tabIndex : {0, 1, 2, 3, 4, 8})
     {
         auto* toggle = new ToggleSwitch();
         toggle->setChecked(true);
@@ -1010,11 +1620,221 @@ QWidget* PlayerWindow::buildSettingsTab()
             m_tabs->setTabVisible(tabIndex, checked); // also moves the current tab off a hidden one
             m_navButtons[tabIndex]->setVisible(checked);
         });
-        AddSettingsRow(tabs, MakeSettingsRow(m_tabs->tabText(tabIndex), toggle));
+        AddSettingsRow(tabs, MakeSettingsRow(tabIndex == 8 ? tr("Podcasts") : m_tabs->tabText(tabIndex), toggle));
     }
+
+    // --- About -------------------------------------------------------------
+    SettingsCard about = AddSettingsSection(l, tr("About"));
+    {
+        // Version: click to check for updates; the result shows underneath.
+        auto* row = new QWidget();
+        row->setMinimumHeight(46);
+        auto* rowLayout = new QVBoxLayout(row);
+        rowLayout->setContentsMargins(16, 8, 16, 8);
+        rowLayout->setSpacing(2);
+        auto* top = new QHBoxLayout();
+        m_versionButton = new QPushButton(tr("Version"));
+        m_versionButton->setObjectName("RowButton");
+        m_versionButton->setCursor(Qt::PointingHandCursor);
+        m_versionButton->setToolTip(tr("Check for updates"));
+        connect(m_versionButton, &QPushButton::clicked, m_updateChecker, &UpdateChecker::check);
+        top->addWidget(m_versionButton, 1);
+        auto* versionValue = MakeValueLabel();
+        versionValue->setText(app::Version());
+        top->addWidget(versionValue);
+        rowLayout->addLayout(top);
+        auto* status = new QHBoxLayout();
+        m_versionStatusLabel = new QLabel();
+        m_versionStatusLabel->setObjectName("SettingsSubtitle");
+        m_versionStatusLabel->setWordWrap(true);
+        status->addWidget(m_versionStatusLabel, 1);
+        m_downloadUpdateButton = new QPushButton(tr("Open Download Page"));
+        m_downloadUpdateButton->setObjectName("LinkButton");
+        m_downloadUpdateButton->setCursor(Qt::PointingHandCursor);
+        connect(m_downloadUpdateButton, &QPushButton::clicked, this, [this]() {
+            QDesktopServices::openUrl(QUrl(m_updateChecker->releaseUrl()));
+        });
+        status->addWidget(m_downloadUpdateButton);
+        rowLayout->addLayout(status);
+        AddSettingsRow(about, row);
+    }
+    connect(m_updateChecker, &UpdateChecker::stateChanged, this, &PlayerWindow::updateVersionUi);
+    connect(m_updateChecker, &UpdateChecker::updateNoticed, this, &PlayerWindow::showUpdateNotice);
+    updateVersionUi();
+
+    m_autoUpdateSwitch = new ToggleSwitch();
+    m_autoUpdateSwitch->setChecked(m_updateChecker->autoCheckEnabled());
+    connect(m_autoUpdateSwitch, &QAbstractButton::toggled, m_updateChecker, &UpdateChecker::setAutoCheckEnabled);
+    AddSettingsRow(about, MakeSettingsRow(tr("Check for Updates Automatically"), m_autoUpdateSwitch));
+
+    chevronRow(about, tr("Report a Problem"), [this]() { reportProblem(); });
+    chevronRow(about, tr("Source Code on GitHub"), []() { QDesktopServices::openUrl(QUrl(QString::fromLatin1(app::kRepoUrl))); });
+    chevronRow(about, tr("Terms & Conditions"), [this]() {
+        openTextPage(tr("Terms & Conditions"), ReadLocalizedText(":/about/terms"));
+    });
+    chevronRow(about, tr("Privacy"), [this]() { openTextPage(tr("Privacy"), ReadLocalizedText(":/about/privacy")); });
+    chevronRow(about, tr("Acknowledgements"), [this]() {
+        openTextPage(tr("Acknowledgements"), acknowledgementsMarkdown());
+    });
+    AddSettingsFooter(l, tr(
+        "Click Version to see if a newer AudioForge for Windows is on GitHub. The automatic check runs at "
+        "most once a day. Only the newest version number is read: nothing is downloaded or installed, a "
+        "new version opens its download page in your browser."));
 
     l->addStretch();
     return scroll;
+}
+
+void PlayerWindow::onLanguageChosen(int index)
+{
+    const QString code = m_languageCombo->itemData(index).toString();
+    if (code.isEmpty() || code == SavedLanguage())
+    {
+        return;
+    }
+    SaveLanguage(code);
+    if (ResolveLanguage(code) == ActiveLanguage())
+    {
+        return; // e.g. "System default" when Windows is already in the language shown
+    }
+
+    QMessageBox box(QMessageBox::Question, tr("Restart AudioForge?"),
+                    tr("AudioForge needs to restart to change the language. Your queue and where you were "
+                       "in the song are kept."),
+                    QMessageBox::NoButton, this);
+    QPushButton* restart = box.addButton(tr("Restart Now"), QMessageBox::AcceptRole);
+    box.addButton(tr("Later"), QMessageBox::RejectRole);
+    box.setDefaultButton(restart);
+    box.exec();
+    if (box.clickedButton() == restart)
+    {
+        restartApp();
+    }
+}
+
+void PlayerWindow::restartApp()
+{
+    close(); // closeEvent saves the queue, library, settings and wallpapers -- same as quitting
+    if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), QCoreApplication::arguments().mid(1)))
+    {
+        ErrorReporter::logOnly("Couldn't restart: " + QCoreApplication::applicationFilePath());
+    }
+    qApp->quit();
+}
+
+void PlayerWindow::updateVersionUi()
+{
+    using State = UpdateChecker::State;
+    const State state = m_updateChecker->state();
+    QString status;
+    switch (state)
+    {
+        case State::Idle:      break;
+        case State::Checking:  status = tr("Checking for updates…"); break;
+        case State::UpToDate:  status = tr("You have the latest version."); break;
+        case State::Available: status = tr("Version %1 is available.").arg(m_updateChecker->availableVersion()); break;
+        case State::Failed:    status = tr("Couldn't check for updates. Check your internet connection and try again."); break;
+    }
+    m_versionStatusLabel->setText(status);
+    m_versionStatusLabel->setVisible(!status.isEmpty());
+    m_downloadUpdateButton->setVisible(state == State::Available);
+    m_versionButton->setEnabled(state != State::Checking);
+}
+
+void PlayerWindow::showUpdateNotice(const QString& version, const QString& url)
+{
+    QMessageBox box(QMessageBox::Information, tr("Update available"),
+                    tr("AudioForge %1 is available. You have %2.").arg(version, app::Version()),
+                    QMessageBox::NoButton, this);
+    QPushButton* open = box.addButton(tr("Open Download Page"), QMessageBox::AcceptRole);
+    box.addButton(tr("Later"), QMessageBox::RejectRole);
+    box.setDefaultButton(open);
+    box.exec();
+    if (box.clickedButton() == open)
+    {
+        QDesktopServices::openUrl(QUrl(url));
+    }
+}
+
+void PlayerWindow::reportProblem()
+{
+    // The subject and the details stay in English so every report can be
+    // read; only versions are filled in (no logs, file names or library data).
+    const QString body = tr("Describe the problem here:") + QStringLiteral("\n\n\n---\n")
+        + QString("App: AudioForge %1 for Windows\n").arg(app::Version())
+        + QString("Windows: %1 (%2)\n").arg(QSysInfo::prettyProductName(), QSysInfo::kernelVersion())
+        + QString("Language: %1 (Windows: %2)\n").arg(ActiveLanguage(), QLocale::system().name());
+    QUrlQuery query;
+    query.addQueryItem("subject", QStringLiteral("AudioForge Windows – problem report"));
+    query.addQueryItem("body", body);
+    const QString email = QString::fromLatin1(app::kSupportEmail);
+    QUrl url(QStringLiteral("mailto:") + email);
+    url.setQuery(query);
+    if (!QDesktopServices::openUrl(url))
+    {
+        QGuiApplication::clipboard()->setText(email);
+        showToast(tr("No email app found. The address was copied: %1").arg(email));
+    }
+}
+
+void PlayerWindow::openTextPage(const QString& title, const QString& markdown)
+{
+    TextPageDialog dialog(title, markdown, this);
+    dialog.exec();
+}
+
+QString PlayerWindow::acknowledgementsMarkdown() const
+{
+    // Kept by hand: update it whenever CMakeLists.txt, vendor/ or the
+    // bundled fonts change.
+    struct Entry
+    {
+        const char* name;
+        const char* url;
+        const char* license;    // empty for an online service
+        const char* licenseUrl;
+    };
+    static const Entry libraries[] = {
+        {"Qt 6", "https://www.qt.io", "GNU LGPL 3.0", "https://www.gnu.org/licenses/lgpl-3.0.html"},
+        {"TagLib", "https://taglib.org", "GNU LGPL 2.1 / MPL 1.1", "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html"},
+        {"miniaudio", "https://miniaud.io", "Public domain (Unlicense) / MIT No Attribution", "https://github.com/mackron/miniaudio/blob/master/LICENSE"},
+        // MSYS2's FFmpeg (bundled with Qt Multimedia) is built with GPL parts; it reports "GPL version 3 or later".
+        {"FFmpeg", "https://ffmpeg.org", "GNU GPL 3.0+", "https://ffmpeg.org/legal.html"},
+        {"ONNX Runtime", "https://onnxruntime.ai", "MIT License", "https://github.com/microsoft/onnxruntime/blob/main/LICENSE"},
+        {"YAMNet", "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet", "Apache License 2.0",
+         "https://www.apache.org/licenses/LICENSE-2.0"},
+    };
+    static const Entry fonts[] = {
+        {"Inter", "https://rsms.me/inter/", "SIL Open Font License 1.1", "https://openfontlicense.org"},
+        {"Playfair Display", "https://github.com/clauseggers/Playfair", "SIL Open Font License 1.1", "https://openfontlicense.org"},
+    };
+    static const Entry services[] = {
+        {"MusicBrainz", "https://musicbrainz.org", "", ""},
+        {"LRCLIB", "https://lrclib.net", "", ""},
+        {"Musixmatch", "https://www.musixmatch.com", "", ""},
+        {"GitHub", "https://github.com", "", ""},
+        {"Discord", "https://discord.com", "", ""},
+    };
+    auto list = [](const Entry* begin, const Entry* end) {
+        QString text;
+        for (const Entry* e = begin; e != end; ++e)
+        {
+            text += QString("- [%1](%2)").arg(QString::fromUtf8(e->name), QString::fromUtf8(e->url));
+            if (*e->license)
+            {
+                text += QString(" — [%1](%2)").arg(QString::fromUtf8(e->license), QString::fromUtf8(e->licenseUrl));
+            }
+            text += '\n';
+        }
+        return text;
+    };
+    return tr("AudioForge is built with these libraries, fonts and services. Thank you to everyone who works on them.")
+        + "\n\n## " + tr("Libraries") + "\n\n" + list(std::begin(libraries), std::end(libraries))
+        + "\n" + tr("FFmpeg plays the video wallpapers, through Qt Multimedia.") + " "
+        + tr("ONNX Runtime and Google's YAMNet model detect genres, on this computer.") + "\n"
+        + "\n## " + tr("Fonts") + "\n\n" + list(std::begin(fonts), std::end(fonts))
+        + "\n## " + tr("Online services") + "\n\n" + list(std::begin(services), std::end(services))
+        + "\n" + tr("Each licence's full text is on the page linked next to it.") + "\n";
 }
 
 QWidget* PlayerWindow::buildWallpapersTab()
@@ -1023,18 +1843,18 @@ QWidget* PlayerWindow::buildWallpapersTab()
     auto* l = new QVBoxLayout(w);
 
     // --- Global wallpaper ---
-    l->addWidget(sectionHeader("Global Wallpaper"));
-    l->addWidget(new QLabel("Used whenever the currently playing track has no wallpaper of its own."));
+    l->addWidget(sectionHeader(tr("Global Wallpaper")));
+    l->addWidget(new QLabel(tr("Used whenever the currently playing track has no wallpaper of its own.")));
 
     m_globalWallpaperLabel = new QLabel();
     l->addWidget(m_globalWallpaperLabel);
 
     auto* globalButtonsRow = new QHBoxLayout();
-    auto* chooseGlobalButton = new QPushButton("Choose Video...");
+    auto* chooseGlobalButton = new QPushButton(tr("Choose Video..."));
     connect(chooseGlobalButton, &QPushButton::clicked, this, &PlayerWindow::chooseGlobalWallpaper);
     globalButtonsRow->addWidget(chooseGlobalButton);
 
-    auto* clearGlobalButton = new QPushButton("Clear");
+    auto* clearGlobalButton = new QPushButton(tr("Clear"));
     connect(clearGlobalButton, &QPushButton::clicked, this, &PlayerWindow::clearGlobalWallpaper);
     globalButtonsRow->addWidget(clearGlobalButton);
     globalButtonsRow->addStretch();
@@ -1043,21 +1863,21 @@ QWidget* PlayerWindow::buildWallpapersTab()
     l->addSpacing(16);
 
     // --- Per-track wallpapers ---
-    l->addWidget(sectionHeader("Per-Track Wallpapers"));
+    l->addWidget(sectionHeader(tr("Per-Track Wallpapers")));
 
     m_wallpaperEntriesList = new QListWidget();
     l->addWidget(m_wallpaperEntriesList, 1);
 
     auto* entryButtonsRow = new QHBoxLayout();
-    auto* addEntryButton = new QPushButton("Add Wallpaper...");
+    auto* addEntryButton = new QPushButton(tr("Add Wallpaper..."));
     connect(addEntryButton, &QPushButton::clicked, this, &PlayerWindow::addWallpaperEntry);
     entryButtonsRow->addWidget(addEntryButton);
 
-    auto* editTracksButton = new QPushButton("Edit Tracks...");
+    auto* editTracksButton = new QPushButton(tr("Edit Tracks..."));
     connect(editTracksButton, &QPushButton::clicked, this, &PlayerWindow::editWallpaperEntryTracks);
     entryButtonsRow->addWidget(editTracksButton);
 
-    auto* removeEntryButton = new QPushButton("Remove");
+    auto* removeEntryButton = new QPushButton(tr("Remove"));
     connect(removeEntryButton, &QPushButton::clicked, this, &PlayerWindow::removeSelectedWallpaperEntry);
     entryButtonsRow->addWidget(removeEntryButton);
     l->addLayout(entryButtonsRow);
@@ -1077,14 +1897,14 @@ namespace {
 const QVector<QPair<QString, QVector<float>>>& EqPresets()
 {
     static const QVector<QPair<QString, QVector<float>>> presets = {
-        {"Rock",         {5, 4, 3, 0, -2, -1, 0, 2, 3, 4}},
-        {"Pop",          {-1, 1, 3, 4, 3, 0, -1, -1, -1, -1}},
-        {"Jazz",         {3, 2, 1, 2, -1, -1, 0, 1, 2, 3}},
-        {"Classical",    {4, 3, 2, 1, -1, -2, -2, 0, 2, 3}},
-        {"Dance",        {6, 5, 2, 0, 0, -3, -3, 0, 3, 4}},
-        {"Hip-Hop",      {6, 5, 3, 1, -1, -1, 0, 1, 2, 3}},
-        {"Blues",        {3, 2, 0, -1, 0, 1, 2, 2, 1, 1}},
-        {"Vocal Boost",  {-2, -2, -1, 1, 3, 4, 3, 1, 0, -1}},
+        {QT_TR_NOOP("Rock"),         {5, 4, 3, 0, -2, -1, 0, 2, 3, 4}},
+        {QT_TR_NOOP("Pop"),          {-1, 1, 3, 4, 3, 0, -1, -1, -1, -1}},
+        {QT_TR_NOOP("Jazz"),         {3, 2, 1, 2, -1, -1, 0, 1, 2, 3}},
+        {QT_TR_NOOP("Classical"),    {4, 3, 2, 1, -1, -2, -2, 0, 2, 3}},
+        {QT_TR_NOOP("Dance"),        {6, 5, 2, 0, 0, -3, -3, 0, 3, 4}},
+        {QT_TR_NOOP("Hip-Hop"),      {6, 5, 3, 1, -1, -1, 0, 1, 2, 3}},
+        {QT_TR_NOOP("Blues"),        {3, 2, 0, -1, 0, 1, 2, 2, 1, 1}},
+        {QT_TR_NOOP("Vocal Boost"),  {-2, -2, -1, 1, 3, 4, 3, 1, 0, -1}},
     };
     return presets;
 }
@@ -1107,16 +1927,16 @@ QWidget* PlayerWindow::buildEqualizerSection()
     sectionLayout->setContentsMargins(16, 16, 16, 16);
 
     auto* headerRow = new QHBoxLayout();
-    headerRow->addWidget(sectionHeader("Equalizer"));
+    headerRow->addWidget(sectionHeader(tr("Equalizer")));
     headerRow->addStretch();
-    m_eqEnabledCheckbox = new QCheckBox("Enabled");
+    m_eqEnabledCheckbox = new QCheckBox(tr("Enabled"));
     connect(m_eqEnabledCheckbox, &QCheckBox::toggled, this, &PlayerWindow::onEqEnabledToggled);
     headerRow->addWidget(m_eqEnabledCheckbox);
     sectionLayout->addLayout(headerRow);
 
     if (!m_engine.isEqualizerAvailable())
     {
-        sectionLayout->addWidget(new QLabel("Equalizer unavailable -- the audio engine couldn't set it up."));
+        sectionLayout->addWidget(new QLabel(tr("Equalizer unavailable -- the audio engine couldn't set it up.")));
         m_eqEnabledCheckbox->setEnabled(false);
         sectionLayout->addStretch();
         return section;
@@ -1164,12 +1984,12 @@ QWidget* PlayerWindow::buildEqualizerSection()
     sectionLayout->addSpacing(16);
 
     auto* presetRow = new QHBoxLayout();
-    presetRow->addWidget(new QLabel("Preset"));
+    presetRow->addWidget(new QLabel(tr("Preset")));
     m_eqPresetCombo = new QComboBox();
-    m_eqPresetCombo->addItem("Custom");
+    m_eqPresetCombo->addItem(tr("Custom"));
     for (const auto& preset : EqPresets())
     {
-        m_eqPresetCombo->addItem(preset.first);
+        m_eqPresetCombo->addItem(tr(preset.first.toUtf8().constData()));
     }
     connect(m_eqPresetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PlayerWindow::applyEqPreset);
     presetRow->addWidget(m_eqPresetCombo, 1);
@@ -1178,7 +1998,7 @@ QWidget* PlayerWindow::buildEqualizerSection()
     sectionLayout->addSpacing(16);
 
     auto* postGainRow = new QHBoxLayout();
-    postGainRow->addWidget(new QLabel("Post-gain"));
+    postGainRow->addWidget(new QLabel(tr("Post-gain")));
     m_eqPostGainValueLabel = new QLabel("0.0dB");
     postGainRow->addWidget(m_eqPostGainValueLabel);
     sectionLayout->addLayout(postGainRow);
@@ -1189,7 +2009,7 @@ QWidget* PlayerWindow::buildEqualizerSection()
     connect(m_eqPostGainSlider, &QSlider::valueChanged, this, &PlayerWindow::onEqPostGainChanged);
     sectionLayout->addWidget(m_eqPostGainSlider);
 
-    auto* resetButton = new QPushButton("Reset Equalizer");
+    auto* resetButton = new QPushButton(tr("Reset Equalizer"));
     connect(resetButton, &QPushButton::clicked, this, &PlayerWindow::resetEqualizer);
     sectionLayout->addWidget(resetButton);
 
@@ -1308,7 +2128,7 @@ QWidget* PlayerWindow::buildSidebar()
     connect(group, &QButtonGroup::idClicked, this, [this](int index) { m_tabs->setCurrentIndex(index); });
 
     // Library views first (Tracks leads, like most players), tools after.
-    for (int index : {1, 0, 2, 4, 3})
+    for (int index : {1, 0, 2, 4, 3, 8})
     {
         l->addWidget(m_navButtons[index]);
     }
@@ -1318,7 +2138,7 @@ QWidget* PlayerWindow::buildSidebar()
     playlistsLayout->setContentsMargins(0, 22, 0, 0);
     playlistsLayout->setSpacing(4);
     auto* playlistsHeader = new QHBoxLayout();
-    auto* playlistsCaption = new QLabel("YOUR PLAYLISTS");
+    auto* playlistsCaption = new QLabel(tr("YOUR PLAYLISTS"));
     playlistsCaption->setObjectName("SectionCaption");
     QFont captionFont = playlistsCaption->font();
     captionFont.setLetterSpacing(QFont::AbsoluteSpacing, 1.5);
@@ -1326,8 +2146,8 @@ QWidget* PlayerWindow::buildSidebar()
     playlistsCaption->setContentsMargins(10, 0, 0, 0);
     playlistsHeader->addWidget(playlistsCaption);
     playlistsHeader->addStretch();
-    m_newPlaylistButton = MakeIconButton(26, 14, "New playlist");
-    connect(m_newPlaylistButton, &QPushButton::clicked, this, &PlayerWindow::openCreatePlaylistDialog);
+    m_newPlaylistButton = MakeIconButton(26, 14, tr("New playlist"));
+    connect(m_newPlaylistButton, &QPushButton::clicked, this, [this]() { showNewPlaylistMenu(m_newPlaylistButton); });
     playlistsHeader->addWidget(m_newPlaylistButton);
     playlistsLayout->addLayout(playlistsHeader);
 
@@ -1337,9 +2157,7 @@ QWidget* PlayerWindow::buildSidebar()
     m_sidebarPlaylistsList->setFocusPolicy(Qt::NoFocus);
     m_sidebarPlaylistsList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_sidebarPlaylistsList->setCursor(Qt::PointingHandCursor);
-    connect(m_sidebarPlaylistsList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
-        openPlaylistTracks(item->data(Qt::UserRole).toInt());
-    });
+    connect(m_sidebarPlaylistsList, &QListWidget::itemClicked, this, &PlayerWindow::activatePlaylistItem);
     enableTracksMenu(m_sidebarPlaylistsList, /*playlistRows=*/true);
 
     playlistsLayout->addWidget(m_sidebarPlaylistsList, 1);
@@ -1353,7 +2171,7 @@ QWidget* PlayerWindow::buildSidebar()
         l->addWidget(m_navButtons[index]);
     }
 
-    m_openButton = new QPushButton("  Open File...");
+    m_openButton = new QPushButton(QStringLiteral("  ") + tr("Open File..."));
     m_openButton->setObjectName("NavButton");
     m_openButton->setIconSize(QSize(18, 18));
     m_openButton->setCursor(Qt::PointingHandCursor);
@@ -1361,7 +2179,7 @@ QWidget* PlayerWindow::buildSidebar()
     connect(m_openButton, &QPushButton::clicked, this, &PlayerWindow::openFile);
     l->addWidget(m_openButton);
 
-    m_openButton->setToolTip("Open File...");
+    m_openButton->setToolTip(tr("Open File..."));
     return sidebar;
 }
 
@@ -1378,7 +2196,7 @@ void PlayerWindow::setSidebarCompact(bool compact)
     {
         m_navButtons[i]->setText(compact ? QString() : QStringLiteral("  ") + m_tabs->tabText(i));
     }
-    m_openButton->setText(compact ? QString() : QStringLiteral("  Open File..."));
+    m_openButton->setText(compact ? QString() : QStringLiteral("  ") + tr("Open File..."));
     m_brandLabel->setText(compact ? QString::fromUtf8("\u2726") : QString::fromUtf8("\u2726  AUDIOFORGE"));
     m_brandLabel->setAlignment(compact ? Qt::AlignHCenter : Qt::AlignLeft);
     m_brandLabel->setContentsMargins(compact ? 0 : 10, 0, 0, 0);
@@ -1395,6 +2213,10 @@ void PlayerWindow::onTabChanged(int index)
         m_navButtons[index]->setChecked(true);
     }
     m_pageTitleLabel->setText(m_tabs->tabText(index));
+    if (index == 8)
+    {
+        refreshPodcasts(); // played marks and "left" times move on while it's hidden
+    }
 }
 
 QWidget* PlayerWindow::buildPlayerBar()
@@ -1414,7 +2236,7 @@ QWidget* PlayerWindow::buildPlayerBar()
     clickableInfo->setMinimumWidth(180); // shrinks on small screens, never wider than kSideWidth
     clickableInfo->setMaximumWidth(kSideWidth);
     clickableInfo->setCursor(Qt::PointingHandCursor);
-    clickableInfo->setToolTip("Open Now Playing");
+    clickableInfo->setToolTip(tr("Open Now Playing"));
     connect(clickableInfo, &ClickableWidget::clicked, this, [this]() { m_stack->setCurrentIndex(1); });
     auto* infoLayout = new QHBoxLayout(clickableInfo);
     infoLayout->setContentsMargins(0, 0, 0, 0);
@@ -1431,7 +2253,7 @@ QWidget* PlayerWindow::buildPlayerBar()
     infoTextLayout->addStretch();
     infoLayout->addLayout(infoTextLayout, 1);
 
-    m_titleLabel = new QLabel("No file loaded");
+    m_titleLabel = new QLabel(tr("No file loaded"));
     m_titleLabel->setObjectName("MiniTitle");
     m_titleLabel->setMinimumWidth(0);
     m_titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred); // eliding handles overflow; don't let a long title widen the bar
@@ -1461,13 +2283,13 @@ QWidget* PlayerWindow::buildPlayerBar()
 
     auto* transportRow = new QHBoxLayout();
     transportRow->setSpacing(10);
-    m_shuffleButton = MakeIconButton(36, 18, "Shuffle: Off");
+    m_shuffleButton = MakeIconButton(36, 18, tr("Shuffle: Off"));
     m_shuffleButton->setCheckable(true);
-    m_prevButton = MakeIconButton(36, 20, "Previous");
-    m_playButton = MakeIconButton(44, 20, "Play");
+    m_prevButton = MakeIconButton(36, 20, tr("Previous"));
+    m_playButton = MakeIconButton(44, 20, tr("Play"));
     m_playButton->setObjectName("PlayButton");
-    m_nextButton = MakeIconButton(36, 20, "Next");
-    m_repeatButton = MakeIconButton(36, 18, "Repeat: Off");
+    m_nextButton = MakeIconButton(36, 20, tr("Next"));
+    m_repeatButton = MakeIconButton(36, 18, tr("Repeat: Off"));
     m_repeatButton->setCheckable(true);
     transportRow->addStretch();
     transportRow->addWidget(m_shuffleButton);
@@ -1504,24 +2326,24 @@ QWidget* PlayerWindow::buildPlayerBar()
     rightLayout->setSpacing(6);
     rightLayout->addStretch();
 
-    m_replayGainButton = new QPushButton("ReplayGain");
+    m_replayGainButton = new QPushButton(tr("ReplayGain"));
     m_replayGainButton->setObjectName("PillToggle");
     m_replayGainButton->setCheckable(true);
     m_replayGainButton->setChecked(true);
     m_replayGainButton->setFocusPolicy(Qt::NoFocus);
     m_replayGainButton->setCursor(Qt::PointingHandCursor);
-    m_replayGainButton->setToolTip("Normalize loudness using each track's ReplayGain tag");
+    m_replayGainButton->setToolTip(tr("Normalize loudness using each track's ReplayGain tag"));
     rightLayout->addWidget(m_replayGainButton);
 
-    m_stopButton = MakeIconButton(32, 16, "Stop");
+    m_stopButton = MakeIconButton(32, 16, tr("Stop"));
     rightLayout->addWidget(m_stopButton);
 
-    m_queueButton = MakeIconButton(32, 18, "Up Next");
+    m_queueButton = MakeIconButton(32, 18, tr("Up Next"));
     m_queueButton->setCheckable(true); // accent while the panel is open
     connect(m_queueButton, &QPushButton::clicked, this, [this](bool checked) { setUpNextVisible(checked); });
     rightLayout->addWidget(m_queueButton);
 
-    m_volumeButton = MakeIconButton(32, 18, "Mute (Ctrl+M)");
+    m_volumeButton = MakeIconButton(32, 18, tr("Mute (Ctrl+M)"));
     connect(m_volumeButton, &QPushButton::clicked, this, &PlayerWindow::toggleMute);
     rightLayout->addWidget(m_volumeButton);
 
@@ -1534,7 +2356,7 @@ QWidget* PlayerWindow::buildPlayerBar()
     m_volumeSlider->setMinimumWidth(50);
     m_volumeSlider->setMaximumWidth(84);
     m_volumeSlider->setFocusPolicy(Qt::NoFocus);
-    m_volumeSlider->setToolTip("Volume (Ctrl+Up / Ctrl+Down)");
+    m_volumeSlider->setToolTip(tr("Volume (Ctrl+Up / Ctrl+Down)"));
     rightLayout->addWidget(m_volumeSlider);
     outerLayout->addWidget(right, 2);
 
@@ -1567,92 +2389,109 @@ QWidget* PlayerWindow::buildPlayerBar()
 
 QWidget* PlayerWindow::buildNowPlayingPage()
 {
-    // Live video wallpaper -- scoped to just this
-    // page: `page` is a thin shell holding two stacked layers, the video
-    // (bottom) and the real content (top, everything below used to attach
-    // directly to `page` -- it now attaches to `content` instead, and
-    // `content` is what m_nowPlayingPage points at, unchanged for every
-    // other function that already reads/writes m_nowPlayingPage).
+    // Three stacked layers: the ambient background (the cover, blurred and
+    // darkened -- or generated art), the video wallpaper over it (transparent
+    // when there's no video), and the content on top. The page is always
+    // dark, so everything on it is drawn light, in both themes.
     auto* page = new QWidget();
+    m_ambientBackground = new QLabel();
+    m_ambientBackground->setScaledContents(true);
+    m_ambientBackground->setStyleSheet("background: #0b0a0b;");
     m_wallpaperWidget = new VideoBackgroundWidget();
 
     auto* content = new QWidget();
+    content->setObjectName("NowPlayingContent");
+    content->setAttribute(Qt::WA_StyledBackground); // a plain QWidget only paints a stylesheet background with this
+    // Light-on-dark overrides for the shared button and slider styles.
+    content->setStyleSheet(
+        // A light dark tint over the video wallpaper, so the light text always reads.
+        "QWidget#NowPlayingContent { background: rgba(0,0,0,85); }"
+        "QPushButton#IconButton:hover { background: rgba(255,255,255,28); }"
+        "QPushButton#IconButton:pressed { background: rgba(255,255,255,16); }"
+        "QPushButton#PillToggle { color: rgba(255,255,255,170); border-color: rgba(255,255,255,70); }"
+        "QPushButton#PillToggle:hover { color: white; }"
+        "QLabel#NowPlayingTime { color: rgba(255,255,255,150); font-size: 11px; }"
+        "QSlider::groove:horizontal { background: rgba(255,255,255,45); }"
+        "QSlider::add-page:horizontal { background: rgba(255,255,255,45); }"
+        "QSlider::sub-page:horizontal { background: rgba(255,255,255,230); }"
+        "QSlider::handle:horizontal { background: white; }");
     m_nowPlayingPage = content;
+    // Right-click anywhere: Love, Add to Playlist, Edit Tags, Change Cover...
+    content->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(content, &QWidget::customContextMenuRequested, this, [this, content](const QPoint& pos) {
+        showNowPlayingMenu(content->mapToGlobal(pos));
+    });
     auto* pageLayout = new QVBoxLayout(content);
     pageLayout->setContentsMargins(36, 24, 36, 28);
 
     auto* topRow = new QHBoxLayout();
-    m_backButton = MakeIconButton(38, 20, "Back to library");
+    m_backButton = MakeIconButton(38, 20, tr("Back to library"));
     connect(m_backButton, &QPushButton::clicked, this, [this]() { m_stack->setCurrentIndex(0); });
     topRow->addWidget(m_backButton);
     topRow->addStretch();
-    m_bigQueueButton = MakeIconButton(38, 18, "Up Next");
+    m_bigQueueButton = MakeIconButton(38, 18, tr("Up Next"));
     connect(m_bigQueueButton, &QPushButton::clicked, this, [this]() {
         m_stack->setCurrentIndex(0); // the queue lives on the library page
         setUpNextVisible(true);
     });
     topRow->addWidget(m_bigQueueButton);
-    m_sleepButton = MakeIconButton(38, 18, "Sleep timer");
+    m_visualizerButton = MakeIconButton(38, 18, tr("Visualizer"));
+    m_visualizerButton->setCheckable(true); // accent while it's on
+    connect(m_visualizerButton, &QPushButton::clicked, this, [this](bool checked) { setVisualizerOn(checked); });
+    topRow->addWidget(m_visualizerButton);
+    m_sleepButton = MakeIconButton(38, 18, tr("Sleep timer"));
     m_sleepButton->setCheckable(true); // shows the accent color while a timer is set
     connect(m_sleepButton, &QPushButton::clicked, this, [this]() {
         m_sleepButton->setChecked(m_sleepMinutes != 0); // the click toggled it -- the menu decides
         openSleepTimerMenu();
     });
     topRow->addWidget(m_sleepButton);
-    m_fullscreenButton = MakeIconButton(38, 18, "Full screen (F11)");
+    m_fullscreenButton = MakeIconButton(38, 18, tr("Full screen (F11)"));
     connect(m_fullscreenButton, &QPushButton::clicked, this, &PlayerWindow::toggleFullScreen);
     topRow->addWidget(m_fullscreenButton);
     pageLayout->addLayout(topRow);
 
     pageLayout->addStretch(1);
 
-    auto* contentRow = new QHBoxLayout();
-    contentRow->addStretch();
+    // --- Left: cover, title, progress, controls -------------------------------
+    static constexpr int kCoverSize = 360;
+    auto* player = new QWidget();
+    player->setFixedWidth(kCoverSize);
+    auto* playerColumn = new QVBoxLayout(player);
+    playerColumn->setContentsMargins(0, 0, 0, 0);
+    playerColumn->setSpacing(0);
 
     m_bigCoverArtLabel = new QLabel();
-    m_bigCoverArtLabel->setObjectName("CoverArt");
-    m_bigCoverArtLabel->setFixedSize(320, 320);
+    m_bigCoverArtLabel->setFixedSize(kCoverSize, kCoverSize);
     m_bigCoverArtLabel->setScaledContents(false); // pixmap is pre-cropped to exact label size (see ScaledCoverArt)
-    contentRow->addWidget(m_bigCoverArtLabel, 0, Qt::AlignTop);
+    m_bigCoverArtLabel->setStyleSheet("background: transparent;");
+    // The visualizer takes the cover's place while it's on.
+    m_visualizer = new VisualizerWidget(&m_engine.visualizer());
+    m_visualizer->setFixedSize(kCoverSize, kCoverSize);
+    m_coverStack = new QStackedWidget();
+    m_coverStack->setFixedSize(kCoverSize, kCoverSize);
+    m_coverStack->setStyleSheet("background: transparent;");
+    m_coverStack->addWidget(m_bigCoverArtLabel); // 0
+    m_coverStack->addWidget(m_visualizer);       // 1
+    // A soft shadow lifts the cover off the background.
+    auto* coverShadow = new QGraphicsDropShadowEffect(m_coverStack);
+    coverShadow->setBlurRadius(48);
+    coverShadow->setOffset(0, 14);
+    coverShadow->setColor(QColor(0, 0, 0, 150));
+    m_coverStack->setGraphicsEffect(coverShadow);
+    playerColumn->addWidget(m_coverStack);
+    playerColumn->addSpacing(24);
 
-    // A fixed, deliberate width for the whole info column (title through
-    // lyrics) -- not derived from window size. Single source of truth for
-    // both the box below and the title scroll area further down, so they
-    // always match.
-    static constexpr int kBigTitleBoxWidth = 620;
+    // Title (scrolling when it's too long) and artist, the heart beside them.
+    auto* titleRow = new QHBoxLayout();
+    titleRow->setSpacing(8);
+    auto* titleColumn = new QVBoxLayout();
+    titleColumn->setSpacing(2);
 
-    // The readable backdrop lives here now -- a bounded panel behind just
-    // the title/subtitle/format/lyrics column -- instead of tinting the
-    // entire page (which produced a visible seam artifact at the label
-    // boundaries; see the box's own comment further down for the size
-    // policy reasoning that keeps a wide child from forcing this, or any
-    // ancestor up to the window, to grow).
-    auto* infoBox = new QWidget();
-    infoBox->setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 16px;");
-    infoBox->setMaximumWidth(kBigTitleBoxWidth);
-    infoBox->setMinimumHeight(320); // at least as tall as the cover beside it
-    infoBox->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    m_infoBox = infoBox; // updateNowPlayingUi() re-tints this per track
-
-    // Everything inside the box is always drawn light-on-dark: the box is
-    // tinted from the (darkened) cover art color in both themes.
-    auto* textColumn = new QVBoxLayout(infoBox);
-    textColumn->setContentsMargins(24, 20, 24, 16);
-    textColumn->setSpacing(4);
-
-    auto* caption = new QLabel("NOW PLAYING");
-    caption->setObjectName("NowPlayingCaption");
-    QFont captionFont = caption->font();
-    captionFont.setLetterSpacing(QFont::AbsoluteSpacing, 3);
-    caption->setFont(captionFont);
-    caption->setStyleSheet("background: transparent; color: #f0c3a4;");
-    textColumn->addWidget(caption);
-
-    m_bigTitleLabel = new QLabel("No file loaded");
-    QFont titleFont;
-    titleFont.setFamilies({"Playfair Display", "Microsoft YaHei UI", "Georgia"}); // CJK titles fall back to YaHei
-    titleFont.setStyleHint(QFont::Serif);
-    titleFont.setPointSize(34);
+    m_bigTitleLabel = new QLabel(tr("No file loaded"));
+    QFont titleFont = font();
+    titleFont.setPixelSize(26);
+    titleFont.setWeight(QFont::Bold);
     m_bigTitleLabel->setFont(titleFont);
     m_bigTitleLabel->setWordWrap(false); // no wrap -- overflow is elided/scrolled instead of growing into a block
     m_bigTitleLabel->setStyleSheet("background: transparent; color: #f6ede7;");
@@ -1675,19 +2514,10 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     // opaque palette background -- so that needs clearing explicitly too.
     m_bigTitleScrollArea->viewport()->setStyleSheet("background: transparent;");
     m_bigTitleScrollArea->viewport()->setAutoFillBackground(false);
-    // A fixed, deliberate width for this title area -- not derived from
-    // the window's current size. It stays this width whether the window
-    // is windowed, maximized, or resized; only how much of the title
-    // that fits (and therefore whether the marquee runs at all) changes.
-    m_bigTitleScrollArea->setMinimumWidth(0);
-    m_bigTitleScrollArea->setMaximumWidth(kBigTitleBoxWidth - 32); // minus infoBox's own left+right margins
-    // Horizontal Ignored keeps this scroll area's sizeHint (which tracks
-    // the full unclipped title -- easily much wider than the box) from
-    // ever counting toward this page's, m_stack's, or the window's own
-    // minimum size -- it's the fixed width above that actually renders,
-    // this just stops the unconstrained sizeHint from leaking upward.
+    // Horizontal Ignored keeps the scroll area's sizeHint (the full,
+    // unclipped title) from counting toward the page's minimum width.
     m_bigTitleScrollArea->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-    textColumn->addWidget(m_bigTitleScrollArea);
+    titleColumn->addWidget(m_bigTitleScrollArea);
 
     // Three-phase cycle, like Harmonoid's title marquee: sits still showing
     // "...ellipsis" long enough to read (phase 0), slowly scrolls left to
@@ -1745,140 +2575,177 @@ QWidget* PlayerWindow::buildNowPlayingPage()
     });
     m_titleMarqueeTimer->start(50);
 
+    // Artist  •  Album. A reserved height: this page sits in m_stack, which
+    // sizes itself off the largest minimum across all its pages, so a label
+    // growing from empty would otherwise grow the window while the library shows.
     m_bigSubtitleLabel = new QLabel();
-    // Same reserved-height fix as m_formatLabel in buildPlayerBar(), but
-    // more consequential here: this page is inside m_stack, and
-    // QStackedWidget sizes itself off the LARGEST minimum size across ALL
-    // its pages, not just the one currently shown. So this label jumping
-    // from empty to real text the first time a track plays (in
-    // updateNowPlayingUi()) was silently growing the whole window's
-    // required height even while the Library page, not this one, was the
-    // one actually visible -- which is exactly why toggling to Now
-    // Playing and back (forcing Qt to finish laying this page out) made
-    // it "fix itself".
-    QFont subtitleFont;
-    subtitleFont.setFamilies({"Playfair Display", "Microsoft YaHei UI", "Georgia"});
-    subtitleFont.setStyleHint(QFont::Serif);
-    subtitleFont.setItalic(true);
-    subtitleFont.setPointSize(15);
+    QFont subtitleFont = font();
+    subtitleFont.setPixelSize(15);
     m_bigSubtitleLabel->setFont(subtitleFont);
-    m_bigSubtitleLabel->setStyleSheet("background: transparent; color: #f0c3a4;");
+    m_bigSubtitleLabel->setStyleSheet("background: transparent; color: rgba(246,237,231,175);");
     m_bigSubtitleLabel->setMinimumHeight(m_bigSubtitleLabel->fontMetrics().height());
-    textColumn->addWidget(m_bigSubtitleLabel);
+    m_bigSubtitleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    titleColumn->addWidget(m_bigSubtitleLabel);
+    titleRow->addLayout(titleColumn, 1);
+
+    m_loveButton = MakeIconButton(36, 22, tr("Love"));
+    m_loveButton->setEnabled(false);
+    connect(m_loveButton, &QPushButton::clicked, this, &PlayerWindow::toggleLoved);
+    titleRow->addWidget(m_loveButton, 0, Qt::AlignVCenter);
+    playerColumn->addLayout(titleRow);
 
     m_bigFormatLabel = new QLabel();
-    m_bigFormatLabel->setStyleSheet("background: transparent; color: rgba(255,255,255,140);");
+    m_bigFormatLabel->setStyleSheet("background: transparent; color: rgba(255,255,255,110); font-size: 11px;");
     m_bigFormatLabel->setMinimumHeight(m_bigFormatLabel->fontMetrics().height());
-    textColumn->addWidget(m_bigFormatLabel);
-    textColumn->addSpacing(10);
+    playerColumn->addSpacing(4);
+    playerColumn->addWidget(m_bigFormatLabel);
+    playerColumn->addSpacing(18);
 
-    m_lyricsList = new QListWidget();
-    m_lyricsList->setStyleSheet(
-        "QListWidget { background: transparent; border: none; }"
-        "QListWidget::item { border: none; padding: 3px 0; }"
-        "QListWidget::item:selected { background: transparent; }");
-    m_lyricsList->setSelectionMode(QAbstractItemView::NoSelection);
-    m_lyricsList->setFocusPolicy(Qt::NoFocus);
-    m_lyricsList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // teleprompter-style: it scrolls itself
-    m_lyricsList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_lyricsList->setWordWrap(true);
-    m_lyricsBaseFont = m_lyricsList->font();
-    m_lyricsBaseFont.setPointSize(15);
-    m_lyricsList->setFont(m_lyricsBaseFont);
-    m_lyricsList->viewport()->setMouseTracking(true); // needed for hover, no click/drag required
-    m_lyricsList->viewport()->installEventFilter(this);
-    textColumn->addWidget(m_lyricsList, 1);
-
-    contentRow->addSpacing(32);
-    contentRow->addWidget(infoBox, 1);
-    contentRow->addStretch();
-    pageLayout->addLayout(contentRow);
-
-    pageLayout->addStretch(1);
-
-    // Seek row: elapsed | slider | total, capped so it doesn't span a
-    // maximized window edge to edge.
-    auto* seekRow = new QHBoxLayout();
-    seekRow->setSpacing(12);
-    seekRow->addStretch();
-    m_bigTimeLabel = new QLabel("0:00");
-    m_bigTimeLabel->setObjectName("TimeLabel");
-    m_bigTimeLabel->setFixedWidth(44);
-    m_bigTimeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    seekRow->addWidget(m_bigTimeLabel);
-
+    // Progress, with the times under its two ends.
     m_bigSeekSlider = new ClickSeekSlider(Qt::Horizontal);
     m_bigSeekSlider->setRange(0, 0);
-    m_bigSeekSlider->setMinimumWidth(300);
-    m_bigSeekSlider->setMaximumWidth(760);
     connect(m_bigSeekSlider, &QSlider::sliderPressed, this, [this]() { m_seeking = true; });
     connect(m_bigSeekSlider, &QSlider::sliderReleased, this, [this]() {
         m_seekSlider->setValue(m_bigSeekSlider->value());
         seekToSliderValue();
     });
-    seekRow->addWidget(m_bigSeekSlider, 8);
-
+    playerColumn->addWidget(m_bigSeekSlider);
+    auto* timesRow = new QHBoxLayout();
+    m_bigTimeLabel = new QLabel("0:00");
+    m_bigTimeLabel->setObjectName("NowPlayingTime");
+    timesRow->addWidget(m_bigTimeLabel);
+    timesRow->addStretch();
     m_bigDurationLabel = new QLabel("0:00");
-    m_bigDurationLabel->setObjectName("TimeLabel");
-    m_bigDurationLabel->setFixedWidth(44);
-    seekRow->addWidget(m_bigDurationLabel);
-    seekRow->addStretch();
-    pageLayout->addLayout(seekRow);
-    pageLayout->addSpacing(6);
+    m_bigDurationLabel->setObjectName("NowPlayingTime");
+    timesRow->addWidget(m_bigDurationLabel);
+    playerColumn->addLayout(timesRow);
+    playerColumn->addSpacing(10);
 
-    // Transport row: volume on the left, transport centered, an equal-width
-    // spacer on the right to keep the transport truly centered.
-    static constexpr int kSideWidth = 220;
-    auto* bigTransportRow = new QHBoxLayout();
-    bigTransportRow->setSpacing(14);
+    // Shuffle  Previous  Play  Next  Repeat, spread across the column.
+    auto* transportRow = new QHBoxLayout();
+    m_bigShuffleButton = MakeIconButton(42, 20, tr("Shuffle: Off"));
+    m_bigShuffleButton->setCheckable(true);
+    m_bigPrevButton = MakeIconButton(48, 26, tr("Previous"));
+    m_bigPlayButton = MakeIconButton(64, 28, tr("Play"));
+    m_bigPlayButton->setObjectName("BigPlayButton");
+    m_bigNextButton = MakeIconButton(48, 26, tr("Next"));
+    m_bigRepeatButton = MakeIconButton(42, 20, tr("Repeat: Off"));
+    m_bigRepeatButton->setCheckable(true);
+    transportRow->addWidget(m_bigShuffleButton);
+    transportRow->addStretch();
+    transportRow->addWidget(m_bigPrevButton);
+    transportRow->addSpacing(12);
+    transportRow->addWidget(m_bigPlayButton);
+    transportRow->addSpacing(12);
+    transportRow->addWidget(m_bigNextButton);
+    transportRow->addStretch();
+    transportRow->addWidget(m_bigRepeatButton);
+    playerColumn->addLayout(transportRow);
+    playerColumn->addSpacing(12);
 
-    auto* volumeBox = new QWidget();
-    volumeBox->setMinimumWidth(140);
-    volumeBox->setMaximumWidth(kSideWidth);
-    auto* bigVolumeRow = new QHBoxLayout(volumeBox);
-    bigVolumeRow->setContentsMargins(0, 0, 0, 0);
-    m_bigVolumeButton = MakeIconButton(34, 18, "Mute (Ctrl+M)");
+    // Volume, and A-B repeat.
+    auto* extrasRow = new QHBoxLayout();
+    extrasRow->setSpacing(6);
+    m_bigVolumeButton = MakeIconButton(32, 18, tr("Mute (Ctrl+M)"));
     connect(m_bigVolumeButton, &QPushButton::clicked, this, &PlayerWindow::toggleMute);
-    bigVolumeRow->addWidget(m_bigVolumeButton);
-
-    // Volume -- mirrors the mini player bar's m_volumeSlider rather than
-    // being a second source of truth. Moving either one updates the other;
-    // m_volumeSlider stays the thing applyVolume()/loadSettings()/etc.
-    // actually read from.
+    extrasRow->addWidget(m_bigVolumeButton);
+    // Mirrors the mini player bar's m_volumeSlider rather than being a second
+    // source of truth: m_volumeSlider stays what applyVolume() etc. read.
     m_bigVolumeSlider = new ClickSeekSlider(Qt::Horizontal);
     m_bigVolumeSlider->setRange(0, 200);
     m_bigVolumeSlider->setValue(m_volumeSlider->value());
-    m_bigVolumeSlider->setMinimumWidth(70);
-    m_bigVolumeSlider->setMaximumWidth(130);
+    m_bigVolumeSlider->setFixedWidth(140);
     m_bigVolumeSlider->setFocusPolicy(Qt::NoFocus);
-    bigVolumeRow->addWidget(m_bigVolumeSlider);
-    bigVolumeRow->addStretch();
+    extrasRow->addWidget(m_bigVolumeSlider);
+    extrasRow->addStretch();
+    m_abButton = new QPushButton(QStringLiteral("A–B"));
+    m_abButton->setObjectName("PillToggle");
+    m_abButton->setCheckable(true); // the accent fill while it loops
+    m_abButton->setFocusPolicy(Qt::NoFocus);
+    m_abButton->setCursor(Qt::PointingHandCursor);
+    connect(m_abButton, &QPushButton::clicked, this, &PlayerWindow::cycleAbRepeat);
+    extrasRow->addWidget(m_abButton);
+    playerColumn->addLayout(extrasRow);
 
-    bigTransportRow->addStretch(1);
-    bigTransportRow->addWidget(volumeBox, 1);
-    bigTransportRow->addSpacing(40);
+    // --- Right: lyrics ---------------------------------------------------------
+    auto* lyricsPanel = new QWidget();
+    lyricsPanel->setMinimumWidth(320);
+    lyricsPanel->setMaximumWidth(680);
+    lyricsPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored); // as tall as the player column
+    auto* lyricsColumn = new QVBoxLayout(lyricsPanel);
+    lyricsColumn->setContentsMargins(0, 0, 0, 0);
+    lyricsColumn->setSpacing(6);
+    auto* lyricsHeader = new QHBoxLayout();
+    auto* lyricsCaption = new QLabel(tr("LYRICS"));
+    QFont captionFont = lyricsCaption->font();
+    captionFont.setPixelSize(11);
+    captionFont.setWeight(QFont::DemiBold);
+    captionFont.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+    lyricsCaption->setFont(captionFont);
+    lyricsCaption->setStyleSheet("background: transparent; color: rgba(255,255,255,120);");
+    lyricsHeader->addWidget(lyricsCaption);
+    lyricsHeader->addStretch();
 
-    m_bigShuffleButton = MakeIconButton(42, 20, "Shuffle: Off");
-    m_bigShuffleButton->setCheckable(true);
-    m_bigPrevButton = MakeIconButton(46, 24, "Previous");
-    m_bigPlayButton = MakeIconButton(64, 28, "Play");
-    m_bigPlayButton->setObjectName("BigPlayButton");
-    m_bigNextButton = MakeIconButton(46, 24, "Next");
-    m_bigRepeatButton = MakeIconButton(42, 20, "Repeat: Off");
-    m_bigRepeatButton->setCheckable(true);
-    bigTransportRow->addWidget(m_bigShuffleButton);
-    bigTransportRow->addWidget(m_bigPrevButton);
-    bigTransportRow->addWidget(m_bigPlayButton);
-    bigTransportRow->addWidget(m_bigNextButton);
-    bigTransportRow->addWidget(m_bigRepeatButton);
+    // Lyrics timing, per song (synced lyrics only): a small menu.
+    auto* timingButton = new QPushButton();
+    timingButton->setObjectName("PillToggle");
+    timingButton->setCursor(Qt::PointingHandCursor);
+    timingButton->setFocusPolicy(Qt::NoFocus);
+    connect(timingButton, &QPushButton::clicked, this, [this, timingButton]() {
+        QMenu menu(this);
+        menu.addAction(tr("Show 0.5 s Earlier"), this, [this]() { setLyricsOffset(m_lyricsOffsetMs - 500); });
+        menu.addAction(tr("Show 0.5 s Later"), this, [this]() { setLyricsOffset(m_lyricsOffsetMs + 500); });
+        QAction* reset = menu.addAction(tr("Reset Timing"), this, [this]() { setLyricsOffset(0); });
+        reset->setEnabled(m_lyricsOffsetMs != 0);
+        menu.exec(timingButton->mapToGlobal(QPoint(0, timingButton->height())));
+    });
+    m_lyricsOffsetRow = timingButton;
+    m_lyricsTimingButton = timingButton;
+    m_lyricsOffsetRow->hide();
+    lyricsHeader->addWidget(timingButton);
+    lyricsColumn->addLayout(lyricsHeader);
 
-    bigTransportRow->addSpacing(40);
-    auto* rightSpacer = new QWidget();
-    rightSpacer->setMinimumWidth(140);
-    rightSpacer->setMaximumWidth(kSideWidth);
-    bigTransportRow->addWidget(rightSpacer, 1);
-    bigTransportRow->addStretch(1);
-    pageLayout->addLayout(bigTransportRow);
+    m_lyricsList = new QListWidget();
+    m_lyricsList->setStyleSheet(
+        "QListWidget { background: transparent; border: none; }"
+        "QListWidget::item { border: none; padding: 7px 0; }"
+        "QListWidget::item:selected, QListWidget::item:hover { background: transparent; }");
+    m_lyricsList->setSelectionMode(QAbstractItemView::NoSelection);
+    m_lyricsList->setFocusPolicy(Qt::NoFocus);
+    m_lyricsList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // teleprompter-style: it scrolls itself
+    m_lyricsList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_lyricsList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    m_lyricsList->setWordWrap(true);
+    m_lyricsBaseFont = m_lyricsList->font();
+    m_lyricsBaseFont.setPixelSize(22);
+    m_lyricsBaseFont.setWeight(QFont::DemiBold);
+    m_lyricsList->setFont(m_lyricsBaseFont);
+    m_lyricsList->viewport()->setMouseTracking(true); // needed for hover, no click/drag required
+    m_lyricsList->viewport()->installEventFilter(this); // hover, click to seek, and the padding rows' height
+    // Fades the lines out at the top and bottom edges.
+    auto* fade = new QGraphicsOpacityEffect(m_lyricsList);
+    QLinearGradient fadeMask(0, 0, 0, 1);
+    fadeMask.setCoordinateMode(QGradient::ObjectBoundingMode);
+    fadeMask.setColorAt(0.0, Qt::transparent);
+    fadeMask.setColorAt(0.12, Qt::black);
+    fadeMask.setColorAt(0.88, Qt::black);
+    fadeMask.setColorAt(1.0, Qt::transparent);
+    fade->setOpacityMask(fadeMask);
+    m_lyricsList->setGraphicsEffect(fade);
+    lyricsColumn->addWidget(m_lyricsList, 1);
+
+    auto* mainRow = new QHBoxLayout();
+    mainRow->addStretch(1);
+    mainRow->addWidget(player, 0, Qt::AlignVCenter);
+    mainRow->addSpacing(64);
+    mainRow->addWidget(lyricsPanel, 3);
+    mainRow->addStretch(1);
+    // The lyrics are exactly as tall as the player column.
+    auto* mainBox = new QWidget();
+    mainBox->setLayout(mainRow);
+    mainRow->setContentsMargins(0, 0, 0, 0);
+    pageLayout->addWidget(mainBox);
+    pageLayout->addStretch(1);
 
     // These just call the exact same methods the mini player bar's buttons
     // do -- one shared playback state, two sets of buttons.
@@ -1897,16 +2764,19 @@ QWidget* PlayerWindow::buildNowPlayingPage()
         m_bigVolumeSlider->blockSignals(false);
     });
 
-    // StackAll keeps both layers visible at once -- video widget added
-    // first so it paints behind the content. Only currentWidget() actually
-    // receives mouse/keyboard input, so content must be made current or
-    // every button/slider on this page would silently stop responding
-    // (same issue as the whole-window version of this had).
+    // StackAll keeps every layer visible at once -- added bottom to top.
+    // Only currentWidget() receives mouse/keyboard input, so content must be
+    // made current or every button/slider on this page would stop responding.
     auto* pageLayers = new QStackedLayout(page);
     pageLayers->setStackingMode(QStackedLayout::StackAll);
+    pageLayers->addWidget(m_ambientBackground);
     pageLayers->addWidget(m_wallpaperWidget);
     pageLayers->addWidget(content);
     pageLayers->setCurrentWidget(content);
+    // The order on screen, explicitly: adding the first layer made it the
+    // current one and raised it, which isn't reliably undone by the later adds.
+    m_wallpaperWidget->stackUnder(content);
+    m_ambientBackground->stackUnder(m_wallpaperWidget);
 
     return page;
 }
@@ -1927,7 +2797,7 @@ void PlayerWindow::toggleFullScreen()
 
 void PlayerWindow::addFolder()
 {
-    QString dir = QFileDialog::getExistingDirectory(this, "Select Music Folder");
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Music Folder"));
     if (dir.isEmpty())
     {
         return;
@@ -1947,6 +2817,24 @@ void PlayerWindow::removeFolder(const QString& dir)
     refreshTracksTable();
     refreshAlbumsAndArtists();
     updateLibraryStatsUi();
+    refreshPodcasts();
+}
+
+void PlayerWindow::setFolderIsPodcast(const QString& dir, bool podcast)
+{
+    QStringList folders = m_library.podcastFolders();
+    folders.removeAll(dir);
+    if (podcast)
+    {
+        folders << dir;
+    }
+    m_library.setPodcastFolders(folders); // the songs move between Tracks and Podcasts at once
+    refreshTracksTable();
+    refreshAlbumsAndArtists();
+    refreshPlaylistsList();
+    updateLibraryStatsUi();
+    refreshPodcasts();
+    startLibraryScan(); // a podcast folder's .m4a files are only found by a scan
 }
 
 void PlayerWindow::refreshLibrary()
@@ -1963,18 +2851,19 @@ void PlayerWindow::startLibraryScan()
     }
 
     const QStringList folders = m_library.folders();
+    const QStringList podcastFolders = m_library.podcastFolders();
     QHash<QString, TrackInfo> known;
-    for (const TrackInfo& t : m_library.tracks())
+    for (const TrackInfo& t : m_library.allTracks())
     {
         known.insert(t.path, t);
     }
     m_scanCancel = std::make_shared<std::atomic<bool>>(false);
     auto cancel = m_scanCancel;
 
-    m_scanThread = QThread::create([this, folders, known, cancel]() {
+    m_scanThread = QThread::create([this, folders, podcastFolders, known, cancel]() {
         QElapsedTimer sinceReport;
         sinceReport.start();
-        const QVector<TrackInfo> tracks = MusicLibrary::ScanFolders(folders, known,
+        const QVector<TrackInfo> tracks = MusicLibrary::ScanFolders(folders, podcastFolders, known,
             [this, &sinceReport](int done, int total) {
                 // A few updates a second is plenty for a progress bar.
                 if (done == total || sinceReport.elapsed() >= 80)
@@ -1995,7 +2884,8 @@ void PlayerWindow::startLibraryScan()
 
     m_refreshLibraryButton->setEnabled(false);
     m_analyzeButton->setEnabled(false);
-    m_scanLabel->setText("Loading library\u2026");
+    m_genreButton->setEnabled(false);
+    m_scanLabel->setText(tr("Loading library\u2026"));
     m_scanProgress->setRange(0, 0); // "busy" until the file count is known
     // Only shown if it takes a moment -- an up-to-date library is checked in a blink.
     QTimer::singleShot(300, this, [this]() {
@@ -2010,7 +2900,7 @@ void PlayerWindow::onLibraryScanProgress(int done, int total)
 {
     m_scanProgress->setRange(0, qMax(1, total));
     m_scanProgress->setValue(done);
-    m_scanLabel->setText(QString("Loading library\u2026 %1 of %2").arg(done).arg(total));
+    m_scanLabel->setText(tr("Loading library\u2026 %1 of %2").arg(done).arg(total));
 }
 
 void PlayerWindow::onLibraryScanFinished(const QVector<TrackInfo>& scanned)
@@ -2022,12 +2912,12 @@ void PlayerWindow::onLibraryScanFinished(const QVector<TrackInfo>& scanned)
 
     // The usual case at launch: the cache was already right. Rebuilding every
     // view anyway would make a big library hitch for nothing.
-    bool unchanged = tracks.size() == m_library.tracks().size();
+    bool unchanged = tracks.size() == m_library.allTracks().size();
     for (int i = 0; unchanged && i < tracks.size(); ++i)
     {
         const TrackInfo& a = tracks[i];
-        const TrackInfo& b = m_library.tracks()[i];
-        unchanged = a.path == b.path && a.modifiedMs == b.modifiedMs;
+        const TrackInfo& b = m_library.allTracks()[i];
+        unchanged = a.path == b.path && a.modifiedMs == b.modifiedMs && a.addedMs == b.addedMs;
     }
 
     if (!unchanged)
@@ -2038,11 +2928,13 @@ void PlayerWindow::onLibraryScanFinished(const QVector<TrackInfo>& scanned)
         refreshAlbumsAndArtists();
         refreshPlaylistsList();
         updateLibraryStatsUi();
+        refreshPodcasts();
     }
 
     m_scanBar->hide();
     m_refreshLibraryButton->setEnabled(true);
     updateAnalysisProgressUi(); // re-enables Analyze
+    updateGenreProgressUi();    // ...and Detect Genres
 
     if (m_scanPending)
     {
@@ -2064,13 +2956,47 @@ void PlayerWindow::refreshFoldersList()
         rowLayout->setContentsMargins(4, 2, 4, 2);
         rowLayout->addWidget(new QLabel(dir), 1);
 
-        auto* removeButton = new QPushButton("Remove");
+        auto* podcast = new QCheckBox(tr("Podcast"));
+        podcast->setChecked(m_library.isPodcastFolder(dir));
+        podcast->setToolTip(tr("This folder holds podcasts: show its episodes in the Podcasts tab only."));
+        connect(podcast, &QCheckBox::toggled, this, [this, dir](bool checked) { setFolderIsPodcast(dir, checked); });
+        rowLayout->addWidget(podcast);
+
+        auto* removeButton = new QPushButton(tr("Remove"));
         connect(removeButton, &QPushButton::clicked, this, [this, dir]() { removeFolder(dir); });
         rowLayout->addWidget(removeButton);
 
-        item->setSizeHint(rowWidget->sizeHint());
+        // Measured once it's in the list: before that the app's stylesheet
+        // (the buttons' padding) isn't applied yet, the row came out too small
+        // and Remove was squashed into a sliver. Width 0: the row takes the
+        // list's width, so Remove stays inside it.
         m_foldersList->setItemWidget(item, rowWidget);
+        rowWidget->ensurePolished();
+        removeButton->ensurePolished();
+        podcast->ensurePolished();
+        item->setSizeHint(QSize(0, rowWidget->sizeHint().height()));
     }
+}
+
+void PlayerWindow::fitTracksColumnsOnce()
+{
+    // Until the user has their own widths (remembered from then on): the
+    // columns share the list's width, so nothing runs off the right edge.
+    const int width = m_tracksTable->viewport()->width();
+    if (m_tracksColumnsFitted || width < 300 || !m_tracksTable->isVisible())
+    {
+        return;
+    }
+    m_tracksColumnsFitted = true;
+    QHeaderView* header = m_tracksTable->horizontalHeader();
+    const int year = 64;
+    const int genre = qMin(160, width / 7);
+    const int rest = width - year - genre;
+    header->resizeSection(4, year);
+    header->resizeSection(3, genre);
+    header->resizeSection(0, rest * 50 / 100);
+    header->resizeSection(1, rest * 25 / 100);
+    header->resizeSection(2, rest - rest * 50 / 100 - rest * 25 / 100);
 }
 
 void PlayerWindow::refreshTracksTable()
@@ -2079,11 +3005,6 @@ void PlayerWindow::refreshTracksTable()
     // and painting live made a big library take seconds.
     m_tracksTable->setUpdatesEnabled(false);
     m_tracksTable->setSortingEnabled(false);
-    // Auto-sized columns re-measure the whole column after every cell set --
-    // quadratic in the row count. Fixed while filling, measured once after.
-    QHeaderView* header = m_tracksTable->horizontalHeader();
-    header->setSectionResizeMode(3, QHeaderView::Interactive);
-    header->setSectionResizeMode(4, QHeaderView::Interactive);
     m_tracksTable->clearContents();
     m_tracksTable->setRowCount(m_library.tracks().size());
 
@@ -2097,14 +3018,22 @@ void PlayerWindow::refreshTracksTable()
         m_tracksTable->setItem(row, 0, titleItem);
         m_tracksTable->setItem(row, 1, new QTableWidgetItem(t.artist));
         m_tracksTable->setItem(row, 2, new QTableWidgetItem(t.album));
-        m_tracksTable->setItem(row, 3, new QTableWidgetItem(t.genre));
+        // The file's genre, or the detected one if it's empty or a YouTube category like "Music".
+        const QString genre = m_songData->shownGenre(t);
+        auto* genreItem = new QTableWidgetItem(genre);
+        if (!genre.isEmpty() && genre != t.genre)
+        {
+            genreItem->setToolTip(t.genre.trimmed().isEmpty()
+                                      ? tr("Detected by AudioForge (the file has no genre)")
+                                      : tr("Detected by AudioForge (the file says \"%1\")").arg(t.genre));
+        }
+        m_tracksTable->setItem(row, 3, genreItem);
         m_tracksTable->setItem(row, 4, new QTableWidgetItem(t.year > 0 ? QString::number(t.year) : QString()));
     }
 
     m_tracksTable->setSortingEnabled(true);
-    header->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    header->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     m_tracksTable->setUpdatesEnabled(true);
+    fitTracksColumnsOnce();
 
     // Rebuilt rows start out visible -- re-apply whatever's still typed in
     // the search bar so a refresh (tag edit, cover change, rescan) doesn't
@@ -2118,8 +3047,9 @@ void PlayerWindow::refreshAlbumsAndArtists()
     QMap<QString, QStringList> albums = m_library.albumGroups();
     for (auto it = albums.constBegin(); it != albums.constEnd(); ++it)
     {
-        auto* item = new QListWidgetItem(QString("%1  (%2 tracks)").arg(it.key()).arg(it.value().size()));
+        auto* item = new QListWidgetItem(tr("%1  (%2 tracks)").arg(it.key()).arg(it.value().size()));
         item->setData(Qt::UserRole, it.value());
+        item->setData(kGroupNameRole, it.key());
         m_albumsList->addItem(item);
     }
 
@@ -2127,8 +3057,9 @@ void PlayerWindow::refreshAlbumsAndArtists()
     QMap<QString, QStringList> artists = m_library.artistGroups();
     for (auto it = artists.constBegin(); it != artists.constEnd(); ++it)
     {
-        auto* item = new QListWidgetItem(QString("%1  (%2 tracks)").arg(it.key()).arg(it.value().size()));
+        auto* item = new QListWidgetItem(tr("%1  (%2 tracks)").arg(it.key()).arg(it.value().size()));
         item->setData(Qt::UserRole, it.value());
+        item->setData(kGroupNameRole, it.key());
         m_artistsList->addItem(item);
     }
 }
@@ -2136,13 +3067,14 @@ void PlayerWindow::refreshAlbumsAndArtists()
 
 void PlayerWindow::updateLibraryStatsUi()
 {
-    const MusicLibrary::Stats s = m_library.stats();
+    const MusicLibrary::Stats s = m_library.stats([this](const TrackInfo& t) { return m_songData->shownGenre(t); });
     const int values[] = {s.trackCount, s.albumCount, s.artistCount, s.genreCount};
     for (int i = 0; i < m_statValueLabels.size(); ++i)
     {
         m_statValueLabels[i]->setText(QString::number(values[i]));
     }
     updateAnalysisProgressUi();
+    updateGenreProgressUi();
 }
 
 // Just the Analyze row -- called on every analysis progress tick, so it
@@ -2157,7 +3089,7 @@ void PlayerWindow::updateAnalysisProgressUi()
     {
         m_analyzeProgress->setRange(0, qMax(1, m_analyzer->total()));
         m_analyzeProgress->setValue(m_analyzer->done());
-        m_analyzeStatusLabel->setText(QString("Analyzing… %1 of %2. You can keep using the app.")
+        m_analyzeStatusLabel->setText(tr("Analyzing… %1 of %2. You can keep using the app.")
                                           .arg(m_analyzer->done()).arg(m_analyzer->total()));
     }
     else
@@ -2165,8 +3097,37 @@ void PlayerWindow::updateAnalysisProgressUi()
         const int total = m_library.tracks().size();
         const int analyzed = m_songData->analyzedCount(m_library.tracks());
         m_analyzeButton->setEnabled(total > 0 && !m_scanThread);
-        m_analyzeStatusLabel->setText(analyzed == total ? QString("All %1 songs analyzed").arg(total)
-                                                        : QString("%1 of %2 songs analyzed").arg(analyzed).arg(total));
+        m_analyzeStatusLabel->setText(analyzed == total ? tr("All %1 songs analyzed").arg(total)
+                                                        : tr("%1 of %2 songs analyzed").arg(analyzed).arg(total));
+    }
+}
+
+void PlayerWindow::startGenreDetection()
+{
+    m_genreAnalyzer->start(m_library.tracks());
+    updateGenreProgressUi();
+}
+
+void PlayerWindow::updateGenreProgressUi()
+{
+    const bool running = m_genreAnalyzer->isRunning();
+    m_genreButton->setVisible(!running);
+    m_genreStopButton->setVisible(running);
+    m_genreProgress->setVisible(running);
+    if (running)
+    {
+        m_genreProgress->setRange(0, qMax(1, m_genreAnalyzer->total()));
+        m_genreProgress->setValue(m_genreAnalyzer->done());
+        m_genreStatusLabel->setText(tr("Detecting genres… %1 of %2")
+                                        .arg(m_genreAnalyzer->done()).arg(m_genreAnalyzer->total()));
+    }
+    else
+    {
+        const int total = m_library.tracks().size();
+        const int detected = m_songData->detectedGenreCount(m_library.tracks());
+        m_genreButton->setEnabled(total > 0 && !m_scanThread);
+        m_genreStatusLabel->setText(detected == total ? tr("Genres detected for all %1 songs").arg(total)
+                                                      : tr("Genres detected for %1 of %2 songs").arg(detected).arg(total));
     }
 }
 
@@ -2194,6 +3155,7 @@ void PlayerWindow::onAnalysisFinished(bool completed)
     }
     updateLibraryStatsUi();
     updateSmartOrder(); // newly analyzed songs join the harmonic order
+    refreshPlaylistsList(); // smart playlists with BPM / Key rules
 }
 
 void PlayerWindow::updateSmartOrder()
@@ -2222,7 +3184,7 @@ void PlayerWindow::openDuplicates()
 {
     DuplicatesDialog dialog(
         m_library.tracks(),
-        [this](const QVector<TrackInfo>& group, int index) { setQueueAndPlay(group, index, "Duplicates"); },
+        [this](const QVector<TrackInfo>& group, int index) { setQueueAndPlay(group, index, tr("Duplicates")); },
         [this](const QString&) { refreshLibrary(); },
         this);
     dialog.exec();
@@ -2264,36 +3226,31 @@ void PlayerWindow::applySearchFilter(const QString& text)
 
 // --- MusicBrainz tagger -------------------------------------------
 
-void PlayerWindow::openTagMusicMenu()
-{
-    QMenu menu(this);
-    QAction* viaMusicBrainz = menu.addAction("MusicBrainz");
-    QAction* manual = menu.addAction("Manual tagging");
-    QAction* chosen = menu.exec(m_musicBrainzButton->mapToGlobal(QPoint(0, m_musicBrainzButton->height())));
-
-    if (chosen == viaMusicBrainz)
-    {
-        lookupSelectedTrackOnMusicBrainz();
-    }
-    else if (chosen == manual)
-    {
-        openManualTagDialog();
-    }
-}
-
-void PlayerWindow::openManualTagDialog()
+QString PlayerWindow::selectedTrackPath() const
 {
     QTableWidgetItem* item = m_tracksTable->currentItem();
-    if (!item)
+    return item ? m_tracksTable->item(item->row(), 0)->data(Qt::UserRole).toString() : QString();
+}
+
+void PlayerWindow::openManualTagDialog(QString path)
+{
+    if (path.isEmpty())
+    {
+        path = selectedTrackPath(); // the Tracks list's row
+    }
+    if (path.isEmpty())
     {
         return;
     }
-    int row = item->row();
-    QString path = m_tracksTable->item(row, 0)->data(Qt::UserRole).toString();
 
     QMap<QString, QString> tags = ReadAllTags(path);
 
     ManualTagDialog dialog(path, tags, ReadCoverArt(path), this);
+    if (const DetectedGenre* genre = m_songData->genreFor(m_library.findTrackInfo(path));
+        genre && genre->status == DetectedGenre::Status::Ok)
+    {
+        dialog.setDetectedGenre(genre->label(), genre->subgenre.isEmpty() ? genre->broad : genre->subgenre);
+    }
     dialog.setSaveFunction([this, path](const QMap<QString, QString>& newTags) {
         return writeTrackFile(path, [&]() { return WriteAllTags(path, newTags); });
     });
@@ -2305,8 +3262,8 @@ void PlayerWindow::openManualTagDialog()
     // tells the reply handler to feed its result into this dialog's fields
     // instead of writing straight to disk -- and to drop the result if the
     // dialog has been closed by the time the reply lands.
-    connect(&dialog, &ManualTagDialog::fillFromInternetRequested, this, [this, &dialog]() {
-        lookupSelectedTrackOnMusicBrainz(&dialog);
+    connect(&dialog, &ManualTagDialog::fillFromInternetRequested, this, [this, &dialog, path]() {
+        lookupSelectedTrackOnMusicBrainz(&dialog, path);
     });
 
     if (dialog.exec() == QDialog::Accepted)
@@ -2315,18 +3272,19 @@ void PlayerWindow::openManualTagDialog()
     }
 }
 
-void PlayerWindow::openChangeCoverDialog()
+void PlayerWindow::openChangeCoverDialog(QString path)
 {
-    QTableWidgetItem* item = m_tracksTable->currentItem();
-    if (!item)
+    if (path.isEmpty())
+    {
+        path = selectedTrackPath(); // the Tracks list's row
+    }
+    if (path.isEmpty())
     {
         return;
     }
-    int row = item->row();
-    QString path = m_tracksTable->item(row, 0)->data(Qt::UserRole).toString();
 
-    QString imagePath = QFileDialog::getOpenFileName(this, "Choose Cover Image", QString(),
-        "Images (*.jpg *.jpeg *.png)");
+    QString imagePath = QFileDialog::getOpenFileName(this, tr("Choose Cover Image"), QString(),
+        tr("Images") + " (*.jpg *.jpeg *.png)");
     if (imagePath.isEmpty())
     {
         return;
@@ -2335,7 +3293,7 @@ void PlayerWindow::openChangeCoverDialog()
     QFile imageFile(imagePath);
     if (!imageFile.open(QIODevice::ReadOnly))
     {
-        ErrorReporter::warn(this, "Couldn't read image", "The selected image file couldn't be opened.");
+        ErrorReporter::warn(this, tr("Couldn't read image"), tr("The selected image file couldn't be opened."));
         return;
     }
     QByteArray imageData = imageFile.readAll();
@@ -2343,7 +3301,7 @@ void PlayerWindow::openChangeCoverDialog()
 
     if (!writeTrackFile(path, [&]() { return WriteCoverArt(path, imageData, mimeType); }))
     {
-        ErrorReporter::warn(this, "Couldn't save cover", "The file's cover art couldn't be written to.");
+        ErrorReporter::warn(this, tr("Couldn't save cover"), tr("The file's cover art couldn't be written to."));
         return;
     }
 
@@ -2386,7 +3344,7 @@ bool PlayerWindow::writeTrackFile(const QString& path, const std::function<bool(
     }
     else
     {
-        ErrorReporter::warn(this, "Failed to reload track", "Could not reload: " + QFileInfo(path).fileName());
+        ErrorReporter::warn(this, tr("Failed to reload track"), tr("Could not reload: %1").arg(QFileInfo(path).fileName()));
         setControlsEnabled(false);
     }
     return written;
@@ -2420,28 +3378,26 @@ QString LucenePhrase(const QString& value)
     return "\"" + escaped + "\"";
 }
 
-// MusicBrainz asks for an identifying User-Agent with a way to reach the
-// app's maintainer (a project URL is accepted); LRCLIB asks the same.
-const char* kUserAgent = "AudioForge/1.0 ( https://github.com/biasnil/Audio-Forge )";
-
 } // namespace
 
-void PlayerWindow::lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog)
+void PlayerWindow::lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog, QString path)
 {
     if (m_musicBrainzLookupInFlight)
     {
         return; // e.g. "Fill from internet" clicked again before the first reply landed
     }
 
-    QTableWidgetItem* item = m_tracksTable->currentItem();
-    if (!item)
+    if (path.isEmpty())
+    {
+        path = selectedTrackPath(); // the Tracks list's row
+    }
+    if (path.isEmpty())
     {
         return;
     }
-    int row = item->row();
-    QString path = m_tracksTable->item(row, 0)->data(Qt::UserRole).toString();
-    QString title = m_tracksTable->item(row, 0)->text();
-    QString artist = m_tracksTable->item(row, 1)->text();
+    const TrackInfo info = m_library.findTrackInfo(path);
+    QString title = info.title.isEmpty() ? QFileInfo(path).completeBaseName() : info.title; // a file opened outside the library
+    QString artist = info.artist;
 
     // MusicBrainz's recording search endpoint (Lucene query syntax).
     QString query = "recording:" + LucenePhrase(title);
@@ -2458,11 +3414,11 @@ void PlayerWindow::lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialo
     url.setQuery(urlQuery);
 
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, kUserAgent);
+    request.setHeader(QNetworkRequest::UserAgentHeader, app::UserAgent());
 
     m_musicBrainzLookupInFlight = true;
     m_musicBrainzButton->setEnabled(false);
-    m_musicBrainzButton->setText("Looking up...");
+    m_musicBrainzButton->setText(tr("Looking up..."));
 
     // QPointer goes null if the (stack-local) manual tag dialog is closed
     // while this request is in flight; forManualDialog remembers that the
@@ -2481,7 +3437,7 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply, const QString& p
 {
     reply->deleteLater();
     m_musicBrainzLookupInFlight = false;
-    m_musicBrainzButton->setText("Tag Music");
+    m_musicBrainzButton->setText(tr("Edit Tags..."));
     m_musicBrainzButton->setEnabled(!m_tracksTable->selectedItems().isEmpty());
 
     if (forManualDialog && !targetDialog)
@@ -2491,7 +3447,7 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply, const QString& p
 
     if (reply->error() != QNetworkReply::NoError)
     {
-        ErrorReporter::warn(this, "MusicBrainz lookup failed", reply->errorString());
+        ErrorReporter::warn(this, tr("MusicBrainz lookup failed"), reply->errorString());
         return;
     }
 
@@ -2559,7 +3515,7 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply, const QString& p
 
     if (!writeTrackFile(path, [&]() { return WriteBasicTags(path, chosen.title, chosen.artist, chosen.album, chosen.year); }))
     {
-        ErrorReporter::warn(this, "Couldn't save tags", "The file's tags could not be written to.");
+        ErrorReporter::warn(this, tr("Couldn't save tags"), tr("The file's tags could not be written to."));
         return;
     }
 
@@ -2571,7 +3527,7 @@ void PlayerWindow::handleMusicBrainzReply(QNetworkReply* reply, const QString& p
 void PlayerWindow::fetchLyricsFor(const TrackInfo& info)
 {
     QString path = info.path; // guards against a stale reply landing after the track's changed
-    setLyricsPlaceholder("Loading lyrics...");
+    setLyricsPlaceholder(tr("Loading lyrics..."));
 
     LyricsResult cached = ReadCachedLyrics(path);
     if (!cached.rawText.isEmpty())
@@ -2603,7 +3559,7 @@ void PlayerWindow::fetchFromLrclib(const TrackInfo& info, const QString& path)
     // LRCLIB needs no API key -- it asks (doesn't require) an identifying
     // User-Agent, same courtesy as the MusicBrainz request above.
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, kUserAgent);
+    request.setHeader(QNetworkRequest::UserAgentHeader, app::UserAgent());
 
     QNetworkReply* reply = m_network->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, path, info]() {
@@ -2751,8 +3707,29 @@ void PlayerWindow::applyFallbackOrClearLyrics(const QString& path)
     }
     else
     {
-        setLyricsPlaceholder("No lyrics found.");
+        setLyricsPlaceholder(tr("No lyrics found."));
     }
+}
+
+void PlayerWindow::setLyricsOffset(int offsetMs)
+{
+    if (m_queue.isEmpty())
+    {
+        return;
+    }
+    m_lyricsOffsetMs = qBound(-60000, offsetMs, 60000);
+    m_songData->setLyricsOffset(m_queue.currentTrack().path, m_lyricsOffsetMs);
+    m_lastLyricsLineIndex = -2; // restyle on the next tick, even if it's the same line index
+    updateLyricsOffsetUi();
+}
+
+void PlayerWindow::updateLyricsOffsetUi()
+{
+    m_lyricsOffsetRow->setVisible(!m_syncedLyrics.isEmpty());
+    m_lyricsTimingButton->setText(m_lyricsOffsetMs == 0
+        ? tr("Lyrics timing")
+        : tr("Lyrics timing: %1").arg(QString("%1%2 s").arg(m_lyricsOffsetMs > 0 ? "+" : "−")
+                                          .arg(std::abs(m_lyricsOffsetMs) / 1000.0, 0, 'f', 1)));
 }
 
 void PlayerWindow::setLyricsPlaceholder(const QString& text)
@@ -2761,11 +3738,18 @@ void PlayerWindow::setLyricsPlaceholder(const QString& text)
     m_syncedLyrics.clear();
     m_lastLyricsLineIndex = -1;
     m_hoveredLyricsLineIndex = -1;
+    updateLyricsOffsetUi();
 
+    // In the middle, between the padding rows.
+    m_lyricsList->addItem(new QListWidgetItem());
+    m_lyricsLead = 1;
+    m_lyricsCentered = true;
     auto* item = new QListWidgetItem(text);
     item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
-    item->setForeground(QColor(255, 255, 255, 120));
+    item->setForeground(QColor(255, 255, 255, 130));
     m_lyricsList->addItem(item);
+    m_lyricsList->addItem(new QListWidgetItem());
+    updateLyricsPadding();
 }
 
 void PlayerWindow::setLyricsContent(const QString& rawText, bool synced)
@@ -2779,19 +3763,25 @@ void PlayerWindow::setLyricsContent(const QString& rawText, bool synced)
     {
         m_syncedLyrics = ParseSyncedLyrics(rawText);
     }
+    updateLyricsOffsetUi();
 
+    // Padding rows before and after (see updateLyricsPadding()).
+    m_lyricsList->addItem(new QListWidgetItem());
+    m_lyricsLead = 1;
+    m_lyricsCentered = synced && !m_syncedLyrics.isEmpty();
     if (synced && !m_syncedLyrics.isEmpty())
     {
         // One item per timed line -- left dim for now; the next playback
         // tick's updateSyncedLyricsHighlight() call lights up whichever
-        // line the current cursor position actually falls on.
+        // line the current cursor position actually falls on. Empty padding
+        // rows before and after (half the list's height each) let the first
+        // and last lines scroll to the middle too.
         for (const SyncedLyricLine& line : m_syncedLyrics)
         {
-            auto* item = new QListWidgetItem(line.text.isEmpty() ? QStringLiteral(" ") : line.text);
+            auto* item = new QListWidgetItem(line.text.isEmpty() ? QStringLiteral("♪") : line.text);
             item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
             item->setFont(m_lyricsBaseFont);
             item->setForeground(QColor(255, 255, 255, 90));
-            item->setTextAlignment(Qt::AlignHCenter);
             m_lyricsList->addItem(item);
         }
     }
@@ -2813,6 +3803,8 @@ void PlayerWindow::setLyricsContent(const QString& rawText, bool synced)
             m_lyricsList->addItem(item);
         }
     }
+    m_lyricsList->addItem(new QListWidgetItem());
+    updateLyricsPadding();
 }
 
 void PlayerWindow::updateSyncedLyricsHighlight(float cursorSeconds)
@@ -2836,31 +3828,54 @@ void PlayerWindow::updateSyncedLyricsHighlight(float cursorSeconds)
     }
     m_lastLyricsLineIndex = currentIndex;
 
-    for (int i = 0; i < m_lyricsList->count(); ++i)
+    for (int i = 0; i < m_syncedLyrics.size(); ++i)
     {
-        QListWidgetItem* item = m_lyricsList->item(i);
+        QListWidgetItem* item = m_lyricsList->item(i + m_lyricsLead);
+        if (!item)
+        {
+            break;
+        }
         QFont font = m_lyricsBaseFont;
-        int distance = qAbs(i - currentIndex);
-
         if (i == currentIndex)
         {
-            font.setBold(true);
-            font.setPointSize(m_lyricsBaseFont.pointSize() + 8);
+            font.setWeight(QFont::Bold);
+            font.setPixelSize(m_lyricsBaseFont.pixelSize() + 6);
             item->setForeground(QColor(255, 255, 255, 255));
         }
         else
         {
-            int alpha = qMax(50, 190 - distance * 35); // fades out the further a line is from "now"
-            item->setForeground(QColor(255, 255, 255, alpha));
+            // Sung lines stay a little brighter than the ones still to come.
+            item->setForeground(QColor(255, 255, 255, i < currentIndex ? 110 : 80));
         }
         font.setUnderline(i == m_hoveredLyricsLineIndex); // keep the hover underline through a restyle
         item->setFont(font);
     }
 
-    if (currentIndex >= 0)
+    // The current line in the middle (before the first one: the start of the song, at the top).
+    if (QListWidgetItem* item = m_lyricsList->item(qMax(0, currentIndex + m_lyricsLead)))
     {
-        m_lyricsList->scrollToItem(m_lyricsList->item(currentIndex), QAbstractItemView::PositionAtCenter);
+        m_lyricsList->scrollToItem(item, currentIndex >= 0 ? QAbstractItemView::PositionAtCenter
+                                                           : QAbstractItemView::PositionAtTop);
     }
+}
+
+void PlayerWindow::updateLyricsPadding()
+{
+    if (m_lyricsLead == 0 || m_lyricsList->count() < 2)
+    {
+        return;
+    }
+    // Synced lyrics and the "No lyrics" note: half the height above, so any
+    // line can sit in the middle. Plain lyrics read from the top: just clear of the fade.
+    const int height = m_lyricsList->viewport()->height();
+    m_lyricsList->item(0)->setSizeHint(QSize(1, m_lyricsCentered ? height / 2 : height / 7));
+    m_lyricsList->item(m_lyricsList->count() - 1)->setSizeHint(QSize(1, height / 2));
+    if (m_syncedLyrics.isEmpty())
+    {
+        m_lyricsList->scrollToItem(m_lyricsList->item(m_lyricsCentered ? 1 : 0),
+                                   m_lyricsCentered ? QAbstractItemView::PositionAtCenter : QAbstractItemView::PositionAtTop);
+    }
+    m_lastLyricsLineIndex = -2; // synced: re-center on the next tick
 }
 
 bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
@@ -2868,6 +3883,10 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
     if (watched != m_lyricsList->viewport())
     {
         return QWidget::eventFilter(watched, event);
+    }
+    if (event->type() == QEvent::Resize)
+    {
+        updateLyricsPadding();
     }
 
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Leave)
@@ -2878,7 +3897,7 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
             item = m_lyricsList->itemAt(static_cast<QMouseEvent*>(event)->pos());
         }
 
-        int index = item ? m_lyricsList->row(item) : -1;
+        int index = item ? m_lyricsList->row(item) - m_lyricsLead : -1;
         // Only lines that came from synced lyrics have a real timestamp --
         // for plain/unsynced lyrics m_syncedLyrics is empty, so this is
         // always false and hover has no visible effect at all.
@@ -2890,11 +3909,11 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
 
         if (index != m_hoveredLyricsLineIndex)
         {
-            if (m_hoveredLyricsLineIndex >= 0 && m_hoveredLyricsLineIndex < m_lyricsList->count())
+            if (QListWidgetItem* old = m_hoveredLyricsLineIndex >= 0 ? m_lyricsList->item(m_hoveredLyricsLineIndex + m_lyricsLead) : nullptr)
             {
-                QFont font = m_lyricsList->item(m_hoveredLyricsLineIndex)->font();
+                QFont font = old->font();
                 font.setUnderline(false);
-                m_lyricsList->item(m_hoveredLyricsLineIndex)->setFont(font);
+                old->setFont(font);
             }
             m_hoveredLyricsLineIndex = index;
             if (m_hoveredLyricsLineIndex >= 0)
@@ -2912,10 +3931,10 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
         if (mouseEvent->button() == Qt::LeftButton)
         {
             QListWidgetItem* item = m_lyricsList->itemAt(mouseEvent->pos());
-            int index = item ? m_lyricsList->row(item) : -1;
+            int index = item ? m_lyricsList->row(item) - m_lyricsLead : -1;
             if (index >= 0 && index < m_syncedLyrics.size())
             {
-                seekTo(m_syncedLyrics[index].seconds);
+                seekTo(qMax(0.0f, m_syncedLyrics[index].seconds + m_lyricsOffsetMs / 1000.0f)); // the line's own time, with the offset
                 // no manual UI push needed -- the next updatePlayback() tick
                 // (m_seeking is false here) picks up the new cursor and
                 // moves both seek sliders + the highlighted line itself
@@ -2927,9 +3946,8 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
     return QWidget::eventFilter(watched, event);
 }
 
-void PlayerWindow::openGroupTracks(const QString& labelWithCount, const QStringList& paths)
+void PlayerWindow::openGroupTracks(const QString& title, const QStringList& paths)
 {
-    QString title = labelWithCount.section("  (", 0, 0); // strip the "(N tracks)" suffix
     QVector<TrackInfo> subset = m_library.buildQueueFromPaths(paths);
 
     TrackListDialog dialog(title, subset, this);
@@ -2965,24 +3983,444 @@ void PlayerWindow::openCreatePlaylistDialog()
 
 void PlayerWindow::refreshPlaylistsList()
 {
+    // Rows: Qt::UserRole = the regular playlist's index (-1 for a smart one),
+    // kSmartIdRole = the smart playlist's id, kNewCardRole = a "+ New" card.
+    const theme::Tokens& t = theme::tokens(m_darkMode);
+    const QIcon smartIcon = theme::icon(theme::Icon::SmartPlaylist, t.accent);
+    auto countText = [this](int count) { return count == 1 ? tr("1 song") : tr("%1 songs").arg(count); };
+    // The "+ New" card's picture: an outlined square with a plus.
+    auto newCardIcon = [&t](int size) {
+        constexpr qreal kDpr = 2.0;
+        QPixmap pixmap(qRound(size * kDpr), qRound(size * kDpr));
+        pixmap.setDevicePixelRatio(kDpr);
+        pixmap.fill(Qt::transparent);
+        QPainter p(&pixmap);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(QPen(t.border, 1.5, Qt::DashLine));
+        p.setBrush(t.surface);
+        p.drawRoundedRect(QRectF(1, 1, size - 2, size - 2), 12, 12);
+        const int plus = size / 3;
+        p.drawPixmap((size - plus) / 2, (size - plus) / 2, theme::icon(theme::Icon::Plus, t.muted).pixmap(plus, plus));
+        return QIcon(pixmap);
+    };
+
     m_playlistsList->clear();
+    m_smartPlaylistsList->clear();
+    m_sidebarPlaylistsList->clear();
+
+    // The user's own playlists.
     const QVector<PlaylistData>& playlists = m_library.playlists();
     for (int i = 0; i < playlists.size(); ++i)
     {
         const PlaylistData& pl = playlists[i];
-        auto* item = new QListWidgetItem(QString("%1  (%2 tracks)").arg(pl.name).arg(pl.trackPaths.size()));
+        auto* item = new QListWidgetItem(QIcon(playlistArt(pl, 150)), pl.name + '\n' + countText(pl.trackPaths.size()));
         item->setData(Qt::UserRole, i);
-        m_playlistsList->addItem(item);
-    }
+        item->setToolTip(pl.name);
+        m_playlistsList->addCard(item);
 
-    m_sidebarPlaylistsList->clear();
+        auto* sidebarItem = new QListWidgetItem(pl.name);
+        sidebarItem->setData(Qt::UserRole, i);
+        sidebarItem->setToolTip(countText(pl.trackPaths.size()));
+        m_sidebarPlaylistsList->addItem(sidebarItem);
+    }
+    auto* newPlaylist = new QListWidgetItem(newCardIcon(150), tr("New Playlist"));
+    newPlaylist->setData(Qt::UserRole, -1);
+    newPlaylist->setData(kNewCardRole, true);
+    m_playlistsList->addCard(newPlaylist);
+
+    // Smart playlists: the built-in ones (Playlists tab only), then the user's (both lists).
+    QVector<const SmartPlaylist*> smart;
+    for (const SmartPlaylist& p : BuiltInSmartPlaylists())
+    {
+        smart << &p;
+    }
+    for (const SmartPlaylist& p : m_smartPlaylists)
+    {
+        smart << &p;
+    }
+    for (const SmartPlaylist* p : smart)
+    {
+        const int count = smartPlaylistTracks(*p).size();
+        // The built-in ones each have their own picture and colour; the user's are coloured by id.
+        theme::Icon mark = theme::Icon::SmartPlaylist;
+        int hue = -1;
+        if (p->id == QLatin1String("builtin:loved")) { mark = theme::Icon::HeartFilled; hue = 345; }
+        else if (p->id == QLatin1String("builtin:most-played")) { mark = theme::Icon::Equalizer; hue = 25; }
+        else if (p->id == QLatin1String("builtin:recently-played")) { mark = theme::Icon::Timer; hue = 205; }
+        else if (p->id == QLatin1String("builtin:recently-added")) { mark = theme::Icon::Plus; hue = 150; }
+        else if (p->id == QLatin1String("builtin:never-played")) { mark = theme::Icon::Play; hue = 270; }
+        auto* item = new QListWidgetItem(QIcon(theme::generatedArt(p->id, 72, 14, mark, hue)),
+                                         p->displayName() + '\n' + countText(count));
+        item->setData(Qt::UserRole, -1);
+        item->setData(kSmartIdRole, p->id);
+        item->setToolTip(p->displayName());
+        m_smartPlaylistsList->addCard(item);
+        if (!p->builtIn)
+        {
+            auto* sidebarItem = new QListWidgetItem(smartIcon, p->displayName());
+            sidebarItem->setData(Qt::UserRole, -1);
+            sidebarItem->setData(kSmartIdRole, p->id);
+            sidebarItem->setToolTip(countText(count));
+            m_sidebarPlaylistsList->addItem(sidebarItem);
+        }
+    }
+    auto* newSmart = new QListWidgetItem(newCardIcon(72), tr("New Smart Playlist"));
+    newSmart->setData(Qt::UserRole, -1);
+    newSmart->setData(kNewCardRole, true);
+    m_smartPlaylistsList->addCard(newSmart);
+}
+
+QPixmap PlayerWindow::playlistArt(const PlaylistData& playlist, int size)
+{
+    // Up to four different covers, in playlist order: four make a 2x2 mosaic,
+    // fewer show the first one; none, generated art from the name.
+    const QString key = QString::number(size) + '|' + playlist.name + '|' + playlist.trackPaths.mid(0, 12).join('|');
+    if (auto it = m_playlistArtCache.constFind(key); it != m_playlistArtCache.constEnd())
+    {
+        return it.value(); // reading covers is slow; the list is refreshed often
+    }
+    QStringList withCover;
+    QVector<QByteArray> covers;
+    for (const QString& path : playlist.trackPaths)
+    {
+        if (covers.size() == 4 || withCover.size() >= 12) // don't read a long playlist's every file
+        {
+            break;
+        }
+        withCover << path;
+        QByteArray cover = ReadCoverArt(path);
+        if (!cover.isEmpty() && !covers.contains(cover))
+        {
+            covers << cover;
+        }
+    }
+    QPixmap art;
+    if (covers.isEmpty())
+    {
+        art = theme::generatedArt(playlist.name, size, 12, theme::Icon::Playlist);
+    }
+    else
+    {
+        constexpr qreal kDpr = 2.0;
+        const int px = qRound(size * kDpr);
+        QPixmap mosaic(px, px);
+        mosaic.fill(Qt::transparent);
+        QPainter p(&mosaic);
+        if (covers.size() < 4)
+        {
+            p.drawPixmap(0, 0, ScaledCoverArt(covers.first(), QSize(px, px)));
+        }
+        else
+        {
+            const int half = px / 2;
+            for (int i = 0; i < 4; ++i)
+            {
+                p.drawPixmap((i % 2) * half, (i / 2) * half, ScaledCoverArt(covers[i], QSize(half, half)));
+            }
+        }
+        p.end();
+        art = theme::roundedPixmap(mosaic, 12 * kDpr);
+        art.setDevicePixelRatio(kDpr);
+    }
+    m_playlistArtCache.insert(key, art);
+    return art;
+}
+
+void PlayerWindow::activatePlaylistItem(QListWidgetItem* item)
+{
+    if (item->data(kNewCardRole).toBool())
+    {
+        return; // handled on the single click
+    }
+    const QString smartId = item->data(kSmartIdRole).toString();
+    if (!smartId.isEmpty())
+    {
+        openSmartPlaylist(smartId);
+    }
+    else
+    {
+        openPlaylistTracks(item->data(Qt::UserRole).toInt());
+    }
+}
+
+void PlayerWindow::showNewPlaylistMenu(QWidget* anchor, QPoint at)
+{
+    QMenu menu(this);
+    menu.addAction(tr("New Playlist..."), this, &PlayerWindow::openCreatePlaylistDialog);
+    menu.addAction(MenuIcon(theme::Icon::SmartPlaylist, m_darkMode), tr("New Smart Playlist..."), this,
+                   [this]() { editSmartPlaylist(QString()); });
+    menu.addSeparator();
+    menu.addAction(tr("Import .m3u Playlist..."), this, &PlayerWindow::importM3u);
+    menu.exec(anchor->mapToGlobal(at.x() >= 0 ? at : QPoint(0, anchor->height())));
+}
+
+// --- Smart playlists ----------------------------------------------------------------
+
+const SmartPlaylist* PlayerWindow::smartPlaylist(const QString& id) const
+{
+    for (const SmartPlaylist& p : BuiltInSmartPlaylists())
+    {
+        if (p.id == id)
+        {
+            return &p;
+        }
+    }
+    for (const SmartPlaylist& p : m_smartPlaylists)
+    {
+        if (p.id == id)
+        {
+            return &p;
+        }
+    }
+    return nullptr;
+}
+
+QVector<TrackInfo> PlayerWindow::smartPlaylistTracks(const SmartPlaylist& playlist) const
+{
+    return playlist.tracks(m_library.tracks(), m_songData->allStats(),
+                           [this](const TrackInfo& t) { return m_songData->analysisFor(t); },
+                           [this](const TrackInfo& t) { return m_songData->shownGenre(t); },
+                           QDateTime::currentMSecsSinceEpoch());
+}
+
+void PlayerWindow::openSmartPlaylist(const QString& id)
+{
+    const SmartPlaylist* playlist = smartPlaylist(id);
+    if (!playlist)
+    {
+        return;
+    }
+    const QVector<TrackInfo> tracks = smartPlaylistTracks(*playlist);
+    const QString name = playlist->displayName();
+    TrackListDialog dialog(name, tracks, this,
+                           playlist->builtIn ? tr("Songs appear here as you play and love them.")
+                                             : tr("No songs match the rules yet."));
+    if (dialog.exec() == QDialog::Accepted && !dialog.chosenPath().isEmpty())
+    {
+        int index = 0;
+        for (int i = 0; i < tracks.size(); ++i)
+        {
+            if (tracks[i].path == dialog.chosenPath())
+            {
+                index = i;
+                break;
+            }
+        }
+        setQueueAndPlay(tracks, index, name);
+    }
+}
+
+void PlayerWindow::editSmartPlaylist(const QString& id)
+{
+    SmartPlaylist initial;
+    if (!id.isEmpty())
+    {
+        const SmartPlaylist* existing = smartPlaylist(id);
+        if (!existing || existing->builtIn)
+        {
+            return;
+        }
+        initial = *existing;
+    }
+    SmartPlaylistDialog dialog(initial, [this](const SmartPlaylist& p) { return smartPlaylistTracks(p).size(); }, this);
+    if (dialog.exec() != QDialog::Accepted)
+    {
+        return;
+    }
+    SmartPlaylist result = dialog.result();
+    if (result.id.isEmpty())
+    {
+        result.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        m_smartPlaylists << result;
+    }
+    else
+    {
+        for (SmartPlaylist& p : m_smartPlaylists)
+        {
+            if (p.id == result.id)
+            {
+                p = result;
+            }
+        }
+    }
+    SaveSmartPlaylists(m_smartPlaylists);
+    refreshPlaylistsList();
+}
+
+void PlayerWindow::deletePlaylistAt(int index)
+{
+    if (index < 0 || index >= m_library.playlists().size())
+    {
+        return;
+    }
+    const QString name = m_library.playlists()[index].name;
+    if (!ErrorReporter::confirm(this, tr("Delete playlist"), tr("Delete \"%1\"? This can't be undone.").arg(name)))
+    {
+        return;
+    }
+    m_library.removePlaylistAt(index);
+    refreshPlaylistsList();
+    showToast(tr("Deleted “%1”.").arg(name));
+}
+
+void PlayerWindow::addToPlaylistMenu(QMenu& menu, const QVector<TrackInfo>& tracks)
+{
+    // "Add to Playlist" > each of the user's playlists, then "New Playlist...".
+    QMenu* sub = menu.addMenu(MenuIcon(theme::Icon::Playlist, m_darkMode), tr("Add to Playlist"));
+    sub->setEnabled(!tracks.isEmpty());
+    QStringList paths;
+    for (const TrackInfo& t : tracks)
+    {
+        paths << t.path;
+    }
+    auto addTo = [this, paths](int index) {
+        if (index < 0 || index >= m_library.playlists().size())
+        {
+            return;
+        }
+        PlaylistData& playlist = m_library.playlists()[index];
+        int added = 0;
+        for (const QString& path : paths)
+        {
+            if (!playlist.trackPaths.contains(path)) // already in it: not twice
+            {
+                playlist.trackPaths << path;
+                ++added;
+            }
+        }
+        const QString name = playlist.name;
+        refreshPlaylistsList();
+        showToast(added == 0 ? tr("Already in “%1”.").arg(name)
+                  : added == 1 ? tr("Added to “%1”.").arg(name)
+                               : tr("Added %1 songs to “%2”.").arg(added).arg(name));
+    };
+    const QVector<PlaylistData>& playlists = m_library.playlists();
     for (int i = 0; i < playlists.size(); ++i)
     {
-        auto* item = new QListWidgetItem(playlists[i].name);
-        item->setData(Qt::UserRole, i);
-        item->setToolTip(QString("%1 tracks").arg(playlists[i].trackPaths.size()));
-        m_sidebarPlaylistsList->addItem(item);
+        sub->addAction(playlists[i].name, this, [addTo, i]() { addTo(i); });
     }
+    if (!playlists.isEmpty())
+    {
+        sub->addSeparator();
+    }
+    sub->addAction(MenuIcon(theme::Icon::Plus, m_darkMode), tr("New Playlist..."), this, [this, paths]() {
+        bool ok = false;
+        const QString name = QInputDialog::getText(this, tr("New Playlist"), tr("Playlist name:"),
+                                                   QLineEdit::Normal, QString(), &ok).trimmed();
+        if (!ok || name.isEmpty())
+        {
+            return;
+        }
+        PlaylistData playlist;
+        playlist.name = name;
+        playlist.trackPaths = paths;
+        m_library.addPlaylist(playlist);
+        refreshPlaylistsList();
+        showToast(tr("Saved “%1”.").arg(name));
+    });
+}
+
+void PlayerWindow::showNowPlayingMenu(const QPoint& globalPos)
+{
+    if (m_queue.isEmpty() || !m_engine.isLoaded())
+    {
+        return;
+    }
+    const TrackInfo track = m_queue.currentTrack();
+    const QString path = track.path;
+
+    QMenu menu(this);
+    const bool loved = m_songData->isLoved(path);
+    menu.addAction(MenuIcon(loved ? theme::Icon::HeartFilled : theme::Icon::Heart, m_darkMode),
+                   loved ? tr("Remove from Loved") : tr("Love"), this, &PlayerWindow::toggleLoved);
+    addToPlaylistMenu(menu, {track});
+    menu.addSeparator();
+    menu.addAction(tr("Edit Tags..."), this, [this, path]() { openManualTagDialog(path); });
+    menu.addAction(tr("Change Cover..."), this, [this, path]() { openChangeCoverDialog(path); });
+    menu.addAction(tr("Show in Folder"), this, [path]() { ShowInFileManager(path); });
+    menu.addSeparator();
+    QAction* visualizer = menu.addAction(MenuIcon(theme::Icon::Visualizer, m_darkMode), tr("Visualizer"));
+    visualizer->setCheckable(true);
+    visualizer->setChecked(m_visualizerOn);
+    connect(visualizer, &QAction::toggled, this, [this](bool on) { setVisualizerOn(on); });
+    if (!m_syncedLyrics.isEmpty())
+    {
+        QMenu* timing = menu.addMenu(tr("Lyrics timing"));
+        timing->addAction(tr("Show 0.5 s Earlier"), this, [this]() { setLyricsOffset(m_lyricsOffsetMs - 500); });
+        timing->addAction(tr("Show 0.5 s Later"), this, [this]() { setLyricsOffset(m_lyricsOffsetMs + 500); });
+        QAction* reset = timing->addAction(tr("Reset Timing"), this, [this]() { setLyricsOffset(0); });
+        reset->setEnabled(m_lyricsOffsetMs != 0);
+    }
+    menu.exec(globalPos);
+}
+
+void PlayerWindow::deleteSmartPlaylist(const QString& id)
+{
+    const SmartPlaylist* playlist = smartPlaylist(id);
+    if (!playlist || playlist->builtIn
+        || !ErrorReporter::confirm(this, tr("Delete playlist"),
+                                   tr("Delete \"%1\"? This can't be undone.").arg(playlist->displayName())))
+    {
+        return;
+    }
+    m_smartPlaylists.removeIf([&id](const SmartPlaylist& p) { return p.id == id; });
+    SaveSmartPlaylists(m_smartPlaylists);
+    refreshPlaylistsList();
+}
+
+// --- .m3u ----------------------------------------------------------------------------
+
+void PlayerWindow::importM3u()
+{
+    const QString path = QFileDialog::getOpenFileName(this, tr("Import .m3u Playlist"), QString(),
+                                                      tr("Playlists") + " (*.m3u *.m3u8)");
+    if (path.isEmpty())
+    {
+        return;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        ErrorReporter::warn(this, tr("Import .m3u Playlist"), tr("The playlist file couldn't be opened."));
+        return;
+    }
+    const QVector<M3uEntry> entries = ParseM3u(DecodeM3u(file.readAll()));
+    const QStringList matched = MatchM3u(entries, m_library.tracks(), QFileInfo(path).absolutePath());
+    if (matched.isEmpty())
+    {
+        ErrorReporter::info(this, tr("Import .m3u Playlist"), tr("No songs found in that playlist."));
+        return;
+    }
+    PlaylistData playlist;
+    playlist.name = QFileInfo(path).completeBaseName().trimmed();
+    if (playlist.name.isEmpty())
+    {
+        playlist.name = tr("Imported Playlist");
+    }
+    playlist.trackPaths = matched;
+    m_library.addPlaylist(playlist);
+    refreshPlaylistsList();
+    showToast(tr("%1: %2 of %3 songs found").arg(playlist.name).arg(matched.size()).arg(entries.size()));
+}
+
+void PlayerWindow::exportM3u(const QString& name, const QVector<TrackInfo>& tracks)
+{
+    QString fileName = name;
+    fileName.replace(QRegularExpression(QStringLiteral(R"([\\/:*?"<>|])")), QStringLiteral("_"));
+    const QString path = QFileDialog::getSaveFileName(this, tr("Export .m3u Playlist"),
+        QDir(QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).filePath(fileName + ".m3u8"),
+        tr("Playlists") + " (*.m3u8 *.m3u)");
+    if (path.isEmpty())
+    {
+        return;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write(WriteM3u(tracks).toUtf8()) < 0)
+    {
+        ErrorReporter::warn(this, tr("Export .m3u Playlist"), tr("Couldn't save the playlist file."));
+        return;
+    }
+    showToast(tr("Saved %1 as .m3u8.").arg(name));
 }
 
 void PlayerWindow::openPlaylistTracks(int playlistIndex)
@@ -3071,8 +4509,8 @@ void PlayerWindow::playNextTracks(const QVector<TrackInfo>& tracks)
     settleHandOff();
     m_queue.playNext(tracks);
     refreshUpNext();
-    showToast(tracks.size() == 1 ? QString("“%1” plays next.").arg(tracks.first().title)
-                                 : QString("%1 songs play next.").arg(tracks.size()));
+    showToast(tracks.size() == 1 ? tr("“%1” plays next.").arg(tracks.first().title)
+                                 : tr("%1 songs play next.").arg(tracks.size()));
 }
 
 void PlayerWindow::addTracksToQueue(const QVector<TrackInfo>& tracks)
@@ -3089,8 +4527,8 @@ void PlayerWindow::addTracksToQueue(const QVector<TrackInfo>& tracks)
     settleHandOff();
     m_queue.addToQueue(tracks);
     refreshUpNext();
-    showToast(tracks.size() == 1 ? QString("Added “%1” to the queue.").arg(tracks.first().title)
-                                 : QString("Added %1 songs to the queue.").arg(tracks.size()));
+    showToast(tracks.size() == 1 ? tr("Added “%1” to the queue.").arg(tracks.first().title)
+                                 : tr("Added %1 songs to the queue.").arg(tracks.size()));
 }
 
 void PlayerWindow::setUpNextVisible(bool visible)
@@ -3154,23 +4592,23 @@ void PlayerWindow::saveQueueAsPlaylist()
     }
     if (paths.isEmpty())
     {
-        ErrorReporter::info(this, "Nothing to save", "The queue is empty -- play something first.");
+        ErrorReporter::info(this, tr("Nothing to save"), tr("The queue is empty -- play something first."));
         return;
     }
 
     bool ok = false;
-    const QString name = QInputDialog::getText(this, "Save Queue as Playlist", "Playlist name:",
-                                               QLineEdit::Normal, "Queue", &ok).trimmed();
+    const QString name = QInputDialog::getText(this, tr("Save Queue as Playlist"), tr("Playlist name:"),
+                                               QLineEdit::Normal, tr("Queue"), &ok).trimmed();
     if (!ok)
     {
         return;
     }
     PlaylistData playlist;
-    playlist.name = name.isEmpty() ? QStringLiteral("Queue") : name;
+    playlist.name = name.isEmpty() ? tr("Queue") : name;
     playlist.trackPaths = paths;
     m_library.addPlaylist(playlist);
     refreshPlaylistsList();
-    showToast(QString("Saved the queue as “%1”.").arg(playlist.name));
+    showToast(tr("Saved the queue as “%1”.").arg(playlist.name));
 }
 
 void PlayerWindow::showToast(const QString& message)
@@ -3342,7 +4780,7 @@ void PlayerWindow::playTracksTableRow(int row)
         QString path = m_tracksTable->item(r, 0)->data(Qt::UserRole).toString();
         queue << m_library.findTrackInfo(path);
     }
-    setQueueAndPlay(queue, startIndex, "Tracks");
+    setQueueAndPlay(queue, startIndex, tr("Tracks"));
 }
 
 QVector<TrackInfo> PlayerWindow::selectedTracks() const
@@ -3379,7 +4817,7 @@ void PlayerWindow::showTrackContextMenu(const QPoint& pos)
     const bool single = tracks.size() == 1;
 
     QMenu menu(this);
-    menu.addAction(MenuIcon(theme::Icon::Play, m_darkMode), single ? "Play" : QString("Play %1 Songs").arg(tracks.size()),
+    menu.addAction(MenuIcon(theme::Icon::Play, m_darkMode), single ? tr("Play") : tr("Play %1 Songs").arg(tracks.size()),
                    this, [this, tracks, single, row = clicked.row()]() {
         if (single)
         {
@@ -3387,19 +4825,21 @@ void PlayerWindow::showTrackContextMenu(const QPoint& pos)
         }
         else
         {
-            setQueueAndPlay(tracks, 0, "Selection");
+            setQueueAndPlay(tracks, 0, tr("Selection"));
         }
     });
-    menu.addAction(MenuIcon(theme::Icon::Next, m_darkMode), "Play Next",
+    menu.addAction(MenuIcon(theme::Icon::Next, m_darkMode), tr("Play Next"),
                    this, [this, tracks]() { playNextTracks(tracks); });
-    menu.addAction(MenuIcon(theme::Icon::Queue, m_darkMode), "Add to Queue",
+    menu.addAction(MenuIcon(theme::Icon::Queue, m_darkMode), tr("Add to Queue"),
                    this, [this, tracks]() { addTracksToQueue(tracks); });
+    addToPlaylistMenu(menu, tracks);
     if (single)
     {
+        const QString path = tracks.first().path;
         menu.addSeparator();
-        menu.addAction("Tag Music...", this, &PlayerWindow::openTagMusicMenu);
-        menu.addAction("Change Cover...", this, &PlayerWindow::openChangeCoverDialog);
-        menu.addAction("Show in Folder", this, [path = tracks.first().path]() { ShowInFileManager(path); });
+        menu.addAction(tr("Edit Tags..."), this, [this, path]() { openManualTagDialog(path); });
+        menu.addAction(tr("Change Cover..."), this, [this, path]() { openChangeCoverDialog(path); });
+        menu.addAction(tr("Show in Folder"), this, [path]() { ShowInFileManager(path); });
     }
     menu.exec(m_tracksTable->viewport()->mapToGlobal(pos));
 }
@@ -3419,32 +4859,70 @@ void PlayerWindow::enableTracksMenu(QListWidget* list, bool playlistRows)
         const QPoint globalPos = list->viewport()->mapToGlobal(pos);
         if (!playlistRows)
         {
-            showTracksMenu(globalPos, item->data(Qt::UserRole).toStringList(),
-                           item->text().section("  (", 0, 0)); // strip the "(N tracks)" suffix
+            showTracksMenu(globalPos, item->data(Qt::UserRole).toStringList(), item->data(kGroupNameRole).toString());
+            return;
+        }
+        const QString smartId = item->data(kSmartIdRole).toString();
+        if (!smartId.isEmpty())
+        {
+            const SmartPlaylist* playlist = smartPlaylist(smartId);
+            if (!playlist)
+            {
+                return;
+            }
+            const QVector<TrackInfo> tracks = smartPlaylistTracks(*playlist);
+            QStringList paths;
+            for (const TrackInfo& t : tracks)
+            {
+                paths << t.path;
+            }
+            const QString name = playlist->displayName();
+            const bool builtIn = playlist->builtIn;
+            showTracksMenu(globalPos, paths, name, [this, smartId, name, tracks, builtIn](QMenu& menu) {
+                QAction* exportAction = menu.addAction(tr("Export .m3u Playlist..."), this,
+                                                       [this, name, tracks]() { exportM3u(name, tracks); });
+                exportAction->setEnabled(!tracks.isEmpty());
+                if (!builtIn)
+                {
+                    menu.addAction(tr("Edit Rules..."), this, [this, smartId]() { editSmartPlaylist(smartId); });
+                    menu.addAction(tr("Delete Playlist"), this, [this, smartId]() { deleteSmartPlaylist(smartId); });
+                }
+            });
             return;
         }
         const int index = item->data(Qt::UserRole).toInt();
         if (index >= 0 && index < m_library.playlists().size())
         {
             const PlaylistData& playlist = m_library.playlists()[index];
-            showTracksMenu(globalPos, playlist.trackPaths, playlist.name);
+            const QString name = playlist.name;
+            const QStringList paths = playlist.trackPaths;
+            showTracksMenu(globalPos, paths, name, [this, name, paths, index](QMenu& menu) {
+                QAction* exportAction = menu.addAction(tr("Export .m3u Playlist..."), this, [this, name, paths]() {
+                    exportM3u(name, m_library.buildQueueFromPaths(paths));
+                });
+                exportAction->setEnabled(!paths.isEmpty());
+                menu.addAction(tr("Edit Playlist..."), this, [this, index]() { openPlaylistTracks(index); });
+                menu.addAction(tr("Delete Playlist"), this, [this, index]() { deletePlaylistAt(index); });
+            });
         }
     });
 }
 
-void PlayerWindow::showTracksMenu(const QPoint& globalPos, const QStringList& paths, const QString& name)
+void PlayerWindow::showTracksMenu(const QPoint& globalPos, const QStringList& paths, const QString& name,
+                                  const std::function<void(QMenu&)>& extra)
 {
-    if (paths.isEmpty())
+    if (paths.isEmpty() && !extra)
     {
         return;
     }
     const QVector<TrackInfo> tracks = m_library.buildQueueFromPaths(paths);
 
     QMenu menu(this);
-    menu.addAction(MenuIcon(theme::Icon::Play, m_darkMode), "Play",
-                   this, [this, tracks, name]() { setQueueAndPlay(tracks, 0, name); });
-    menu.addAction(MenuIcon(theme::Icon::Shuffle, m_darkMode), "Shuffle",
-                   this, [this, tracks, name]() {
+    QList<QAction*> playActions;
+    playActions << menu.addAction(MenuIcon(theme::Icon::Play, m_darkMode), tr("Play"),
+                                  this, [this, tracks, name]() { setQueueAndPlay(tracks, 0, name); });
+    playActions << menu.addAction(MenuIcon(theme::Icon::Shuffle, m_darkMode), tr("Shuffle"),
+                                  this, [this, tracks, name]() {
         if (m_queue.shuffleMode() == ShuffleMode::Off)
         {
             cycleShuffleMode(); // Off -> Random
@@ -3452,10 +4930,19 @@ void PlayerWindow::showTracksMenu(const QPoint& globalPos, const QStringList& pa
         setQueueAndPlay(tracks, static_cast<int>(QRandomGenerator::global()->bounded(tracks.size())), name);
     });
     menu.addSeparator();
-    menu.addAction(MenuIcon(theme::Icon::Next, m_darkMode), "Play Next",
-                   this, [this, tracks]() { playNextTracks(tracks); });
-    menu.addAction(MenuIcon(theme::Icon::Queue, m_darkMode), "Add to Queue",
-                   this, [this, tracks]() { addTracksToQueue(tracks); });
+    playActions << menu.addAction(MenuIcon(theme::Icon::Next, m_darkMode), tr("Play Next"),
+                                  this, [this, tracks]() { playNextTracks(tracks); });
+    playActions << menu.addAction(MenuIcon(theme::Icon::Queue, m_darkMode), tr("Add to Queue"),
+                                  this, [this, tracks]() { addTracksToQueue(tracks); });
+    for (QAction* action : playActions)
+    {
+        action->setEnabled(!tracks.isEmpty()); // an empty smart playlist still offers its own actions
+    }
+    if (extra)
+    {
+        menu.addSeparator();
+        extra(menu);
+    }
     menu.exec(globalPos);
 }
 
@@ -3485,6 +4972,7 @@ void PlayerWindow::next(bool fromAutoAdvance)
 
     if (fromAutoAdvance && m_queue.repeatMode() == RepeatMode::One)
     {
+        m_countedPath.clear(); // the repeat is another play
         seekTo(trackBegin(m_queue.currentTrack()));
         m_engine.play();
         updateDiscordPresence();
@@ -3521,18 +5009,18 @@ void PlayerWindow::updateShuffleRepeatLabels()
     theme::Icon shuffleIcon = theme::Icon::Shuffle;
     switch (m_queue.shuffleMode())
     {
-        case ShuffleMode::Off:    shuffleText = "Shuffle: Off"; break;
-        case ShuffleMode::Random: shuffleText = "Shuffle: Random"; break;
-        case ShuffleMode::Smart:  shuffleText = "Shuffle: Smart"; shuffleIcon = theme::Icon::ShuffleSmart; break;
+        case ShuffleMode::Off:    shuffleText = tr("Shuffle: Off"); break;
+        case ShuffleMode::Random: shuffleText = tr("Shuffle: Random"); break;
+        case ShuffleMode::Smart:  shuffleText = tr("Shuffle: Smart"); shuffleIcon = theme::Icon::ShuffleSmart; break;
     }
 
     QString repeatText;
     theme::Icon repeatIcon = theme::Icon::Repeat;
     switch (m_queue.repeatMode())
     {
-        case RepeatMode::Off: repeatText = "Repeat: Off"; break;
-        case RepeatMode::All: repeatText = "Repeat: All"; break;
-        case RepeatMode::One: repeatText = "Repeat: One"; repeatIcon = theme::Icon::RepeatOne; break;
+        case RepeatMode::Off: repeatText = tr("Repeat: Off"); break;
+        case RepeatMode::All: repeatText = tr("Repeat: All"); break;
+        case RepeatMode::One: repeatText = tr("Repeat: One"); repeatIcon = theme::Icon::RepeatOne; break;
     }
 
     const bool shuffleOn = m_queue.shuffleMode() != ShuffleMode::Off;
@@ -3540,12 +5028,16 @@ void PlayerWindow::updateShuffleRepeatLabels()
     const theme::Tokens& t = theme::tokens(m_darkMode);
     const QIcon shuffle = theme::icon(shuffleIcon, t.muted, t.accent, t.border);
     const QIcon repeat = theme::icon(repeatIcon, t.muted, t.accent, t.border);
+    // Now Playing's: light, whatever the theme.
+    const QColor npMuted(246, 237, 231, 165);
+    const QIcon bigShuffle = theme::icon(shuffleIcon, npMuted, t.accent, QColor(246, 237, 231, 70));
+    const QIcon bigRepeat = theme::icon(repeatIcon, npMuted, t.accent, QColor(246, 237, 231, 70));
 
     for (QPushButton* button : {m_shuffleButton, m_bigShuffleButton})
     {
         if (button)
         {
-            button->setIcon(shuffle);
+            button->setIcon(button == m_bigShuffleButton ? bigShuffle : shuffle);
             button->setChecked(shuffleOn);
             button->setToolTip(shuffleText + "  (Ctrl+S)");
         }
@@ -3554,7 +5046,7 @@ void PlayerWindow::updateShuffleRepeatLabels()
     {
         if (button)
         {
-            button->setIcon(repeat);
+            button->setIcon(button == m_bigRepeatButton ? bigRepeat : repeat);
             button->setChecked(repeatOn);
             button->setToolTip(repeatText + "  (Ctrl+R)");
         }
@@ -3691,6 +5183,10 @@ void PlayerWindow::seekTo(float seconds)
         m_gaplessHandOff = false;
         applyVolume(); // the fade had turned the outgoing track down
     }
+    if (m_abState == AbState::Looping && (seconds < m_abA - 0.05f || seconds > m_abB + 0.05f))
+    {
+        clearAbRepeat(); // jumped out of the loop
+    }
     m_engine.seekToSeconds(seconds);
     m_wasAtEnd = false;
     updateDiscordPresence(); // its elapsed-time counter would otherwise keep the pre-seek position
@@ -3730,6 +5226,10 @@ void PlayerWindow::setControlsEnabled(bool enabled)
 {
     m_playButton->setEnabled(enabled);
     m_stopButton->setEnabled(enabled);
+    if (m_windowsMedia)
+    {
+        m_windowsMedia->setPlaybackState(enabled && m_engine.isLoaded(), m_engine.isPlaying());
+    }
     m_prevButton->setEnabled(enabled);
     m_nextButton->setEnabled(enabled);
     m_seekSlider->setEnabled(enabled);
@@ -3750,8 +5250,9 @@ void PlayerWindow::applyTheme()
         || (m_themeMode == 0 && QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Light);
     qApp->setPalette(theme::palette(m_darkMode));
     qApp->setStyleSheet(theme::styleSheet(m_darkMode));
-    m_themeButton->setToolTip(m_darkMode ? "Switch to light theme" : "Switch to dark theme");
+    m_themeButton->setToolTip(m_darkMode ? tr("Switch to light theme") : tr("Switch to dark theme"));
     refreshIcons();
+    refreshPlaylistsList(); // the smart playlists' icons
 }
 
 void PlayerWindow::refreshIcons()
@@ -3762,6 +5263,7 @@ void PlayerWindow::refreshIcons()
     const theme::Icon navIcons[] = {
         theme::Icon::Album, theme::Icon::Track, theme::Icon::Artist, theme::Icon::Folder,
         theme::Icon::Playlist, theme::Icon::Equalizer, theme::Icon::Wallpaper, theme::Icon::Settings,
+        theme::Icon::Podcast,
     };
     for (int i = 0; i < m_navButtons.size(); ++i)
     {
@@ -3774,14 +5276,21 @@ void PlayerWindow::refreshIcons()
 
     m_prevButton->setIcon(theme::icon(theme::Icon::Previous, t.text, QColor(), t.border));
     m_nextButton->setIcon(theme::icon(theme::Icon::Next, t.text, QColor(), t.border));
-    m_bigPrevButton->setIcon(theme::icon(theme::Icon::Previous, t.text, QColor(), t.border, 24));
-    m_bigNextButton->setIcon(theme::icon(theme::Icon::Next, t.text, QColor(), t.border, 24));
+    // Now Playing is always dark: its icons are light in both themes.
+    const QColor npText(246, 237, 231);
+    const QColor npMuted(246, 237, 231, 165);
+    const QColor npDisabled(246, 237, 231, 70);
+    m_bigPrevButton->setIcon(theme::icon(theme::Icon::Previous, npText, QColor(), npDisabled, 26));
+    m_bigNextButton->setIcon(theme::icon(theme::Icon::Next, npText, QColor(), npDisabled, 26));
     m_stopButton->setIcon(theme::icon(theme::Icon::Stop, t.muted, QColor(), t.border, 16));
-    m_backButton->setIcon(theme::icon(theme::Icon::Back, t.text));
-    m_fullscreenButton->setIcon(theme::icon(theme::Icon::FullScreen, t.muted));
-    m_sleepButton->setIcon(theme::icon(theme::Icon::Timer, t.muted, t.accent));
+    m_backButton->setIcon(theme::icon(theme::Icon::Back, npText));
+    m_podcastBackButton->setIcon(theme::icon(theme::Icon::Back, t.text));
+    m_fullscreenButton->setIcon(theme::icon(theme::Icon::FullScreen, npMuted));
+    m_sleepButton->setIcon(theme::icon(theme::Icon::Timer, npMuted, t.accent));
+    m_visualizerButton->setIcon(theme::icon(theme::Icon::Visualizer, npMuted, t.accent));
+    m_visualizerStyleGrid->setThemeColors(t.accent, t.border, t.text);
     m_queueButton->setIcon(theme::icon(theme::Icon::Queue, t.muted, t.accent));
-    m_bigQueueButton->setIcon(theme::icon(theme::Icon::Queue, t.muted));
+    m_bigQueueButton->setIcon(theme::icon(theme::Icon::Queue, npMuted));
     m_upNextPanel->setAccentColor(t.accent);
     m_upNextPanel->setHeaderIcons(theme::icon(theme::Icon::More, t.muted), theme::icon(theme::Icon::Close, t.muted));
     {
@@ -3826,10 +5335,20 @@ void PlayerWindow::updatePlayPauseIcons()
         return; // called every tick -- only repaint on an actual change
     }
     m_shownPlayingState = playing;
+    m_visualizer->setPlaying(playing); // the record only turns while music plays
+    if (m_windowsMedia)
+    {
+        m_windowsMedia->setPlaybackState(m_engine.isLoaded(), playing);
+    }
+    if (m_trayPlayAction)
+    {
+        m_trayPlayAction->setText(playing ? tr("Pause") : tr("Play"));
+    }
+    m_visualizerStyleGrid->setPlaying(playing);
 
     const theme::Tokens& t = theme::tokens(m_darkMode);
     const theme::Icon kind = playing ? theme::Icon::Pause : theme::Icon::Play;
-    const QString tip = playing ? "Pause (Space)" : "Play (Space)";
+    const QString tip = playing ? tr("Pause (Space)") : tr("Play (Space)");
     m_playButton->setIcon(theme::icon(kind, t.accentText, QColor(), t.muted, 20));
     m_playButton->setToolTip(tip);
     m_bigPlayButton->setIcon(theme::icon(kind, t.accentText, QColor(), t.muted, 28));
@@ -3838,12 +5357,36 @@ void PlayerWindow::updatePlayPauseIcons()
 
 void PlayerWindow::showCoverPlaceholders()
 {
-    const theme::Tokens& t = theme::tokens(m_darkMode);
+    // Generated art, its colour from the title: every song without a cover looks a little different.
+    const QString seed = m_queue.isEmpty() ? QString() : m_queue.currentTrack().title;
     m_coverArtLabel->setAlignment(Qt::AlignCenter);
     m_bigCoverArtLabel->setAlignment(Qt::AlignCenter);
-    m_coverArtLabel->setPixmap(theme::icon(theme::Icon::Track, t.muted, QColor(), QColor(), 24).pixmap(QSize(24, 24)));
-    m_bigCoverArtLabel->setPixmap(theme::icon(theme::Icon::Track, t.muted, QColor(), QColor(), 96).pixmap(QSize(96, 96)));
+    m_coverArtLabel->setPixmap(theme::generatedArt(seed, m_coverArtLabel->width(), 8));
+    m_bigCoverArtLabel->setPixmap(theme::generatedArt(seed, m_bigCoverArtLabel->width(), 16));
     m_coverPlaceholderShown = true;
+}
+
+void PlayerWindow::updateAmbientBackground(const QByteArray& coverArt, const QString& seed)
+{
+    // The cover shrunk to a few pixels and scaled back up is a smooth blur of
+    // its colours; darkened so light text always reads on it.
+    QImage source;
+    if (coverArt.isEmpty() || !source.loadFromData(coverArt))
+    {
+        source = theme::generatedArt(seed, 32, 0).toImage();
+    }
+    const QImage tiny = source.scaled(12, 8, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QImage blurred = tiny.scaled(192, 108, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                         .scaled(960, 540, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                         .convertToFormat(QImage::Format_RGB32);
+    QPainter p(&blurred);
+    p.fillRect(blurred.rect(), QColor(0, 0, 0, 120));
+    QLinearGradient shade(0, 0, 0, blurred.height());
+    shade.setColorAt(0.0, QColor(0, 0, 0, 40));
+    shade.setColorAt(1.0, QColor(0, 0, 0, 150));
+    p.fillRect(blurred.rect(), shade);
+    p.end();
+    m_ambientBackground->setPixmap(QPixmap::fromImage(blurred));
 }
 
 void PlayerWindow::updateVolumeIcons()
@@ -3851,12 +5394,14 @@ void PlayerWindow::updateVolumeIcons()
     const theme::Tokens& t = theme::tokens(m_darkMode);
     const QIcon icon = theme::icon(m_volumeSlider->value() == 0 ? theme::Icon::VolumeMute : theme::Icon::Volume, t.muted);
     m_volumeButton->setIcon(icon);
-    m_bigVolumeButton->setIcon(icon);
+    m_bigVolumeButton->setIcon(theme::icon(m_volumeSlider->value() == 0 ? theme::Icon::VolumeMute : theme::Icon::Volume,
+                                           QColor(246, 237, 231, 165))); // Now Playing: always light
 }
 
 void PlayerWindow::openFile()
 {
-    QString path = QFileDialog::getOpenFileName(this, "Open MP3", QString(), "MP3 Files (*.mp3);;All Files (*)");
+    QString path = QFileDialog::getOpenFileName(this, tr("Open MP3"), QString(),
+                                                tr("MP3 Files") + " (*.mp3);;" + tr("All Files") + " (*)");
     if (!path.isEmpty())
     {
         // A standalone open isn't part of any library list -- queue of one.
@@ -3871,11 +5416,14 @@ void PlayerWindow::loadTrack(const TrackInfo& info, bool autoplay, float startAt
         m_wasAtEnd = false;
         m_handOffBlocked = false;
         m_gaplessHandOff = false;
+        m_countedPath.clear(); // each time a song starts, it can count as a play again
+        clearAbRepeat();
 
         // Where to start: a long track resumes where it was left; otherwise
         // Smart Transitions skips silence at the start.
         const float length = m_engine.lengthSeconds();
-        const double resume = m_rememberLongTracks && length >= kLongTrackSeconds
+        // Podcast episodes always continue where they were left; other songs if long and the setting is on.
+        const double resume = isPodcast(info.path) || (m_rememberLongTracks && length >= kLongTrackSeconds)
             ? m_songData->resumePosition(info.path) : -1.0;
         if (startAt >= 0.0f)
         {
@@ -3904,14 +5452,14 @@ void PlayerWindow::loadTrack(const TrackInfo& info, bool autoplay, float startAt
     {
         if (autoplay)
         {
-            ErrorReporter::warn(this, "Failed to load track", "Could not load: " + QFileInfo(info.path).fileName());
+            ErrorReporter::warn(this, tr("Failed to load track"), tr("Could not load: %1").arg(QFileInfo(info.path).fileName()));
         }
         else
         {
             // Restoring last session's track at launch: no popup before the window's even up.
             ErrorReporter::logOnly("Could not restore last track: " + info.path);
         }
-        m_titleLabel->setText("Failed to load: " + QFileInfo(info.path).fileName());
+        m_titleLabel->setText(tr("Failed to load: %1").arg(QFileInfo(info.path).fileName()));
         m_formatLabel->clear();
         m_coverArtLabel->clear();
         setControlsEnabled(false);
@@ -3920,6 +5468,7 @@ void PlayerWindow::loadTrack(const TrackInfo& info, bool autoplay, float startAt
 
 void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
 {
+    m_lyricsOffsetMs = m_songData->statsFor(info.path).lyricsOffsetMs;
     m_miniTitleFullText = info.title;
     applyElidedMiniTitle();
     // Mini bar's second line: the artist, like most players -- the full
@@ -3963,9 +5512,23 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
     // dominant color, the way several music apps do -- scoped to just
     // this bounded panel now, not the whole page (a page-wide translucent
     // tint was producing a visible seam artifact at the label boundaries).
-    QColor bg = AverageColor(coverArt);
-    m_infoBox->setStyleSheet(
-        QString("background-color: rgba(%1, %2, %3, 190); border-radius: 16px;").arg(bg.red()).arg(bg.green()).arg(bg.blue()));
+    updateVisualizerForTrack(info, coverArt);
+
+    updateAmbientBackground(coverArt, info.title);
+    if (m_windowsMedia) // (the song restored at start comes before it exists: setupWindowsIntegration() sends it)
+    {
+        m_windowsMedia->setTrack(info.title.isEmpty() ? QFileInfo(info.path).completeBaseName() : info.title,
+                                 info.artist, info.album, coverArt);
+    }
+    if (m_tray)
+    {
+        m_tray->setToolTip(info.artist.isEmpty() ? info.title : info.title + QStringLiteral(" — ") + info.artist);
+    }
+    if (info.path != m_lastNotifiedPath) // a tag edit re-shows the same song: no second notification
+    {
+        m_lastNotifiedPath = info.path;
+        notifySongStarted(info, coverArt);
+    }
 
     fetchLyricsFor(info);
     updateWallpaperForTrack(info);
@@ -3974,6 +5537,11 @@ void PlayerWindow::updateNowPlayingUi(const TrackInfo& info)
     // already crossfadeSeconds in by the time it becomes "current".
     updateDiscordPresence();
     refreshUpNext();
+    updateLoveButton();
+    if (isPodcast(info.path))
+    {
+        refreshPodcasts(); // the episode that's playing, in bold; the last one's time left
+    }
 }
 
 void PlayerWindow::resetTitleMarquee(const QString& title)
@@ -4041,12 +5609,12 @@ void PlayerWindow::updateWallpaperForTrack(const TrackInfo& info)
 void PlayerWindow::refreshGlobalWallpaperLabel()
 {
     QString path = m_wallpaperLibrary.globalVideoPath();
-    m_globalWallpaperLabel->setText(path.isEmpty() ? "None" : QFileInfo(path).fileName());
+    m_globalWallpaperLabel->setText(path.isEmpty() ? tr("None") : QFileInfo(path).fileName());
 }
 
 void PlayerWindow::chooseGlobalWallpaper()
 {
-    QString path = QFileDialog::getOpenFileName(this, "Choose global wallpaper video", QString(), "Video files (*.mp4)");
+    QString path = QFileDialog::getOpenFileName(this, tr("Choose global wallpaper video"), QString(), tr("Video files") + " (*.mp4)");
     if (path.isEmpty())
     {
         return;
@@ -4081,7 +5649,7 @@ void PlayerWindow::refreshWallpaperEntriesList()
     for (int i = 0; i < entries.size(); ++i)
     {
         const WallpaperEntry& entry = entries[i];
-        QString label = QString("%1  (%2 tracks)")
+        QString label = tr("%1  (%2 tracks)")
             .arg(QFileInfo(entry.videoPath).fileName())
             .arg(entry.trackPaths.size());
         auto* item = new QListWidgetItem(label);
@@ -4092,7 +5660,7 @@ void PlayerWindow::refreshWallpaperEntriesList()
 
 void PlayerWindow::addWallpaperEntry()
 {
-    QString videoPath = QFileDialog::getOpenFileName(this, "Choose wallpaper video", QString(), "Video files (*.mp4)");
+    QString videoPath = QFileDialog::getOpenFileName(this, tr("Choose wallpaper video"), QString(), tr("Video files") + " (*.mp4)");
     if (videoPath.isEmpty())
     {
         return;
@@ -4118,7 +5686,7 @@ void PlayerWindow::editWallpaperEntryTracks()
     QListWidgetItem* item = m_wallpaperEntriesList->currentItem();
     if (!item)
     {
-        ErrorReporter::info(this, "No wallpaper selected", "Select a wallpaper from the list first.");
+        ErrorReporter::info(this, tr("No wallpaper selected"), tr("Select a wallpaper from the list first."));
         return;
     }
 
@@ -4147,13 +5715,13 @@ void PlayerWindow::removeSelectedWallpaperEntry()
     QListWidgetItem* item = m_wallpaperEntriesList->currentItem();
     if (!item)
     {
-        ErrorReporter::info(this, "No wallpaper selected", "Select a wallpaper from the list first.");
+        ErrorReporter::info(this, tr("No wallpaper selected"), tr("Select a wallpaper from the list first."));
         return;
     }
 
     int index = item->data(Qt::UserRole).toInt();
-    bool confirmed = ErrorReporter::confirm(this, "Remove wallpaper",
-        "Remove this wallpaper assignment? This can't be undone.");
+    bool confirmed = ErrorReporter::confirm(this, tr("Remove wallpaper"),
+        tr("Remove this wallpaper assignment? This can't be undone."));
     if (confirmed)
     {
         m_wallpaperLibrary.removeEntryAt(index);
@@ -4185,6 +5753,10 @@ void PlayerWindow::pause()
     }
     m_engine.pause();
     rememberLongTrackPosition();
+    if (!m_queue.isEmpty() && isPodcast(m_queue.currentTrack().path))
+    {
+        refreshPodcasts(); // "12:40 left"
+    }
     updatePlayPauseIcons();
     if (m_discordPresenceEnabled)
     {
@@ -4440,6 +6012,8 @@ void PlayerWindow::finalizeCrossfade()
     m_engine.finalizeCrossfade();
     m_queue.commitPendingNext();
     recordHistory(m_queue.currentTrack());
+    m_countedPath.clear();
+    clearAbRepeat();
     m_gaplessHandOff = false;
     m_handOffBlocked = false;
 
@@ -4465,13 +6039,13 @@ void PlayerWindow::openSleepTimerMenu()
         action->setChecked(m_sleepMinutes == minutes);
         connect(action, &QAction::triggered, this, [this, minutes]() { setSleepTimer(minutes); });
     };
-    add("Off", 0);
+    add(tr("Off"), 0);
     menu.addSeparator();
     for (int minutes : {5, 15, 30, 45, 60, 90})
     {
-        add(QString("%1 minutes").arg(minutes), minutes);
+        add(tr("%1 minutes").arg(minutes), minutes);
     }
-    add("End of Track", -1);
+    add(tr("End of Track"), -1);
     menu.exec(m_sleepButton->mapToGlobal(QPoint(0, m_sleepButton->height())));
 }
 
@@ -4491,9 +6065,9 @@ void PlayerWindow::setSleepTimer(int minutes)
         applyVolume();
     }
     m_sleepButton->setChecked(minutes != 0);
-    m_sleepButton->setToolTip(minutes == 0 ? "Sleep timer"
-                              : minutes == -1 ? "Sleep timer: end of track"
-                                              : QString("Sleep timer: %1 minutes").arg(minutes));
+    m_sleepButton->setToolTip(minutes == 0 ? tr("Sleep timer")
+                              : minutes == -1 ? tr("Sleep timer: end of track")
+                                              : tr("Sleep timer: %1 minutes").arg(minutes));
 }
 
 void PlayerWindow::updateSleepTimer(float cursor, float end)
@@ -4518,7 +6092,7 @@ void PlayerWindow::updateSleepTimer(float cursor, float end)
             factor = qBound(0.0f, left / 30000.0f, 1.0f); // fades over the last 30 s
         }
         const int minutesLeft = static_cast<int>((left + 59999) / 60000);
-        m_sleepButton->setToolTip(QString("Sleep timer: %1 min left").arg(minutesLeft));
+        m_sleepButton->setToolTip(tr("Sleep timer: %1 min left").arg(minutesLeft));
     }
     else if (m_sleepFadeOut && m_engine.isPlaying())
     {
@@ -4537,18 +6111,97 @@ void PlayerWindow::updateSleepTimer(float cursor, float end)
 
 void PlayerWindow::rememberLongTrackPosition()
 {
-    if (!m_rememberLongTracks || m_queue.isEmpty() || !m_engine.isLoaded())
+    if (m_queue.isEmpty() || !m_engine.isLoaded())
     {
         return;
     }
     const float length = m_engine.lengthSeconds();
-    if (length < kLongTrackSeconds)
+    if (!isPodcast(m_queue.currentTrack().path) && (!m_rememberLongTracks || length < kLongTrackSeconds))
     {
         return;
     }
     const float position = m_engine.cursorSeconds();
     const bool keep = position > 15.0f && position < length - 30.0f;
     m_songData->setResumePosition(m_queue.currentTrack().path, keep ? position : -1.0);
+}
+
+// --- Visualizer ----------------------------------------------------------------
+
+void PlayerWindow::setVisualizerOn(bool on)
+{
+    m_visualizerOn = on;
+    m_visualizerButton->setChecked(on);
+    m_coverStack->setCurrentIndex(on ? 1 : 0);
+    updateVisualizerActive();
+}
+
+void PlayerWindow::updateVisualizerActive()
+{
+    // Only while it's actually on screen: the audio tap costs a little.
+    m_visualizer->setActive(m_visualizerOn && m_stack->currentIndex() == 1 && !isMinimized());
+}
+
+void PlayerWindow::updateVisualizerForTrack(const TrackInfo& info, const QByteArray& coverArt)
+{
+    const QColor color = CoverThemeColor(coverArt); // invalid (no cover) -> the accent
+    const QPixmap cover = ScaledCoverArt(coverArt, QSize(240, 240));
+    m_visualizer->setColor(color);
+    m_visualizer->setCover(cover);
+    m_visualizerStyleGrid->setColor(color);
+    m_visualizerStyleGrid->setCover(cover);
+    m_visualizer->setMedia(m_visualizerMedia.resolveFor(info.path));
+}
+
+void PlayerWindow::openVisualizerMediaDialog()
+{
+    VisualizerMediaDialog dialog(m_visualizerMedia, m_library.tracks(), this);
+    dialog.exec();
+    m_visualizerMedia.save();
+    if (!m_queue.isEmpty())
+    {
+        m_visualizer->setMedia(m_visualizerMedia.resolveFor(m_queue.currentTrack().path));
+    }
+}
+
+// --- Loved / play counts ----------------------------------------------------
+
+void PlayerWindow::countPlayIfDue(float cursor, float length)
+{
+    const QString& path = m_queue.currentTrack().path;
+    if (path == m_countedPath || length <= 0.0f)
+    {
+        return;
+    }
+    // Like Android: half the song, but never more than 4 minutes of it.
+    if (cursor >= qBound(1.0f, length / 2.0f, 240.0f))
+    {
+        m_countedPath = path;
+        m_songData->recordPlay(path);
+        refreshPlaylistsList(); // Most Played / Recently Played counts
+    }
+}
+
+void PlayerWindow::toggleLoved()
+{
+    if (m_queue.isEmpty() || !m_engine.isLoaded())
+    {
+        return;
+    }
+    const QString path = m_queue.currentTrack().path;
+    m_songData->setLoved(path, !m_songData->isLoved(path));
+    updateLoveButton();
+    refreshPlaylistsList(); // the Loved smart list's count
+}
+
+void PlayerWindow::updateLoveButton()
+{
+    const bool hasTrack = !m_queue.isEmpty() && m_engine.isLoaded();
+    const bool loved = hasTrack && m_songData->isLoved(m_queue.currentTrack().path);
+    // Now Playing is always light-on-dark, whatever the theme.
+    m_loveButton->setIcon(loved ? theme::icon(theme::Icon::HeartFilled, QColor("#f0c3a4"), QColor(), QColor(), 22)
+                                : theme::icon(theme::Icon::Heart, QColor(246, 237, 231, 200), QColor(), QColor(), 22));
+    m_loveButton->setToolTip(loved ? tr("Remove from Loved") : tr("Love"));
+    m_loveButton->setEnabled(hasTrack);
 }
 
 // --- Main update tick ----------------------------------------------
@@ -4566,10 +6219,14 @@ void PlayerWindow::updatePlayback()
     float cursor = m_engine.cursorSeconds();
     float length = m_engine.lengthSeconds();
     const float end = m_queue.isEmpty() ? length : trackEnd(m_queue.currentTrack(), length);
+    if (m_windowsMedia)
+    {
+        m_windowsMedia->setProgress(cursor, length); // the taskbar icon
+    }
 
     if (!m_syncedLyrics.isEmpty())
     {
-        updateSyncedLyricsHighlight(cursor);
+        updateSyncedLyricsHighlight(cursor - m_lyricsOffsetMs / 1000.0f); // "+" shows the lines later
     }
 
     m_seekSlider->blockSignals(true); // avoid re-triggering sliderPressed/valueChanged
@@ -4598,6 +6255,22 @@ void PlayerWindow::updatePlayback()
     {
         rememberLongTrackPosition(); // every ~5 s, so a crash or power cut loses little
     }
+    if (playing && !m_queue.isEmpty())
+    {
+        countPlayIfDue(cursor, length);
+        const QString& path = m_queue.currentTrack().path;
+        if (length > 0.0f && cursor >= length - kPodcastPlayedWithinSeconds && isPodcast(path)
+            && !m_songData->statsFor(path).played)
+        {
+            m_songData->setPlayed(path, true); // outros and ads at the end don't need listening to
+            refreshPodcasts();
+        }
+    }
+    if (m_abState == AbState::Looping && cursor >= m_abB)
+    {
+        seekTo(m_abA); // A-B repeat: back to A
+        return;
+    }
 
     if (m_engine.isCrossfading())
     {
@@ -4614,7 +6287,7 @@ void PlayerWindow::updatePlayback()
     }
 
     if (playing && !m_handOffBlocked && m_queue.repeatMode() != RepeatMode::One && m_sleepMinutes != -1
-        && !m_queue.isEmpty() && length > 0.0f)
+        && m_abState == AbState::Off && !m_queue.isEmpty() && length > 0.0f)
     {
         prepareHandOff(cursor, end);
         if (m_engine.isCrossfading())
@@ -4674,6 +6347,10 @@ void PlayerWindow::loadSettings()
     m_sleepFadeSwitch->setChecked(m_sleepFadeOut);
     m_rememberLongTracks = settings.value("rememberLongTrackPosition", true).toBool();
     m_resumeLongSwitch->setChecked(m_rememberLongTracks);
+    m_keepPlayingInTray = settings.value("keepPlayingInTray", false).toBool();
+    m_trayKeepSwitch->setChecked(m_keepPlayingInTray);
+    m_songNotifications = settings.value("songNotifications", false).toBool();
+    m_notifySwitch->setChecked(m_songNotifications);
 
     // Smart Options (locked until an analysis run has finished once).
     m_analysisCompleted = settings.value("analysisCompleted", false).toBool();
@@ -4685,6 +6362,15 @@ void PlayerWindow::loadSettings()
     m_harmonicShuffleSwitch->setChecked(m_harmonicShuffle);
     updateSmartOptionsUi();
     updateSmartOrder();
+
+    // The Tracks list's column widths and order, as last left.
+    if (const QByteArray columns = settings.value("tracksColumns").toByteArray(); !columns.isEmpty())
+    {
+        m_tracksColumnsFitted = m_tracksTable->horizontalHeader()->restoreState(columns);
+    }
+    m_visualizerStyle = qBound(0, settings.value("visualizerStyle", 0).toInt(), kVisualizerStyleCount - 1);
+    m_visualizerStyleGrid->setSelected(m_visualizerStyle);
+    m_visualizer->setStyle(static_cast<VisualizerStyle>(m_visualizerStyle));
 
     m_videoWallpaperEnabled = settings.value("videoWallpaperEnabled", true).toBool();
     m_videoWallpaperCheckbox->setChecked(m_videoWallpaperEnabled);
@@ -4732,6 +6418,15 @@ void PlayerWindow::loadSettings()
         }
     }
     m_library.setFolders(folders);
+    QStringList podcastFolders;
+    for (const QString& dir : settings.value("podcastFolders").toStringList())
+    {
+        if (folders.contains(dir))
+        {
+            podcastFolders << dir;
+        }
+    }
+    m_library.setPodcastFolders(podcastFolders);
 
     // The last scan's results show straight away; the background scan started
     // at the end of the constructor then catches up with any changes on disk.
@@ -4740,6 +6435,7 @@ void PlayerWindow::loadSettings()
     refreshTracksTable();
     refreshAlbumsAndArtists();
     updateLibraryStatsUi();
+    refreshPodcasts();
 
     // Playlists store paths only, so a track whose folder has since gone
     // missing just shows by filename in the playlist (see
@@ -4779,12 +6475,16 @@ void PlayerWindow::saveSettings()
     settings.setValue("replayGainEnabled", m_replayGainEnabled);
     settings.setValue("sleepFadeOut", m_sleepFadeOut);
     settings.setValue("rememberLongTrackPosition", m_rememberLongTracks);
+    settings.setValue("keepPlayingInTray", m_keepPlayingInTray);
+    settings.setValue("songNotifications", m_songNotifications);
     settings.setValue("analysisCompleted", m_analysisCompleted);
     settings.setValue("smartTransitions", m_smartTransitions);
     settings.setValue("beatMatchedCrossfade", m_beatMatchedCrossfade);
     settings.setValue("harmonicShuffle", m_harmonicShuffle);
     settings.setValue("crossfadeEnabled", m_crossfadeEnabled);
     settings.setValue("crossfadeSeconds", m_crossfadeSeconds);
+    settings.setValue("visualizerStyle", m_visualizerStyle);
+    settings.setValue("tracksColumns", m_tracksTable->horizontalHeader()->saveState());
     settings.setValue("videoWallpaperEnabled", m_videoWallpaperEnabled);
     settings.setValue("videoWallpaperOpacity", m_videoWallpaperOpacityPercent);
     settings.setValue("musixmatchApiKey", ProtectSecret(m_musixmatchApiKey));
@@ -4804,6 +6504,7 @@ void PlayerWindow::saveSettings()
     }
 
     settings.setValue("musicFolders", m_library.folders());
+    settings.setValue("podcastFolders", m_library.podcastFolders());
 
     // Rewritten in full each time (remove first) so deleted playlists don't
     // linger as stale array entries.

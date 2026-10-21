@@ -39,6 +39,8 @@ enum class Icon
     Sun, Moon,
     Wand, Metronome, Dial, Lock, Timer, Chevron,
     Queue, More, Close,
+    Heart, HeartFilled, Visualizer, SmartPlaylist, Podcast,
+    Trash, CheckCircle,
 };
 
 // `checked` is used for the QIcon::On state (checkable buttons), `disabled`
@@ -48,5 +50,16 @@ QIcon icon(Icon kind, const QColor& normal, const QColor& checked = QColor(),
 
 // Same pixmap with antialiased rounded corners (cover art thumbnails).
 QPixmap roundedPixmap(const QPixmap& source, qreal radius);
+
+// Art for something without a cover (a song, a playlist): a soft two-colour
+// gradient whose hue comes from `seed` (so each one looks different, and the
+// same one always looks the same), with `mark` drawn large and faint in the
+// middle. Square, `logicalSize` across, rounded by `radius`; rendered at 2x.
+// `hue` (0..359) picks the colour instead of the seed.
+QPixmap generatedArt(const QString& seed, int logicalSize, qreal radius, Icon mark = Icon::Track, int hue = -1);
+
+// The hue generatedArt() uses for `seed` -- its colour for accents (the
+// visualizer, the Now Playing background).
+QColor generatedArtColor(const QString& seed);
 
 } // namespace audioforge::theme

@@ -7,9 +7,9 @@
 namespace audioforge {
 
 WallpaperTrackPickerDialog::WallpaperTrackPickerDialog(const QVector<TrackInfo>& allTracks,
-    const QStringList& initiallyChecked, QWidget* parent) : QDialog(parent)
+    const QStringList& initiallyChecked, QWidget* parent, const QString& title) : QDialog(parent)
 {
-    setWindowTitle("Choose tracks for this wallpaper");
+    setWindowTitle(title.isEmpty() ? tr("Choose tracks for this wallpaper") : title);
     resize(420, 480);
 
     auto* layout = new QVBoxLayout(this);

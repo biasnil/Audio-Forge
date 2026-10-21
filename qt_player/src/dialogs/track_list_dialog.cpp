@@ -1,16 +1,28 @@
 #include "audioforge/dialogs/track_list_dialog.hpp"
 
+#include <QLabel>
 #include <QVBoxLayout>
 #include <QListWidget>
 
 namespace audioforge {
 
-TrackListDialog::TrackListDialog(const QString& title, const QVector<TrackInfo>& tracks, QWidget* parent) : QDialog(parent)
+TrackListDialog::TrackListDialog(const QString& title, const QVector<TrackInfo>& tracks, QWidget* parent,
+                                 const QString& emptyText)
+    : QDialog(parent)
 {
     setWindowTitle(title);
     resize(480, 480);
 
     auto* layout = new QVBoxLayout(this);
+    if (tracks.isEmpty() && !emptyText.isEmpty())
+    {
+        auto* empty = new QLabel(emptyText);
+        empty->setObjectName("MutedLabel");
+        empty->setWordWrap(true);
+        empty->setAlignment(Qt::AlignCenter);
+        layout->addWidget(empty, 1);
+        return;
+    }
     auto* list = new QListWidget();
     for (const TrackInfo& t : tracks)
     {

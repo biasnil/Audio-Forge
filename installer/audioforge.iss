@@ -3,13 +3,13 @@
 ; Normally run through scripts/build_installer.sh, which first builds the
 ; self-contained app folder (scripts/deploy_windows.sh) and then calls:
 ;
-;   ISCC /DAppVersion=1.1.0 /DSourceDir=<dist folder> installer\audioforge.iss
+;   ISCC /DAppVersion=1.4.0 /DSourceDir=<dist folder> installer\audioforge.iss
 ;
 ; Settings live in %APPDATA%\AudioForge and are deliberately left alone on
 ; uninstall, so reinstalling/upgrading keeps the library, playlists and EQ.
 
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.4.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\dist"

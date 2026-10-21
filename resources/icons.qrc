@@ -36,6 +36,10 @@
         <file>ui/volume.svg</file>
         <file>ui/wallpaper.svg</file>
         <file>ui/wand.svg</file>
+        <file>ui/trash.svg</file>
+        <file>ui/check-circle.svg</file>
+        <file>ui/combo-arrow-dark.svg</file>
+        <file>ui/combo-arrow-light.svg</file>
         <file>ui/metronome.svg</file>
         <file>ui/dial.svg</file>
         <file>ui/lock.svg</file>
@@ -44,6 +48,11 @@
         <file>ui/queue.svg</file>
         <file>ui/more.svg</file>
         <file>ui/close.svg</file>
+        <file>ui/heart.svg</file>
+        <file>ui/heart-filled.svg</file>
+        <file>ui/visualizer.svg</file>
+        <file>ui/smart-playlist.svg</file>
+        <file>ui/podcast.svg</file>
     </qresource>
     <!-- Inter (UI) and Playfair Display (titles), SIL Open Font License, see fonts/*-OFL.txt -->
     <qresource prefix="/fonts">

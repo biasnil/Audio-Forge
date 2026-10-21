@@ -11,18 +11,18 @@ namespace audioforge {
 
 MusicBrainzResultDialog::MusicBrainzResultDialog(const QVector<MusicBrainzCandidate>& candidates, QWidget* parent) : QDialog(parent)
 {
-    setWindowTitle("MusicBrainz results");
+    setWindowTitle(tr("MusicBrainz results"));
     resize(480, 360);
 
     auto* layout = new QVBoxLayout(this);
 
     if (candidates.isEmpty())
     {
-        layout->addWidget(new QLabel("No matches found on MusicBrainz."));
+        layout->addWidget(new QLabel(tr("No matches found on MusicBrainz.")));
     }
     else
     {
-        layout->addWidget(new QLabel("Select the correct match:"));
+        layout->addWidget(new QLabel(tr("Select the correct match:")));
     }
 
     m_list = new QListWidget();
@@ -54,7 +54,7 @@ MusicBrainzResultDialog::MusicBrainzResultDialog(const QVector<MusicBrainzCandid
     layout->addWidget(m_list);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText("Apply Tags");
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Apply Tags"));
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
@@ -64,7 +64,7 @@ MusicBrainzResultDialog::MusicBrainzResultDialog(const QVector<MusicBrainzCandid
         }
         else
         {
-            ErrorReporter::info(this, "Select a match", "Choose one of the results first, or Cancel.");
+            ErrorReporter::info(this, tr("Select a match"), tr("Choose one of the results first, or Cancel."));
         }
     });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

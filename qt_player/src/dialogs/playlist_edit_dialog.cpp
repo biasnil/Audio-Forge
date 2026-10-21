@@ -27,9 +27,9 @@ PlaylistEditDialog::PlaylistEditDialog(PlaylistData& playlist, const QVector<Tra
         accept();
     });
 
-    auto* removeButton = new QPushButton("Remove Selected");
-    auto* addButton = new QPushButton("Add Tracks...");
-    auto* deleteButton = new QPushButton("Delete Playlist");
+    auto* removeButton = new QPushButton(tr("Remove Selected"));
+    auto* addButton = new QPushButton(tr("Add Tracks..."));
+    auto* deleteButton = new QPushButton(tr("Delete Playlist"));
 
     auto* buttonRow = new QHBoxLayout();
     buttonRow->addWidget(removeButton);
@@ -86,7 +86,7 @@ void PlaylistEditDialog::removeSelected()
 void PlaylistEditDialog::addTracks()
 {
     QDialog picker(this);
-    picker.setWindowTitle("Add tracks to " + m_playlist.name);
+    picker.setWindowTitle(tr("Add tracks to %1").arg(m_playlist.name));
     picker.resize(420, 480);
 
     auto* layout = new QVBoxLayout(&picker);
@@ -111,7 +111,7 @@ void PlaylistEditDialog::addTracks()
     layout->addWidget(list);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText("Add");
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Add"));
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &picker, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &picker, &QDialog::reject);
@@ -132,8 +132,8 @@ void PlaylistEditDialog::addTracks()
 
 void PlaylistEditDialog::confirmDelete()
 {
-    bool confirmed = ErrorReporter::confirm(this, "Delete playlist",
-        "Delete \"" + m_playlist.name + "\"? This can't be undone.");
+    bool confirmed = ErrorReporter::confirm(this, tr("Delete playlist"),
+        tr("Delete \"%1\"? This can't be undone.").arg(m_playlist.name));
     if (confirmed)
     {
         m_deleted = true;

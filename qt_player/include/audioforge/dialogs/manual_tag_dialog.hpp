@@ -44,6 +44,11 @@ public:
     using SaveFunction = std::function<bool(const QMap<QString, QString>& tags)>;
     void setSaveFunction(SaveFunction saveFunction) { m_saveFunction = std::move(saveFunction); }
 
+    // Genre detection's result for this song: shows "Detected: Electronic ·
+    // House" with a "Fill Genre from analysis" button that puts `fillValue`
+    // (the subgenre, else the broad genre) into the GENRE field.
+    void setDetectedGenre(const QString& label, const QString& fillValue);
+
 signals:
     // Emitted when the user clicks "Fill from internet". PlayerWindow
     // connects this to its existing lookupSelectedTrackOnMusicBrainz()
@@ -71,6 +76,7 @@ private:
     QString m_path;
     SaveFunction m_saveFunction;
     QVBoxLayout* m_rowsLayout = nullptr;
+    QVBoxLayout* m_outerLayout = nullptr;
     QVector<TagRow> m_rows;
 };
 

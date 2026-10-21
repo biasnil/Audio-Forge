@@ -53,20 +53,21 @@ ManualTagDialog::ManualTagDialog(const QString& path, const QMap<QString, QStrin
     : QDialog(parent)
     , m_path(path)
 {
-    setWindowTitle("Edit tags (Manual)");
+    setWindowTitle(tr("Edit tags (Manual)"));
     resize(760, 640);
     setStyleSheet("QDialog { background: #101010; }");
 
     auto* outer = new QVBoxLayout(this);
+    m_outerLayout = outer;
 
     // --- Header row: title + "Fill from internet" -------------------------
     auto* header = new QHBoxLayout;
-    auto* titleLabel = new QLabel("Edit tags (Manual)");
+    auto* titleLabel = new QLabel(tr("Edit tags (Manual)"));
     titleLabel->setStyleSheet("color: white; font-size: 22px; font-weight: 600;");
     header->addWidget(titleLabel);
     header->addStretch();
 
-    auto* fillButton = new QPushButton("Fill from internet");
+    auto* fillButton = new QPushButton(tr("Fill from internet"));
     fillButton->setStyleSheet(
         "QPushButton { background: #2a2a2a; color: white; border-radius: 14px;"
         "              padding: 6px 14px; }"
@@ -122,19 +123,19 @@ ManualTagDialog::ManualTagDialog(const QString& path, const QMap<QString, QStrin
 
     // --- Footer: + Add tag / Cancel / Save --------------------------------
     auto* footer = new QHBoxLayout;
-    auto* addTagButton = new QPushButton("+ Add tag");
+    auto* addTagButton = new QPushButton(tr("+ Add tag"));
     addTagButton->setStyleSheet("QPushButton { color: #ccc; background: transparent; border: none; }"
                                 "QPushButton:hover { color: white; }");
     connect(addTagButton, &QPushButton::clicked, this, &ManualTagDialog::promptForNewTag);
     footer->addWidget(addTagButton);
     footer->addStretch();
 
-    auto* cancelButton = new QPushButton("Cancel");
+    auto* cancelButton = new QPushButton(tr("Cancel"));
     cancelButton->setStyleSheet("QPushButton { color: #ccc; background: transparent; border: none; padding: 8px 16px; }");
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
     footer->addWidget(cancelButton);
 
-    auto* saveButton = new QPushButton("Save");
+    auto* saveButton = new QPushButton(tr("Save"));
     saveButton->setStyleSheet("QPushButton { background: #6c3ce9; color: white; border-radius: 6px; padding: 8px 20px; }"
                               "QPushButton:hover { background: #7d4ef0; }");
     connect(saveButton, &QPushButton::clicked, this, &ManualTagDialog::trySave);
@@ -151,7 +152,7 @@ void ManualTagDialog::addTagRow(const QString& key, const QString& value, bool i
     frameLayout->setSpacing(4);
 
     auto* topRow = new QHBoxLayout;
-    auto* keyLabel = new QLabel(QString("Key: %1").arg(key));
+    auto* keyLabel = new QLabel(tr("Key: %1").arg(key));
     topRow->addWidget(keyLabel);
     topRow->addStretch();
 
@@ -208,7 +209,7 @@ void ManualTagDialog::setOrAddTag(const QString& key, const QString& value)
 void ManualTagDialog::promptForNewTag()
 {
     bool ok = false;
-    QString key = QInputDialog::getText(this, "Add tag", "Tag key (e.g. COMPOSER):",
+    QString key = QInputDialog::getText(this, tr("Add tag"), tr("Tag key (e.g. COMPOSER):"),
                                          QLineEdit::Normal, QString(), &ok);
     key = key.trimmed().toUpper();
     if (!ok || key.isEmpty())
@@ -219,7 +220,7 @@ void ManualTagDialog::promptForNewTag()
     {
         if (row.key.compare(key, Qt::CaseInsensitive) == 0)
         {
-            QMessageBox::information(this, "Tag exists", QString("\"%1\" is already in the list below.").arg(key));
+            QMessageBox::information(this, tr("Tag exists"), tr("\"%1\" is already in the list below.").arg(key));
             return;
         }
     }
@@ -239,6 +240,23 @@ void ManualTagDialog::applyLookupResult(const QString& title, const QString& art
     if (year > 0)          setOrAddTag("DATE", QString::number(year));
 }
 
+void ManualTagDialog::setDetectedGenre(const QString& label, const QString& fillValue)
+{
+    auto* row = new QHBoxLayout;
+    auto* detected = new QLabel(tr("Detected: %1").arg(label));
+    detected->setStyleSheet("color: #9a9a9a;");
+    row->addWidget(detected);
+    row->addStretch();
+    auto* fill = new QPushButton(tr("Fill Genre from analysis"));
+    fill->setStyleSheet(
+        "QPushButton { background: #2a2a2a; color: white; border-radius: 14px;"
+        "              padding: 6px 14px; }"
+        "QPushButton:hover { background: #3a3a3a; }");
+    connect(fill, &QPushButton::clicked, this, [this, fillValue]() { setOrAddTag("GENRE", fillValue); });
+    row->addWidget(fill);
+    m_outerLayout->insertLayout(1, row); // under the title row
+}
+
 void ManualTagDialog::trySave()
 {
     QMap<QString, QString> tags;
@@ -254,8 +272,8 @@ void ManualTagDialog::trySave()
     const bool saved = m_saveFunction ? m_saveFunction(tags) : WriteAllTags(m_path, tags);
     if (!saved)
     {
-        QMessageBox::warning(this, "Couldn't save tags",
-                              "The file's tags couldn't be written. It may be read-only or in use.");
+        QMessageBox::warning(this, tr("Couldn't save tags"),
+                              tr("The file's tags couldn't be written. It may be read-only or in use."));
         return;
     }
     accept();

@@ -18,8 +18,10 @@ class WallpaperTrackPickerDialog : public QDialog
     Q_OBJECT
 
 public:
+    // `title`: empty = "Choose tracks for this wallpaper" (the visualizer's
+    // GIFs and videos use it too, with their own title).
     WallpaperTrackPickerDialog(const QVector<TrackInfo>& allTracks,
-        const QStringList& initiallyChecked, QWidget* parent = nullptr);
+        const QStringList& initiallyChecked, QWidget* parent = nullptr, const QString& title = QString());
 
     QStringList resultTrackPaths() const;
 

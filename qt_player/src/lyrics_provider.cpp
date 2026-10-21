@@ -71,10 +71,18 @@ QVector<SyncedLyricLine> ParseSyncedLyrics(const QString& lrcText)
     // Matches one [mm:ss] or [mm:ss.xx] tag; a line can have several run
     // together (e.g. "[00:12.00][00:45.30]word repeats here").
     static const QRegularExpression tagPattern(R"(\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\])");
+    // [offset:+500] shifts every line, in ms (+ = earlier, as in the .lrc format).
+    static const QRegularExpression offsetPattern(R"(\[offset:\s*([+-]?\d+)\s*\])", QRegularExpression::CaseInsensitiveOption);
 
     QVector<SyncedLyricLine> lines;
+    float offsetSeconds = 0.0f;
     for (const QString& rawLine : lrcText.split('\n'))
     {
+        if (const QRegularExpressionMatch offset = offsetPattern.match(rawLine); offset.hasMatch())
+        {
+            offsetSeconds = offset.captured(1).toInt() / 1000.0f;
+            continue;
+        }
         QVector<float> timestamps;
         int consumedUpTo = 0;
 
@@ -118,6 +126,13 @@ QVector<SyncedLyricLine> ParseSyncedLyrics(const QString& lrcText)
         }
     }
 
+    if (offsetSeconds != 0.0f)
+    {
+        for (SyncedLyricLine& line : lines)
+        {
+            line.seconds = std::max(0.0f, line.seconds - offsetSeconds);
+        }
+    }
     std::sort(lines.begin(), lines.end(), [](const SyncedLyricLine& a, const SyncedLyricLine& b) {
         return a.seconds < b.seconds;
     });

@@ -8,7 +8,9 @@
 #include "audioforge/lyrics_provider.hpp"
 #include "audioforge/discord_presence.hpp"
 #include "audioforge/song_data.hpp"
+#include "audioforge/smart_playlists.hpp"
 #include "audioforge/theme.hpp"
+#include "audioforge/visualizer_media.hpp"
 #include <QFont>
 #include <QPointer>
 #include <functional>
@@ -31,17 +33,27 @@ class QEvent;
 class QResizeEvent;
 class QScrollArea;
 class QAction;
+class QDragEnterEvent;
+class QDropEvent;
+class QSystemTrayIcon;
 class QAbstractButton;
 class QProgressBar;
 class QThread;
 class QFrame;
 class QVBoxLayout;
+class QListWidgetItem;
+class QMenu;
 
 namespace audioforge {
 
 class ManualTagDialog;
 class VideoBackgroundWidget;
 class UpNextPanel;
+class UpdateChecker;
+class VisualizerWidget;
+class VisualizerStyleGrid;
+class CardListWidget;
+class WindowsMediaControls;
 
 class PlayerWindow : public QWidget
 {
@@ -53,6 +65,9 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override; // the taskbar buttons
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override; // music files play, folders join the library
     void changeEvent(QEvent* event) override; // pauses/resumes the video wallpaper on minimize/restore
     void resizeEvent(QResizeEvent* event) override; // re-applies title truncation for the new available width
     bool eventFilter(QObject* watched, QEvent* event) override; // hover-underline + click-to-seek on synced lyrics lines
@@ -100,17 +115,27 @@ private:
     void onLibraryScanFinished(const QVector<TrackInfo>& tracks);
     void refreshFoldersList();
     void refreshTracksTable();
+    void fitTracksColumnsOnce(); // first run: the columns share the list's width
+
     void refreshAlbumsAndArtists();
     void applySearchFilter(const QString& text);
-    void openGroupTracks(const QString& labelWithCount, const QStringList& paths);
+    void openGroupTracks(const QString& title, const QStringList& paths);
 
     // --- MusicBrainz tagger -------------------------------------------
-    void openTagMusicMenu(); // "Tag Music" button -- offers MusicBrainz vs Manual tagging
-    void openManualTagDialog();
-    void openChangeCoverDialog();
+    // These act on `path`, or (empty) the Tracks list's selected row.
+    void openManualTagDialog(QString path = QString());
+    void openChangeCoverDialog(QString path = QString());
+    QString selectedTrackPath() const;
+    void saveBeforeExit();          // queue, settings, play counts... once, from closeEvent or aboutToQuit
+    void setupWindowsIntegration(); // media controls, taskbar buttons, tray icon
+    void showFromTray();
+    void notifySongStarted(const TrackInfo& info, const QByteArray& coverArt);
+    void deletePlaylistAt(int index);                                      // asks first
+    void addToPlaylistMenu(QMenu& menu, const QVector<TrackInfo>& tracks); // "Add to Playlist" > ... / New Playlist...
+    void showNowPlayingMenu(const QPoint& globalPos);                      // right-click on Now Playing
     // `targetDialog` non-null = "Fill from internet" inside that manual tag
     // dialog: the chosen result goes into its fields, never straight to disk.
-    void lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog = nullptr);
+    void lookupSelectedTrackOnMusicBrainz(ManualTagDialog* targetDialog = nullptr, QString path = QString());
     void handleMusicBrainzReply(QNetworkReply* reply, const QString& path,
                                 bool forManualDialog, QPointer<ManualTagDialog> targetDialog);
 
@@ -125,6 +150,50 @@ private:
     void openCreatePlaylistDialog();
     void refreshPlaylistsList();
     void openPlaylistTracks(int playlistIndex);
+    // New Playlist / New Smart Playlist / Import .m3u, below `anchor` (or at `at`, in its coordinates).
+    void showNewPlaylistMenu(QWidget* anchor, QPoint at = QPoint(-1, -1));
+    QPixmap playlistArt(const PlaylistData& playlist, int size); // 2x2 cover mosaic, or generated art
+    void activatePlaylistItem(QListWidgetItem* item); // a row of either playlist list: open it
+
+    // --- Smart playlists (built-in ones first, then the user's) -------------
+    const SmartPlaylist* smartPlaylist(const QString& id) const;
+    QVector<TrackInfo> smartPlaylistTracks(const SmartPlaylist& playlist) const;
+    void openSmartPlaylist(const QString& id);
+    void editSmartPlaylist(const QString& id); // empty id = a new one
+    void deleteSmartPlaylist(const QString& id);
+
+    // --- .m3u ------------------------------------------------------------------
+    void importM3u();
+    void exportM3u(const QString& name, const QVector<TrackInfo>& tracks);
+
+    // --- Lyrics timing offset (per song, ±0.5 s steps) -------------------------
+    void setLyricsOffset(int offsetMs);
+    void updateLyricsOffsetUi();
+    void updateLyricsPadding();
+    void updateAmbientBackground(const QByteArray& coverArt, const QString& seed); // Now Playing's backdrop // the padding rows: half the lyrics list's height
+
+    // --- Visualizer (in place of the Now Playing cover) ----------------------
+    void setVisualizerOn(bool on);
+    void updateVisualizerForTrack(const TrackInfo& info, const QByteArray& coverArt);
+    void updateVisualizerActive(); // runs only while it's on screen
+    void openVisualizerMediaDialog();
+
+    // --- Genre detection ----------------------------------------------------------
+    void startGenreDetection();
+    void updateGenreProgressUi();
+
+    // --- Podcasts (folders marked Podcast; kept apart from the music) -----------
+    QWidget* buildPodcastsTab();
+    void setFolderIsPodcast(const QString& dir, bool podcast);
+    void refreshPodcasts();               // the shows list, and the open show's episodes
+    void openPodcastShow(const QString& name);
+    void showPodcastEpisodeMenu(const QPoint& pos);
+    bool isPodcast(const QString& path) const { return m_library.isPodcast(path); }
+
+    // --- A-B repeat (Now Playing) ---------------------------------------------------
+    void cycleAbRepeat();   // off -> A set -> looping A to B -> off
+    void clearAbRepeat();
+    void updateAbButton();
 
     // --- Queue / transport ---------------------------------------------
     // `context` names where playback started ("Tracks", an album, a
@@ -145,8 +214,10 @@ private:
     void playTracksTableRow(int row); // the visible rows as the queue, starting at `row`
     QVector<TrackInfo> selectedTracks() const; // Tracks table selection, in on-screen order
     void showTrackContextMenu(const QPoint& pos);
-    // Right-click menu for anything that stands for a list of tracks (album, artist, playlist).
-    void showTracksMenu(const QPoint& globalPos, const QStringList& paths, const QString& name);
+    // Right-click menu for anything that stands for a list of tracks (album,
+    // artist, playlist); `extra` adds a playlist's own actions at the end.
+    void showTracksMenu(const QPoint& globalPos, const QStringList& paths, const QString& name,
+                        const std::function<void(QMenu&)>& extra = {});
     void enableTracksMenu(QListWidget* list, bool playlistRows); // hooks showTracksMenu up to a list's right-click
     void next(bool fromAutoAdvance);
     void previous();
@@ -224,11 +295,25 @@ private:
     void openDuplicates();
     void setThemeMode(int mode);  // 0 = System, 1 = Light, 2 = Dark
 
+    // --- Settings: language, About ------------------------------------------
+    void onLanguageChosen(int index); // saves it, then offers to restart (the language is set at startup)
+    void restartApp();                // closes (saving everything, like quitting) and starts again
+    void updateVersionUi();           // About > Version: the update check's state
+    void showUpdateNotice(const QString& version, const QString& url); // the automatic check found one
+    void reportProblem();             // an email with the app and Windows versions filled in
+    void openTextPage(const QString& title, const QString& markdown);
+    QString acknowledgementsMarkdown() const;
+
     // --- Sleep timer / long tracks -------------------------------------------
     void openSleepTimerMenu();
     void setSleepTimer(int minutes); // 0 = off, -1 = end of the current track
     void updateSleepTimer(float cursor, float end); // per tick: fires the timer, fades the volume out
     void rememberLongTrackPosition(); // saves (or clears) where a 10 min+ track was left
+
+    // --- Loved / play counts -------------------------------------------------
+    void countPlayIfDue(float cursor, float length); // once half the song (at most 4 min) has been heard
+    void toggleLoved();      // Now Playing's heart
+    void updateLoveButton();
 
     // --- Main update tick ----------------------------------------------
     void updatePlayback();
@@ -273,6 +358,41 @@ private:
 
     SongDataStore* m_songData = nullptr;
     LibraryAnalyzer* m_analyzer = nullptr;
+    GenreAnalyzer* m_genreAnalyzer = nullptr;
+    QPushButton* m_genreButton = nullptr;      // Settings > Library > Detect Genres
+    QPushButton* m_genreStopButton = nullptr;
+    QProgressBar* m_genreProgress = nullptr;
+    QLabel* m_genreStatusLabel = nullptr;
+
+    QVector<SmartPlaylist> m_smartPlaylists; // the user's own (the built-in ones aren't stored)
+
+    int m_lyricsOffsetMs = 0;              // the playing song's, + shows the lines later
+    QWidget* m_lyricsOffsetRow = nullptr;  // the lyrics timing button, shown for synced lyrics only
+    QPushButton* m_lyricsTimingButton = nullptr; // "Lyrics timing: +0.5 s" -> Earlier / Later / Reset
+    bool m_lyricsCentered = false; // synced lyrics or the "No lyrics" note: the line in the middle
+    int m_lyricsLead = 0; // padding rows before the first lyric line (synced lyrics: 1, so any line can sit in the middle)
+
+    QStackedWidget* m_podcastsStack = nullptr;  // the shows (0) or one show's episodes (1)
+    QListWidget* m_podcastShowsList = nullptr;
+    QLabel* m_podcastsEmptyLabel = nullptr;
+    QListWidget* m_podcastEpisodesList = nullptr;
+    QLabel* m_podcastShowTitle = nullptr;
+    QPushButton* m_podcastBackButton = nullptr;
+    QString m_openPodcastShow;                  // the show whose episodes are shown, if any
+
+    enum class AbState { Off, ASet, Looping };
+    AbState m_abState = AbState::Off;
+    float m_abA = 0.0f; // seconds
+    float m_abB = 0.0f;
+    QPushButton* m_abButton = nullptr;
+
+    VisualizerWidget* m_visualizer = nullptr;
+    QStackedWidget* m_coverStack = nullptr;   // the cover (0) or the visualizer (1)
+    QPushButton* m_visualizerButton = nullptr;
+    bool m_visualizerOn = false;
+    int m_visualizerStyle = 0;
+    VisualizerStyleGrid* m_visualizerStyleGrid = nullptr;
+    VisualizerMediaLibrary m_visualizerMedia;
 
     QThread* m_scanThread = nullptr;
     std::shared_ptr<std::atomic<bool>> m_scanCancel;
@@ -322,7 +442,7 @@ private:
     QStackedWidget* m_stack = nullptr;
     VideoBackgroundWidget* m_wallpaperWidget = nullptr;
     QWidget* m_nowPlayingPage = nullptr;
-    QWidget* m_infoBox = nullptr; // bounded panel (title through lyrics) that gets the per-track cover-art tint now, not the whole page
+    QLabel* m_ambientBackground = nullptr; // Now Playing's backdrop: the cover blurred and darkened, or generated art
     QLineEdit* m_searchBar = nullptr;
     QTableWidget* m_tracksTable = nullptr;
     QPushButton* m_musicBrainzButton = nullptr;
@@ -330,7 +450,22 @@ private:
     QListWidget* m_albumsList = nullptr;
     QListWidget* m_artistsList = nullptr;
     QListWidget* m_foldersList = nullptr;
-    QListWidget* m_playlistsList = nullptr;
+    CardListWidget* m_playlistsList = nullptr;      // Playlists tab: the user's playlists (cards)
+    CardListWidget* m_smartPlaylistsList = nullptr; // ...and the smart ones
+    QHash<QString, QPixmap> m_playlistArtCache;
+    WindowsMediaControls* m_windowsMedia = nullptr;
+    QSystemTrayIcon* m_tray = nullptr;
+    QAction* m_trayPlayAction = nullptr;
+    QAbstractButton* m_trayKeepSwitch = nullptr;
+    QAbstractButton* m_notifySwitch = nullptr;
+    bool m_keepPlayingInTray = false; // closing the window hides it to the tray
+    bool m_songNotifications = false;
+    bool m_trayHintShown = false;
+    bool m_quitting = false;      // the tray's Quit: really close
+    bool m_savedForExit = false;
+    bool m_startupSettled = false; // no notification for the song restored at start
+    QString m_lastNotifiedPath;
+    bool m_tracksColumnsFitted = false; // the Tracks list has widths (the user's, or fitted once)  // cover mosaics, by the paths they're made from
     QLabel* m_globalWallpaperLabel = nullptr;
     QListWidget* m_wallpaperEntriesList = nullptr;
     QVector<QAbstractButton*> m_tabVisibilityCheckboxes; // Settings > Visible Tabs, indexed by tab index (0-4)
@@ -346,10 +481,18 @@ private:
     QAbstractButton* m_harmonicShuffleSwitch = nullptr;
     QVector<QPair<QLabel*, theme::Icon>> m_settingsIcons; // row icons, repainted on theme change
     QComboBox* m_themeCombo = nullptr;
+    QComboBox* m_languageCombo = nullptr; // item data = the language code
+    UpdateChecker* m_updateChecker = nullptr;
+    QPushButton* m_versionButton = nullptr;      // About > Version: click to check for updates
+    QLabel* m_versionStatusLabel = nullptr;      // "Checking..." / "You have the latest version." / ...
+    QPushButton* m_downloadUpdateButton = nullptr; // shown while a newer version is available
+    QAbstractButton* m_autoUpdateSwitch = nullptr;
     QAbstractButton* m_replayGainSwitch = nullptr;
     QAbstractButton* m_sleepFadeSwitch = nullptr;
     QAbstractButton* m_resumeLongSwitch = nullptr;
     QPushButton* m_sleepButton = nullptr; // Now Playing: sleep timer menu
+    QPushButton* m_loveButton = nullptr;  // Now Playing: Loved heart
+    QString m_countedPath;                // the playing track, once its play has been counted
 
     QAbstractButton* m_crossfadeCheckbox = nullptr;
     QLabel* m_crossfadeLabel = nullptr;

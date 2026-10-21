@@ -1,4 +1,5 @@
 #include "audioforge/track_metadata.hpp"
+#include "audioforge/ffmpeg_audio.hpp"
 
 #include <QFileInfo>
 #include <QDateTime>
@@ -13,6 +14,9 @@
 #include <taglib/id3v2frame.h>
 #include <taglib/textidentificationframe.h>
 #include <taglib/attachedpictureframe.h>
+#include <taglib/mp4file.h>
+#include <taglib/mp4tag.h>
+#include <taglib/mp4coverart.h>
 
 namespace audioforge {
 
@@ -49,6 +53,50 @@ static QByteArray ReadFolderCoverArt(const QString& filePath)
     return QByteArray();
 }
 
+// The MP4 version of ReadMpegExtras below: the cover ("covr") and an
+// iTunes-style "replaygain_track_gain" item.
+static void ReadMp4Extras(const QString& path, float* replayGainDbOut, QByteArray* coverArtOut)
+{
+#ifdef _WIN32
+    std::wstring pathW = path.toStdWString();
+    TagLib::MP4::File file(pathW.c_str());
+#else
+    TagLib::MP4::File file(path.toUtf8().constData());
+#endif
+    if (!file.isValid() || !file.tag())
+    {
+        return;
+    }
+    const TagLib::MP4::ItemMap items = file.tag()->itemMap();
+    for (auto it = items.begin(); it != items.end(); ++it)
+    {
+        const QString key = QString::fromStdWString(it->first.toWString());
+        if (replayGainDbOut && key.endsWith(":replaygain_track_gain", Qt::CaseInsensitive))
+        {
+            const TagLib::StringList values = it->second.toStringList();
+            if (!values.isEmpty())
+            {
+                bool ok = false;
+                const float db = QString::fromStdWString(values.front().toWString()).remove("dB", Qt::CaseInsensitive)
+                                     .trimmed().toFloat(&ok);
+                if (ok)
+                {
+                    *replayGainDbOut = db;
+                }
+            }
+        }
+        if (coverArtOut && key == QLatin1String("covr"))
+        {
+            const TagLib::MP4::CoverArtList covers = it->second.toCoverArtList();
+            if (!covers.isEmpty())
+            {
+                const TagLib::ByteVector data = covers.front().data();
+                *coverArtOut = QByteArray(data.data(), static_cast<int>(data.size()));
+            }
+        }
+    }
+}
+
 // Opens the file's ID3v2 tag once and pulls out both the ReplayGain TXXX
 // frame and any embedded cover art (APIC frame) -- combined into one pass
 // since both need the same TagLib::MPEG::File to be opened. Either output
@@ -62,6 +110,12 @@ static void ReadMpegExtras(const QString& path, float* replayGainDbOut, QByteArr
     if (coverArtOut)
     {
         coverArtOut->clear();
+    }
+
+    if (IsFfmpegAudioFile(path)) // .m4a / .m4b / .aac: MP4 atoms, not ID3
+    {
+        ReadMp4Extras(path, replayGainDbOut, coverArtOut);
+        return;
     }
 
 #ifdef _WIN32
@@ -127,6 +181,7 @@ TrackInfo ReadTrackInfo(const QString& path, bool includeCoverArt)
     info.path = path;
     info.title = QFileInfo(path).fileName();
     info.modifiedMs = QFileInfo(path).lastModified().toMSecsSinceEpoch();
+    info.addedMs = FileAddedMs(QFileInfo(path));
 
     // Scoped in its own block so this handle is CLOSED before ReadMpegExtras
     // opens a second one below -- two simultaneous TagLib opens on the same

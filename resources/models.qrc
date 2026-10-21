@@ -1,0 +1,12 @@
+<!--
+    Genre detection's model (common/src/genre.cpp): Google's YAMNet (Apache
+    License 2.0), converted from the Android app's yamnet.tflite to ONNX with
+    scripts/convert_yamnet.py, and its class names. Bundled with
+    qt_add_big_resources (CMakeLists.txt): 16 MB is too big for plain rcc.
+-->
+<RCC>
+    <qresource prefix="/models">
+        <file alias="yamnet.onnx">models/yamnet.onnx</file>
+        <file alias="yamnet_class_map.csv">models/yamnet_class_map.csv</file>
+    </qresource>
+</RCC>

@@ -40,6 +40,13 @@ echo "== QtMultimedia FFmpeg backend"
 mkdir -p "$DIST/multimedia"
 cp "$QT_PLUGINS/multimedia/ffmpegmediaplugin.dll" "$DIST/multimedia/"
 
+# Genre detection's ONNX Runtime. Windows has its own, older onnxruntime.dll
+# in System32 (Windows ML), which ldd -- like Windows -- finds before
+# /ucrt64/bin, so the loop below would never copy ours. Copied explicitly;
+# its own dependencies are then picked up by the loop.
+echo "== ONNX Runtime"
+cp "$UCRT_BIN/onnxruntime.dll" "$DIST/"
+
 echo "== qt.conf"
 printf '[Paths]\nPlugins = .\n' > "$DIST/qt.conf"
 

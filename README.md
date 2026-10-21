@@ -4,7 +4,34 @@ A Qt-based MP3 player/library manager: playback (with crossfade),
 tag-based library browsing (Albums/Tracks/Artists), playlists, ReplayGain,
 a 10-band equalizer, MusicBrainz and manual tag editing, cover art editing,
 synced lyrics (LRCLIB / Musixmatch / local .lrc), per-track video
-wallpapers, and Discord Rich Presence.
+wallpapers, and Discord Rich Presence. The interface is in English, Français,
+简体中文, 繁體中文 and Bahasa Melayu, and Settings > About has an update check
+against the GitHub releases.
+
+Also, like the Android app: Loved songs (the heart on Now Playing) and play
+counts; smart playlists (rules like "genre contains Rock and year is more
+than 2010", plus the built-in Loved / Most Played / Recently Played /
+Recently Added / Never Played); .m3u import and export; a per-song lyrics
+timing offset; a Now Playing visualizer with ten styles in the cover's
+colours (chosen from live previews in Settings), or a custom GIF or looping video; and offline genre detection
+(Google's YAMNet model, run with ONNX Runtime) with "Fill Genre from
+analysis" in the tag editor. A smarter duplicate finder (similar names like
+"01 - Song" / "Song - 2011 Remaster", "Not duplicates" with Undo, several
+copies to the Recycle Bin at once); A–B repeat on Now Playing; and a
+Podcasts tab: tick Podcast for a folder in the Folders tab and its episodes
+(.mp3, and .m4a/.m4b/.aac through FFmpeg) show there only, grouped by show,
+newest first, resuming where they were left and marked played near the end.
+
+On Windows it also works with the system: the song and cover show in Windows'
+media controls (volume overlay, lock screen) and the keyboard's media keys work
+in the background; the taskbar preview has Previous / Play / Next and the icon
+shows the progress; a tray icon has the playback controls (optionally keeping
+the music going when the window is closed), and an optional notification
+announces each new song. Music files dropped on the window play; dropped
+folders join the library.
+
+Version: **1.4.0** (set in `CMakeLists.txt`; desktop releases are tagged with
+the plain number, e.g. `1.4.0`, which the update check compares with).
 
 ## Structure
 
@@ -12,8 +39,10 @@ wallpapers, and Discord Rich Presence.
 audioforge/
 ├── CMakeLists.txt
 ├── README.md
-├── resources/                   # app icon (.png for Qt, .ico/.rc for the Windows .exe)
-├── scripts/                     # deploy_windows.sh, build_installer.sh
+├── resources/                   # app icon (.png for Qt, .ico/.rc for the Windows .exe),
+│                                # i18n/*.json translations, about/*.md Terms & Privacy pages,
+│                                # models/ genre detection's YAMNet model (scripts/convert_yamnet.py)
+├── scripts/                     # deploy_windows.sh, build_installer.sh, i18n_check.py, convert_yamnet.py
 ├── installer/                   # audioforge.iss (Inno Setup script for the Windows installer)
 ├── android/                     # Android app (Kotlin + Compose), see "Android app" below
 ├── ios/                         # iPhone app (SwiftUI), see ios/AudioForge/README.md
@@ -28,7 +57,14 @@ audioforge/
 │   │   ├── playback_queue.hpp   # shuffle / repeat / history logic
 │   │   ├── discord_presence.hpp # Discord Rich Presence over local IPC
 │   │   ├── secret_store.hpp     # protects stored API keys (DPAPI on Windows)
-│   │   └── warnings.hpp         # ErrorReporter (warn/info/confirm + log file)
+│   │   ├── warnings.hpp         # ErrorReporter (warn/info/confirm + log file)
+│   │   ├── app_info.hpp         # version, GitHub/support links, User-Agent
+│   │   ├── translations.hpp     # interface language (loads resources/i18n/*.json)
+│   │   ├── update_checker.hpp   # Settings > About > Version: newer release on GitHub?
+│   │   ├── m3u.hpp              # .m3u/.m3u8 reading, matching to the library, writing
+│   │   ├── visualizer_tap.hpp   # spectrum of what's playing, for the visualizer
+│   │   ├── genre.hpp            # genre detection (YAMNet via ONNX Runtime)
+│   │   └── ffmpeg_audio.hpp     # AAC/M4A decoding for the audio engine (FFmpeg)
 │   └── src/
 │       ├── main.cpp             # entry point
 │       └── ...                  # one .cpp per header above
@@ -53,11 +89,25 @@ Requires (installed via the MSYS2 UCRT64 terminal):
 ```
 pacman -S mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-tools \
           mingw-w64-ucrt-x86_64-qt6-multimedia \
-          mingw-w64-ucrt-x86_64-taglib mingw-w64-ucrt-x86_64-pkgconf
+          mingw-w64-ucrt-x86_64-taglib mingw-w64-ucrt-x86_64-pkgconf \
+          mingw-w64-ucrt-x86_64-onnxruntime mingw-w64-ucrt-x86_64-ffmpeg
 ```
+(FFmpeg is already there as a dependency of qt6-multimedia; it's linked
+directly now to play .m4a podcasts.)
+
+Windows has its own, older `onnxruntime.dll` in System32, which Windows loads
+before one on PATH. The build copies MSYS2's next to `audioforge.exe` (and
+`deploy_windows.sh` into the installer folder) so the right one is used; if
+the wrong one is loaded anyway, genre detection just reports failure.
 
 Then in VS Code: **CMake: Select a Kit** (the MSYS2 UCRT64 GCC kit) →
 **CMake: Configure** → **CMake: Build**.
+
+To check a page's look without clicking through the app, set
+`AUDIOFORGE_SNAPSHOT` (pages separated by `;`, each a tab index or
+`nowplaying`, a colon, and an image file) and run it, e.g. with
+`QT_QPA_PLATFORM=offscreen`: `AUDIOFORGE_SNAPSHOT="4:playlists.png;nowplaying:np.png"`.
+It saves those pages a few seconds after start and quits without saving anything.
 
 ## Deploying on Windows (machines without MSYS2/Qt)
 
@@ -203,11 +253,30 @@ too: video wallpapers, a Settings tab and hideable tabs. The home screen Now Pla
 widget is iOS-only for now. See `ios/AudioForge/README.md` for the Xcode setup and the
 list of source files.
 
+## Translations
+
+Interface text is written in English in the code, inside `tr("...")` (or
+`Tr("...")` outside a QObject). `resources/i18n/<code>.json` maps each English
+string to its translation (`fr`, `zh_Hans`, `zh_Hant`, `ms`); a string that's
+missing just shows in English. The Terms and Privacy pages are
+`resources/about/{terms,privacy}_<code>.md`. After changing interface text, run:
+```
+python scripts/i18n_check.py
+```
+It lists, per language, strings that are missing, entries no longer used, and
+translations whose `%1`/`%2` placeholders don't match. `--keys` prints every
+English string as a JSON template for a new language (add the language to
+`LanguageOptions()` in `common/src/translations.cpp` and to `resources/text.qrc`).
+
 ## Settings
 
 Stored at `%APPDATA%\AudioForge\AudioForge.ini` (on Linux,
-`~/.config/AudioForge/AudioForge.ini`): theme, volume, crossfade, equalizer,
-music folders, playlists, visible tabs, and integration settings. The
+`~/.config/AudioForge/AudioForge.ini`): theme, language, volume, crossfade, equalizer,
+music folders, playlists, visible tabs, and integration settings (smart
+playlists are in `smartplaylists.json`, play counts / Loved / lyrics offsets
+in `songstats.json`, detected genres in `genre.json`, the visualizer's GIFs
+and videos in `visualizer_media.json`, "Not duplicates" pairs in
+`duplicate_dismissals.json`, all next to it). The
 Musixmatch API key is encrypted with Windows DPAPI (tied to your Windows
 account); on other platforms it's stored as-is. Video wallpaper assignments
 live in `wallpapers.json` next to it, and warnings/errors are logged to

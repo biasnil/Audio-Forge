@@ -11,13 +11,13 @@ namespace audioforge {
 
 CreatePlaylistDialog::CreatePlaylistDialog(const QVector<TrackInfo>& allTracks, QWidget* parent) : QDialog(parent)
 {
-    setWindowTitle("Create new playlist");
+    setWindowTitle(tr("Create new playlist"));
     resize(420, 480);
 
     auto* layout = new QVBoxLayout(this);
 
     m_nameEdit = new QLineEdit();
-    m_nameEdit->setPlaceholderText("Enter name for the playlist");
+    m_nameEdit->setPlaceholderText(tr("Enter name for the playlist"));
     layout->addWidget(m_nameEdit);
 
     m_trackList = new QListWidget();
@@ -37,7 +37,7 @@ CreatePlaylistDialog::CreatePlaylistDialog(const QVector<TrackInfo>& allTracks, 
     layout->addWidget(m_trackList);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText("Create");
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Create"));
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, &CreatePlaylistDialog::tryAccept);
@@ -67,7 +67,7 @@ void CreatePlaylistDialog::tryAccept()
 {
     if (resultName().isEmpty())
     {
-        ErrorReporter::warn(this, "Name required", "Please enter a name for the playlist.");
+        ErrorReporter::warn(this, tr("Name required"), tr("Please enter a name for the playlist."));
         return;
     }
     accept();

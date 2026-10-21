@@ -4,6 +4,8 @@
 #include <QStringList>
 #include <QByteArray>
 
+class QFileInfo;
+
 namespace audioforge {
 
 // Plain data about one track. Populated by TrackMetadata::read() (see
@@ -24,6 +26,7 @@ struct TrackInfo
     int channels = 0;
     double durationSeconds = 0.0; // 0 = unknown
     qint64 modifiedMs = 0;        // file's last-modified time when these tags were read (library scans skip unchanged files)
+    qint64 addedMs = 0;           // when the file arrived on this PC (its creation time), for smart playlists' "Recently Added"
     QByteArray coverArt; // raw image bytes (JPEG/PNG); empty if none OR not loaded --
                          // library scans skip it to save memory, see ReadCoverArt()
 };
@@ -41,5 +44,9 @@ QString FormatAudioInfo(const TrackInfo& t);
 
 // "m:ss" (e.g. "4:03"; "72:15" past an hour).
 QString FormatDuration(int seconds);
+
+// TrackInfo::addedMs for a file: its creation time on this PC (copying or
+// downloading a song sets it), else its last-modified time.
+qint64 FileAddedMs(const QFileInfo& file);
 
 } // namespace audioforge

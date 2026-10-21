@@ -2,14 +2,14 @@
 # Builds the Windows installer (AudioForge-Setup-<version>.exe). Run from the
 # MSYS2 UCRT64 shell, in the project root, after building:
 #
-#   scripts/build_installer.sh [version]          (default version: 1.1.0)
+#   scripts/build_installer.sh [version]          (default version: 1.4.0)
 #
 # Steps: a fresh self-contained app folder via deploy_windows.sh, then Inno
 # Setup (https://jrsoftware.org/isinfo.php) packs it. The result lands in
 # installer/Output/.
 set -euo pipefail
 
-VERSION="${1:-1.1.0}"
+VERSION="${1:-1.4.0}"
 EXE="build/audioforge.exe"
 DIST="build/installer-dist"
 ISCC="${ISCC:-/c/Program Files (x86)/Inno Setup 6/ISCC.exe}"

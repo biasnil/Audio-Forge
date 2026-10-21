@@ -143,7 +143,7 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
 
     auto* header = new QHBoxLayout();
     header->setContentsMargins(20, 18, 12, 6);
-    auto* title = new QLabel("Up Next");
+    auto* title = new QLabel(tr("Up Next"));
     title->setObjectName("PanelTitle");
     header->addWidget(title);
     header->addStretch();
@@ -152,13 +152,13 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     m_moreButton->setObjectName("IconButton");
     m_moreButton->setFixedSize(32, 32);
     m_moreButton->setIconSize(QSize(18, 18));
-    m_moreButton->setToolTip("More");
+    m_moreButton->setToolTip(tr("More"));
     m_moreButton->setFocusPolicy(Qt::NoFocus);
     m_moreButton->setCursor(Qt::PointingHandCursor);
     connect(m_moreButton, &QPushButton::clicked, this, [this]() {
         QMenu menu(this);
-        menu.addAction("Save as Playlist...", this, &UpNextPanel::saveAsPlaylistRequested);
-        QAction* clear = menu.addAction("Clear Playing Next", this, &UpNextPanel::clearPlayingNextRequested);
+        menu.addAction(tr("Save as Playlist..."), this, &UpNextPanel::saveAsPlaylistRequested);
+        QAction* clear = menu.addAction(tr("Clear Playing Next"), this, &UpNextPanel::clearPlayingNextRequested);
         clear->setEnabled(m_playingNextList->count() > 0);
         menu.exec(m_moreButton->mapToGlobal(QPoint(0, m_moreButton->height())));
     });
@@ -168,7 +168,7 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     m_closeButton->setObjectName("IconButton");
     m_closeButton->setFixedSize(32, 32);
     m_closeButton->setIconSize(QSize(16, 16));
-    m_closeButton->setToolTip("Close");
+    m_closeButton->setToolTip(tr("Close"));
     m_closeButton->setFocusPolicy(Qt::NoFocus);
     m_closeButton->setCursor(Qt::PointingHandCursor);
     connect(m_closeButton, &QPushButton::clicked, this, &UpNextPanel::closeRequested);
@@ -186,12 +186,12 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     scroll->setWidget(content);
     outer->addWidget(scroll, 1);
 
-    m_historyTitle = SectionTitle("History");
+    m_historyTitle = SectionTitle(tr("History"));
     l->addWidget(m_historyTitle);
     m_historyList = makeList(false);
     l->addWidget(m_historyList);
 
-    m_nowPlayingTitle = SectionTitle("Now Playing");
+    m_nowPlayingTitle = SectionTitle(tr("Now Playing"));
     l->addWidget(m_nowPlayingTitle);
     m_nowPlayingList = makeList(false);
     l->addWidget(m_nowPlayingList);
@@ -199,9 +199,9 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     m_playingNextHeader = new QWidget();
     auto* pnLayout = new QHBoxLayout(m_playingNextHeader);
     pnLayout->setContentsMargins(0, 0, 8, 0);
-    pnLayout->addWidget(SectionTitle("Playing Next"));
+    pnLayout->addWidget(SectionTitle(tr("Playing Next")));
     pnLayout->addStretch();
-    auto* clearButton = new QPushButton("Clear");
+    auto* clearButton = new QPushButton(tr("Clear"));
     clearButton->setObjectName("LinkButton");
     clearButton->setCursor(Qt::PointingHandCursor);
     clearButton->setFocusPolicy(Qt::NoFocus);
@@ -211,7 +211,7 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     m_playingNextList = makeList(true);
     l->addWidget(m_playingNextList);
 
-    m_contextTitle = SectionTitle("Next From Your List");
+    m_contextTitle = SectionTitle(tr("Next From Your List"));
     l->addWidget(m_contextTitle);
     m_upcomingNote = new QLabel();
     m_upcomingNote->setObjectName("SettingsValue");
@@ -221,7 +221,7 @@ UpNextPanel::UpNextPanel(QWidget* parent) : QFrame(parent)
     m_upcomingList = makeList(false);
     l->addWidget(m_upcomingList);
 
-    m_footer = new QLabel("Smart shuffle: every song plays once, in this order.");
+    m_footer = new QLabel(tr("Smart shuffle: every song plays once, in this order."));
     m_footer->setObjectName("SettingsFooter");
     m_footer->setWordWrap(true);
     l->addWidget(m_footer);
@@ -286,7 +286,7 @@ QListWidget* UpNextPanel::makeList(bool reorderable)
 QListWidgetItem* UpNextPanel::makeItem(const TrackInfo& track, bool isCurrent, int data)
 {
     auto* item = new QListWidgetItem(track.title);
-    item->setData(kArtistRole, track.artist.isEmpty() ? QStringLiteral("Unknown Artist") : track.artist);
+    item->setData(kArtistRole, track.artist.isEmpty() ? tr("Unknown Artist") : track.artist);
     item->setData(kDurationRole, track.durationSeconds > 0.0 ? FormatDuration(static_cast<int>(track.durationSeconds + 0.5)) : QString());
     item->setData(kCurrentRole, isCurrent);
     item->setData(kPathRole, track.path);
@@ -346,8 +346,8 @@ void UpNextPanel::setContent(const UpNextContent& content)
     m_playingNextList->setVisible(hasPlayingNext);
     fitHeight(m_playingNextList);
 
-    m_contextTitle->setText(content.contextName.isEmpty() ? QStringLiteral("Next From Your List")
-                                                          : "Next From " + content.contextName);
+    m_contextTitle->setText(content.contextName.isEmpty() ? tr("Next From Your List")
+                                                          : tr("Next From %1").arg(content.contextName));
     m_upcomingList->clear();
     if (content.upcoming)
     {
@@ -360,12 +360,12 @@ void UpNextPanel::setContent(const UpNextContent& content)
                 wantCover(track.path);
             }
         }
-        m_upcomingNote->setText(content.repeating ? "Repeating." : "Nothing after this song.");
+        m_upcomingNote->setText(content.repeating ? tr("Repeating.") : tr("Nothing after this song."));
         m_upcomingNote->setVisible(content.upcoming->isEmpty() && content.current.has_value());
     }
     else
     {
-        m_upcomingNote->setText("Random shuffle picks each next song when it's needed.");
+        m_upcomingNote->setText(tr("Random shuffle picks each next song when it's needed."));
         m_upcomingNote->setVisible(true);
     }
     m_upcomingList->setVisible(m_upcomingList->count() > 0);
@@ -447,26 +447,26 @@ void UpNextPanel::showRowMenu(QListWidget* list, const QPoint& pos)
     QMenu menu(this);
     if (list == m_historyList)
     {
-        menu.addAction("Play Now", this, [this, data]() { emit playHistoryNow(data); });
-        menu.addAction("Play Next", this, [this, data]() { emit playHistoryNext(data); });
-        menu.addAction("Add to Queue", this, [this, data]() { emit addHistoryToQueue(data); });
+        menu.addAction(tr("Play Now"), this, [this, data]() { emit playHistoryNow(data); });
+        menu.addAction(tr("Play Next"), this, [this, data]() { emit playHistoryNext(data); });
+        menu.addAction(tr("Add to Queue"), this, [this, data]() { emit addHistoryToQueue(data); });
     }
     else if (list == m_playingNextList)
     {
-        menu.addAction("Play Now", this, [this, row]() { emit jumpToPlayingNext(row); });
+        menu.addAction(tr("Play Now"), this, [this, row]() { emit jumpToPlayingNext(row); });
         menu.addSeparator();
-        QAction* up = menu.addAction("Move Up", this, [this, row]() { emit movePlayingNext(row, row - 1); });
+        QAction* up = menu.addAction(tr("Move Up"), this, [this, row]() { emit movePlayingNext(row, row - 1); });
         up->setEnabled(row > 0);
-        QAction* down = menu.addAction("Move Down", this, [this, row]() { emit movePlayingNext(row, row + 1); });
+        QAction* down = menu.addAction(tr("Move Down"), this, [this, row]() { emit movePlayingNext(row, row + 1); });
         down->setEnabled(row < list->count() - 1);
         menu.addSeparator();
-        menu.addAction("Remove from Queue", this, [this, row]() { emit removePlayingNext(row); });
+        menu.addAction(tr("Remove from Queue"), this, [this, row]() { emit removePlayingNext(row); });
     }
     else
     {
-        menu.addAction("Play Now", this, [this, data]() { emit jumpToListItem(data); });
+        menu.addAction(tr("Play Now"), this, [this, data]() { emit jumpToListItem(data); });
         menu.addSeparator();
-        menu.addAction("Remove from Up Next", this, [this, data]() { emit removeListItem(data); });
+        menu.addAction(tr("Remove from Up Next"), this, [this, data]() { emit removeListItem(data); });
     }
     menu.exec(list->viewport()->mapToGlobal(pos));
 }

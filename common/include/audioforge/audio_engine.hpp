@@ -2,6 +2,7 @@
 
 #include <QString>
 #include "miniaudio.h"
+#include "audioforge/visualizer_tap.hpp"
 
 namespace audioforge {
 
@@ -116,10 +117,21 @@ public:
     float equalizerBandGain(int bandIndex) const;
     void setEqualizerBandGain(int bandIndex, float gainDb); // applied live, no reload needed
 
+    // --- Visualizer --------------------------------------------------------
+    // Everything the engine outputs (after EQ, crossfade and volume), for
+    // the Now Playing visualizer. Off until the visualizer is on screen.
+    VisualizerTap& visualizer() { return m_visualizer; }
+
 private:
+    static void OnProcess(void* userData, float* framesOut, ma_uint64 frameCount); // the audio thread
     ma_sound& ActiveSound() { return m_soundSlots[m_activeSlot]; }
     const ma_sound& ActiveSound() const { return m_soundSlots[m_activeSlot]; }
     int InactiveSlot() const { return 1 - m_activeSlot; }
+
+    // Loads `path` into a slot's sound (an AAC/M4A file through FFmpeg, see
+    // ffmpeg_audio.hpp); uninitSlot releases the sound and that source.
+    ma_result initSlot(int slot, const QString& path);
+    void uninitSlot(int slot);
 
     void initEqualizerChain(); // builds the 10-node peak-filter chain; sets m_eqBandsInitialized
     void routeSoundThroughEqualizer(ma_sound& sound); // attaches to the EQ chain or straight to the endpoint, per m_eqEnabled
@@ -128,6 +140,7 @@ private:
     ma_engine m_engine{};
     ma_sound m_soundSlots[2]{};
     bool m_slotLoaded[2] = {false, false};
+    ma_data_source* m_slotSource[2] = {nullptr, nullptr}; // an FFmpeg source the slot's sound plays, if any
     int m_activeSlot = 0;
     bool m_crossfading = false;
     float m_incomingStartSeconds = 0.0f;
@@ -137,6 +150,9 @@ private:
     bool m_eqBandsInitialized = false;
     bool m_eqEnabled = false;
     float m_eqBandGainsDb[kEqBandCount] = {0.0f};
+
+    VisualizerTap m_visualizer;
+    ma_uint32 m_channels = 2;
 };
 
 } // namespace audioforge

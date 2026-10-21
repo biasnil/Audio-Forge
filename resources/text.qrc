@@ -1,0 +1,26 @@
+<!--
+    i18n/<code>.json: the interface translations (see common/include/audioforge/translations.hpp
+    and scripts/i18n_check.py). English is the source text, so there's no en.json.
+
+    about/*_<code>.md: Settings > About > Terms & Conditions and Privacy, one per language.
+-->
+<RCC>
+    <qresource prefix="/i18n">
+        <file alias="fr.json">i18n/fr.json</file>
+        <file alias="zh_Hans.json">i18n/zh_Hans.json</file>
+        <file alias="zh_Hant.json">i18n/zh_Hant.json</file>
+        <file alias="ms.json">i18n/ms.json</file>
+    </qresource>
+    <qresource prefix="/about">
+        <file alias="terms_en.md">about/terms_en.md</file>
+        <file alias="terms_fr.md">about/terms_fr.md</file>
+        <file alias="terms_zh_Hans.md">about/terms_zh_Hans.md</file>
+        <file alias="terms_zh_Hant.md">about/terms_zh_Hant.md</file>
+        <file alias="terms_ms.md">about/terms_ms.md</file>
+        <file alias="privacy_en.md">about/privacy_en.md</file>
+        <file alias="privacy_fr.md">about/privacy_fr.md</file>
+        <file alias="privacy_zh_Hans.md">about/privacy_zh_Hans.md</file>
+        <file alias="privacy_zh_Hant.md">about/privacy_zh_Hant.md</file>
+        <file alias="privacy_ms.md">about/privacy_ms.md</file>
+    </qresource>
+</RCC>

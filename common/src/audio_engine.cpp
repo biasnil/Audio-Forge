@@ -1,5 +1,6 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "audioforge/audio_engine.hpp"
+#include "audioforge/ffmpeg_audio.hpp"
 
 namespace audioforge {
 
@@ -15,7 +16,7 @@ AudioEngine::~AudioEngine()
     {
         if (m_slotLoaded[i])
         {
-            ma_sound_uninit(&m_soundSlots[i]);
+            uninitSlot(i);
         }
     }
     if (m_eqBandsInitialized)
@@ -33,12 +34,58 @@ AudioEngine::~AudioEngine()
 
 bool AudioEngine::init()
 {
-    m_engineInitialized = (ma_engine_init(NULL, &m_engine) == MA_SUCCESS);
+    ma_engine_config config = ma_engine_config_init();
+    config.onProcess = &AudioEngine::OnProcess; // the visualizer's feed
+    config.pProcessUserData = this;
+    m_engineInitialized = (ma_engine_init(&config, &m_engine) == MA_SUCCESS);
     if (m_engineInitialized)
     {
+        m_channels = ma_engine_get_channels(&m_engine);
+        m_visualizer.setSampleRate(static_cast<int>(ma_engine_get_sample_rate(&m_engine)));
         initEqualizerChain();
     }
     return m_engineInitialized;
+}
+
+ma_result AudioEngine::initSlot(int slot, const QString& path)
+{
+    if (IsFfmpegAudioFile(path))
+    {
+        // AAC / M4A: miniaudio can't decode it -- FFmpeg does, as a data source.
+        ma_data_source* source = OpenFfmpegAudio(path);
+        if (!source)
+        {
+            return MA_INVALID_FILE;
+        }
+        const ma_result result = ma_sound_init_from_data_source(&m_engine, source, 0, NULL, &m_soundSlots[slot]);
+        if (result != MA_SUCCESS)
+        {
+            CloseFfmpegAudio(source);
+            return result;
+        }
+        m_slotSource[slot] = source;
+        return MA_SUCCESS;
+    }
+    // QString stores UTF-16 internally; toStdWString() hands us a wchar_t*
+    // path that plugs straight into miniaudio's wide-char API, avoiding the
+    // legacy-codepage issues that break non-ASCII (e.g. Chinese) filenames
+    // with the plain char* overload.
+    const std::wstring pathW = path.toStdWString();
+    return ma_sound_init_from_file_w(&m_engine, pathW.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, &m_soundSlots[slot]);
+}
+
+void AudioEngine::uninitSlot(int slot)
+{
+    ma_sound_uninit(&m_soundSlots[slot]); // stops reading from the source first
+    CloseFfmpegAudio(m_slotSource[slot]);
+    m_slotSource[slot] = nullptr;
+    m_slotLoaded[slot] = false;
+}
+
+void AudioEngine::OnProcess(void* userData, float* framesOut, ma_uint64 frameCount)
+{
+    auto* self = static_cast<AudioEngine*>(userData);
+    self->m_visualizer.push(framesOut, frameCount, self->m_channels); // a no-op while it's off
 }
 
 void AudioEngine::initEqualizerChain()
@@ -86,16 +133,10 @@ bool AudioEngine::loadAndPlay(const QString& path, bool start)
     }
     if (m_slotLoaded[m_activeSlot])
     {
-        ma_sound_uninit(&ActiveSound());
-        m_slotLoaded[m_activeSlot] = false;
+        uninitSlot(m_activeSlot);
     }
 
-    // QString stores UTF-16 internally; toStdWString() hands us a wchar_t*
-    // path that plugs straight into miniaudio's wide-char API, avoiding the
-    // legacy-codepage issues that break non-ASCII (e.g. Chinese) filenames
-    // with the plain char* overload.
-    std::wstring pathW = path.toStdWString();
-    ma_result result = ma_sound_init_from_file_w(&m_engine, pathW.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, &ActiveSound());
+    ma_result result = initSlot(m_activeSlot, path);
 
     if (result != MA_SUCCESS)
     {
@@ -154,8 +195,7 @@ void AudioEngine::unload()
     abortCrossfade();
     if (m_slotLoaded[m_activeSlot])
     {
-        ma_sound_uninit(&ActiveSound());
-        m_slotLoaded[m_activeSlot] = false;
+        uninitSlot(m_activeSlot);
     }
 }
 
@@ -220,12 +260,10 @@ bool AudioEngine::startCrossfadeTo(const QString& nextPath, float startSeconds, 
     int inactive = InactiveSlot();
     if (m_slotLoaded[inactive])
     {
-        ma_sound_uninit(&m_soundSlots[inactive]);
-        m_slotLoaded[inactive] = false;
+        uninitSlot(inactive);
     }
 
-    std::wstring pathW = nextPath.toStdWString();
-    if (ma_sound_init_from_file_w(&m_engine, pathW.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, &m_soundSlots[inactive]) != MA_SUCCESS)
+    if (initSlot(inactive, nextPath) != MA_SUCCESS)
     {
         return false;
     }
@@ -309,8 +347,7 @@ void AudioEngine::updateCrossfadeVolumes(float activeVolume, float nextVolume)
 
 void AudioEngine::finalizeCrossfade()
 {
-    ma_sound_uninit(&ActiveSound());
-    m_slotLoaded[m_activeSlot] = false;
+    uninitSlot(m_activeSlot);
     m_activeSlot = InactiveSlot(); // the preloaded slot is now active
     m_crossfading = false;
 }
@@ -324,8 +361,7 @@ void AudioEngine::abortCrossfade()
     int inactive = InactiveSlot();
     if (m_slotLoaded[inactive])
     {
-        ma_sound_uninit(&m_soundSlots[inactive]);
-        m_slotLoaded[inactive] = false;
+        uninitSlot(inactive);
     }
     m_crossfading = false;
     // A gapless hand-off had scheduled the active sound to stop where the

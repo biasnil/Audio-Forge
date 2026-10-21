@@ -2,6 +2,8 @@
 
 #include <QFile>
 #include <QHash>
+#include <QLinearGradient>
+#include <QRadialGradient>
 #include <QPainter>
 #include <QSvgRenderer>
 
@@ -76,6 +78,11 @@ QToolTip { color: @text; background: @surfaceHi; border: 1px solid @border; padd
 QFrame#Sidebar { background: @sidebar; border: none; border-right: 1px solid @border; }
 QLabel#BrandLabel { color: @text; font-size: 15px; font-weight: 600; }
 QLabel#SectionCaption { color: @muted; font-size: 10px; font-weight: 600; }
+QLabel#SectionHeading { color: @text; font-size: 17px; font-weight: 600; padding: 10px 2px 4px 6px; }
+QListWidget#CardList { background: transparent; }
+QListWidget#CardList::item { padding: 8px 6px; border-radius: 12px; color: @text; }
+QListWidget#CardList::item:hover { background: @surface; }
+QListWidget#CardList::item:selected { background: @surfaceHi; color: @accent; }
 QLabel#PageTitle { color: @text; font-family: "Playfair Display", Georgia, serif; font-size: 30px; font-weight: 500; }
 QLabel#MutedLabel { color: @muted; }
 QLabel#TimeLabel { color: @muted; font-size: 11px; }
@@ -109,6 +116,7 @@ QPushButton#PillToggle:checked { color: @accentText; background: @accent; border
 
 QPushButton#PrimaryButton { background: @accent; color: @accentText; border: none; font-weight: 600; }
 QPushButton#PrimaryButton:hover { background: @accentHover; }
+QPushButton#PrimaryButton:disabled { background: @surfaceHi; color: @muted; }
 
 QFrame#PlayerBar { background: @surface; border: 1px solid @border; border-radius: 16px; }
 
@@ -124,6 +132,7 @@ QListView::item { padding: 9px 12px; border-radius: 8px; }
 QListView::item:hover { background: @surface; }
 QListView::item:selected { background: @surfaceHi; color: @accent; }
 QListWidget#SidebarList::item { padding: 6px 10px; color: @muted; }
+QListWidget#FoldersList::item { padding: 0; } /* rows are widgets: item padding would squash them */
 QListWidget#SidebarList::item:hover { color: @text; background: @surface; }
 
 QHeaderView { background: transparent; border: none; }
@@ -174,8 +183,11 @@ QSlider::sub-page:horizontal:disabled, QSlider::add-page:vertical:disabled { bac
 QSlider::handle:disabled { background: @muted; }
 
 QCheckBox { color: @text; spacing: 8px; }
-QComboBox { background: @surface; color: @text; border: 1px solid @border; border-radius: 10px; padding: 6px 12px; }
+QComboBox { background: @surface; color: @text; border: 1px solid @border; border-radius: 10px; padding: 6px 30px 6px 12px; }
 QComboBox:hover { border-color: @accent; }
+QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 26px; border: none; background: transparent; }
+QComboBox::down-arrow { image: url(@comboArrow); width: 14px; height: 14px; }
+QComboBox::down-arrow:on { top: 1px; }
 QComboBox QAbstractItemView { background: @surfaceHi; color: @text; border: 1px solid @border; selection-background-color: @accent; selection-color: @accentText; outline: 0; }
 
 QMenu { background: @surfaceHi; color: @text; border: 1px solid @border; border-radius: 10px; padding: 6px; }
@@ -190,6 +202,8 @@ QMenu::item:selected { background: @accent; color: @accentText; }
         {"@border", t.border},           {"@muted", t.muted},           {"@text", t.text},
         {"@bg", t.bg},
     };
+    // Qt stylesheets can't recolour an image, so each theme has its own arrow.
+    css.replace(QLatin1String("@comboArrow"), dark ? QLatin1String(":/icons/ui/combo-arrow-dark.svg") : QLatin1String(":/icons/ui/combo-arrow-light.svg"));
     for (const auto& [name, color] : replacements)
     {
         css.replace(QLatin1String(name), color.name());
@@ -238,6 +252,13 @@ QString IconFileName(Icon kind)
         case Icon::Queue:        return "queue";
         case Icon::More:         return "more";
         case Icon::Close:        return "close";
+        case Icon::Heart:        return "heart";
+        case Icon::HeartFilled:  return "heart-filled";
+        case Icon::Visualizer:   return "visualizer";
+        case Icon::SmartPlaylist: return "smart-playlist";
+        case Icon::Podcast:      return "podcast";
+        case Icon::Trash:        return "trash";
+        case Icon::CheckCircle:  return "check-circle";
     }
     return QString();
 }
@@ -296,6 +317,46 @@ QIcon icon(Icon kind, const QColor& normal, const QColor& checked, const QColor&
     result.addPixmap(RenderIcon(kind, off, logicalSize, kDpr), QIcon::Disabled, QIcon::Off);
     result.addPixmap(RenderIcon(kind, off, logicalSize, kDpr), QIcon::Disabled, QIcon::On);
     return result;
+}
+
+QColor generatedArtColor(const QString& seed)
+{
+    const int hue = static_cast<int>(qHash(seed, 0x5eed) % 360u);
+    return QColor::fromHsv(hue, 150, 215);
+}
+
+QPixmap generatedArt(const QString& seed, int logicalSize, qreal radius, Icon mark, int hue)
+{
+    constexpr qreal kDpr = 2.0;
+    const int px = qRound(logicalSize * kDpr);
+    const QColor base = hue >= 0 ? QColor::fromHsv(hue % 360, 150, 215) : generatedArtColor(seed);
+    // A second, shifted hue for the far corner, both deep enough for white on top.
+    const QColor from = QColor::fromHsv(base.hue(), 170, 150);
+    const QColor to = QColor::fromHsv((base.hue() + 40) % 360, 190, 70);
+
+    QPixmap pixmap(px, px);
+    pixmap.fill(Qt::transparent);
+    QPainter p(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing);
+    QLinearGradient gradient(0, 0, px, px);
+    gradient.setColorAt(0.0, from);
+    gradient.setColorAt(1.0, to);
+    p.setPen(Qt::NoPen);
+    p.setBrush(gradient);
+    p.drawRoundedRect(QRectF(0, 0, px, px), radius * kDpr, radius * kDpr);
+    // A soft glow in the upper left.
+    QRadialGradient glow(px * 0.25, px * 0.2, px * 0.7);
+    glow.setColorAt(0.0, QColor(255, 255, 255, 60));
+    glow.setColorAt(1.0, QColor(255, 255, 255, 0));
+    p.setBrush(glow);
+    p.drawRoundedRect(QRectF(0, 0, px, px), radius * kDpr, radius * kDpr);
+
+    const int markPx = px * 2 / 5;
+    const QPixmap markPixmap = RenderIcon(mark, QColor(255, 255, 255, 150), markPx, 1.0);
+    p.drawPixmap((px - markPx) / 2, (px - markPx) / 2, markPixmap);
+    p.end();
+    pixmap.setDevicePixelRatio(kDpr);
+    return pixmap;
 }
 
 QPixmap roundedPixmap(const QPixmap& source, qreal radius)
