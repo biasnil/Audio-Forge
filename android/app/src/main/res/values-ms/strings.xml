@@ -454,4 +454,30 @@
     <string name="widget_desc_stylish">Kulit album di kiri, kawalan di kanan</string>
     <string name="widget_desc_practical">Kulit album kabur, bar kemajuan dan semua kawalan</string>
     <string name="widget_desc_feature_rich">Praktikal, serta dua lagu seterusnya dan baris lirik yang sedang dinyanyikan</string>
+
+    <!-- Listening stats (Settings -> Listening stats) -->
+    <string name="listening_stats">Statistik pendengaran</string>
+    <string name="stats_month">Bulan</string>
+    <string name="stats_year">Tahun</string>
+    <string name="stats_all_time">Sepanjang masa</string>
+    <string name="stats_earlier">Lebih awal</string>
+    <string name="stats_later">Kemudian</string>
+    <string name="stats_empty">Belum ada lagu dimainkan dalam tempoh ini.</string>
+    <string name="stats_hours">jam muzik</string>
+    <string name="stats_minutes">minit muzik</string>
+    <string name="stats_short_hours">%1$s j</string>
+    <string name="stats_short_minutes">%1$s min</string>
+    <string name="stats_podcasts">Podcast: %1$s, %2$s</string>
+    <string name="stats_top_songs">Lagu teratas</string>
+    <string name="stats_top_artists">Artis teratas</string>
+    <string name="stats_top_albums">Album teratas</string>
+    <string name="stats_top_genres">Genre teratas</string>
+    <string name="stats_genres_hint">Genre datang daripada Kesan Genre dalam Tetapan, atau tag genre setiap lagu.</string>
+    <string name="stats_since">Pendengaran direkodkan mulai AudioForge 1.4.1, jadi main balik sebelum itu tidak dikira. Lagu dikira selepas 30 saat, atau separuh lagu jika ia lebih pendek. Semuanya kekal dalam telefon anda.</string>
+    <string name="year_in_review">AudioForge: Imbasan Tahunan</string>
+    <string name="year_in_review_share">Kongsi Imbasan Tahunan</string>
+    <string name="year_in_review_top_genre">Genre teratas: %1$s</string>
+    <plurals name="stats_plays">
+        <item quantity="other">%d main balik</item>
+    </plurals>
 </resources>

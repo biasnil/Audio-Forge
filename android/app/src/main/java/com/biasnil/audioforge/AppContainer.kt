@@ -10,6 +10,7 @@ import com.biasnil.audioforge.data.CustomMediaRepository
 import com.biasnil.audioforge.data.DuplicateDismissals
 import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
+import com.biasnil.audioforge.data.PlayLogStore
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.data.WallpaperRepository
@@ -39,6 +40,8 @@ class AppContainer(context: Context) {
     private val queueStore = QueueStore(context)
     /** Play counts, Loved songs, long-track positions. */
     val songData = SongDataStore(context, appScope)
+    /** Every play, for Settings -> Listening stats. */
+    val playLog = PlayLogStore(context, appScope)
     /** BPM, key, silence and outro per song ("Analyze Your Songs' Key and BPM"). */
     val analysis = AnalysisStore(context, appScope)
     /** Whether the app is on screen (set by MainActivity); analysis only runs in the background while charging. */
@@ -49,7 +52,7 @@ class AppContainer(context: Context) {
     /** Detected genres per song (Settings -> Detect Genres); separate from the GENRE tag. */
     val genres = GenreStore(context, appScope)
     val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
-    val playback = PlaybackManager(context, store, queueStore, songData, analysis, appScope, library::isPodcast)
+    val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope, library::isPodcast)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
     val wallpapers = WallpaperRepository(context, store)

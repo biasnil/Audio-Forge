@@ -96,6 +96,7 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             }
         }
+        SettingsLinkRow(stringResource(R.string.listening_stats)) { onOpenPage(Page.ListeningStats) }
 
         HorizontalDivider()
         SectionHeader(stringResource(R.string.settings_appearance))
@@ -124,17 +125,7 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
             }
         }
         LanguageRow()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onOpenPage(Page.Widgets) }
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.widgets_settings_row), modifier = Modifier.weight(1f))
-            Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        SettingsLinkRow(stringResource(R.string.widgets_settings_row)) { onOpenPage(Page.Widgets) }
 
         HorizontalDivider()
         PlaybackSettings()
@@ -514,6 +505,22 @@ private fun LyricsSettings() {
                 Text(stringResource(R.string.settings_musixmatch_key_clear))
             }
         }
+    }
+}
+
+/** A row that opens a page (Listening stats, Widgets). */
+@Composable
+private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, modifier = Modifier.weight(1f))
+        Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

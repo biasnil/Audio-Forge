@@ -474,4 +474,32 @@
     <string name="widget_desc_stylish">Pochette à gauche, commandes à droite</string>
     <string name="widget_desc_practical">Pochette floutée, barre de progression et toutes les commandes</string>
     <string name="widget_desc_feature_rich">Pratique, avec les deux prochains morceaux et la ligne de paroles en cours</string>
+
+    <!-- Listening stats (Settings -> Listening stats) -->
+    <string name="listening_stats">Statistiques d\'écoute</string>
+    <string name="stats_month">Mois</string>
+    <string name="stats_year">Année</string>
+    <string name="stats_all_time">Tout</string>
+    <string name="stats_earlier">Plus tôt</string>
+    <string name="stats_later">Plus tard</string>
+    <string name="stats_empty">Rien d\'écouté sur cette période pour l\'instant.</string>
+    <string name="stats_hours">heures de musique</string>
+    <string name="stats_minutes">minutes de musique</string>
+    <string name="stats_short_hours">%1$s h</string>
+    <string name="stats_short_minutes">%1$s min</string>
+    <string name="stats_podcasts">Podcasts : %1$s, %2$s</string>
+    <string name="stats_top_songs">Morceaux les plus écoutés</string>
+    <string name="stats_top_artists">Artistes les plus écoutés</string>
+    <string name="stats_top_albums">Albums les plus écoutés</string>
+    <string name="stats_top_genres">Genres les plus écoutés</string>
+    <string name="stats_genres_hint">Les genres viennent de Détecter les genres dans les Réglages, ou de l\'étiquette de genre de chaque morceau.</string>
+    <string name="stats_since">L\'écoute est enregistrée à partir d\'AudioForge 1.4.1 : les lectures précédentes ne sont pas comptées. Un morceau compte après 30 secondes, ou la moitié s\'il est plus court. Tout reste sur votre téléphone.</string>
+    <string name="year_in_review">AudioForge : votre année en musique</string>
+    <string name="year_in_review_share">Partager votre année en musique</string>
+    <string name="year_in_review_top_genre">Genre préféré : %1$s</string>
+    <plurals name="stats_plays">
+        <item quantity="one">%d écoute</item>
+        <item quantity="many">%d écoutes</item>
+        <item quantity="other">%d écoutes</item>
+    </plurals>
 </resources>

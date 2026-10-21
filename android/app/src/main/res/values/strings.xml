@@ -465,4 +465,31 @@
     <string name="widget_desc_stylish">Cover on the left, controls on the right</string>
     <string name="widget_desc_practical">Blurred cover, progress bar and all controls</string>
     <string name="widget_desc_feature_rich">Practical, plus the next two songs and the lyric line being sung</string>
+
+    <!-- Listening stats (Settings -> Listening stats) -->
+    <string name="listening_stats">Listening stats</string>
+    <string name="stats_month">Month</string>
+    <string name="stats_year">Year</string>
+    <string name="stats_all_time">All time</string>
+    <string name="stats_earlier">Earlier</string>
+    <string name="stats_later">Later</string>
+    <string name="stats_empty">Nothing played in this period yet.</string>
+    <string name="stats_hours">hours of music</string>
+    <string name="stats_minutes">minutes of music</string>
+    <string name="stats_short_hours">%1$s h</string>
+    <string name="stats_short_minutes">%1$s min</string>
+    <string name="stats_podcasts">Podcasts: %1$s, %2$s</string>
+    <string name="stats_top_songs">Top songs</string>
+    <string name="stats_top_artists">Top artists</string>
+    <string name="stats_top_albums">Top albums</string>
+    <string name="stats_top_genres">Top genres</string>
+    <string name="stats_genres_hint">Genres come from Detect Genres in Settings, or from each song\'s genre tag.</string>
+    <string name="stats_since">Listening is recorded from AudioForge 1.4.1 on, so earlier plays aren\'t included. A song counts after 30 seconds, or half of it if it\'s shorter. It all stays on your phone.</string>
+    <string name="year_in_review">AudioForge Year in Review</string>
+    <string name="year_in_review_share">Share Year in Review</string>
+    <string name="year_in_review_top_genre">Top genre: %1$s</string>
+    <plurals name="stats_plays">
+        <item quantity="one">%d play</item>
+        <item quantity="other">%d plays</item>
+    </plurals>
 </resources>

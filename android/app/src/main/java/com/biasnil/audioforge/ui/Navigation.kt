@@ -35,6 +35,7 @@ sealed interface Page {
     /** One podcast show's episodes. */
     data class PodcastShow(val name: String) : Page
     data object Widgets : Page
+    data object ListeningStats : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -57,6 +58,7 @@ sealed interface Page {
         is MediaTracks -> if (entryId != null) "media:$entryId" else "medianew:${newUri.orEmpty()}"
         is PodcastShow -> "show:$name"
         Widgets -> "widgets"
+        ListeningStats -> "stats"
     }
 
     companion object {
@@ -83,6 +85,7 @@ sealed interface Page {
             value.startsWith("media:") -> MediaTracks(entryId = value.removePrefix("media:"), newUri = null)
             value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             value == "widgets" -> Widgets
+            value == "stats" -> ListeningStats
             else -> null
         }
     }

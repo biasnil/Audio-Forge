@@ -154,6 +154,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Shares images the app makes (Listening stats' Year in Review) with
+             the app the user picks; see res/xml/file_paths.xml. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Android Auto: AudioForge shows up as a media app in the car. -->
         <meta-data
             android:name="com.google.android.gms.car.application"

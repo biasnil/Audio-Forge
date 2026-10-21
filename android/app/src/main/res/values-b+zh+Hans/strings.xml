@@ -454,4 +454,30 @@
     <string name="widget_desc_stylish">左侧封面，右侧控制按钮</string>
     <string name="widget_desc_practical">模糊封面背景、进度条和全部控制按钮</string>
     <string name="widget_desc_feature_rich">“实用”的全部内容，加上接下来的两首歌和正在唱的歌词</string>
+
+    <!-- Listening stats (Settings -> Listening stats) -->
+    <string name="listening_stats">收听统计</string>
+    <string name="stats_month">月</string>
+    <string name="stats_year">年</string>
+    <string name="stats_all_time">全部</string>
+    <string name="stats_earlier">更早</string>
+    <string name="stats_later">更晚</string>
+    <string name="stats_empty">这段时间还没有播放记录。</string>
+    <string name="stats_hours">小时音乐</string>
+    <string name="stats_minutes">分钟音乐</string>
+    <string name="stats_short_hours">%1$s 小时</string>
+    <string name="stats_short_minutes">%1$s 分钟</string>
+    <string name="stats_podcasts">播客：%1$s，%2$s</string>
+    <string name="stats_top_songs">最常听的歌曲</string>
+    <string name="stats_top_artists">最常听的艺人</string>
+    <string name="stats_top_albums">最常听的专辑</string>
+    <string name="stats_top_genres">最常听的流派</string>
+    <string name="stats_genres_hint">流派来自设置中的“检测流派”，或每首歌的流派标签。</string>
+    <string name="stats_since">从 AudioForge 1.4.1 开始记录收听，之前的播放不计入。一首歌播放 30 秒后计入；较短的歌曲播放一半即计入。所有数据都保存在你的手机上。</string>
+    <string name="year_in_review">AudioForge 年度回顾</string>
+    <string name="year_in_review_share">分享年度回顾</string>
+    <string name="year_in_review_top_genre">最常听的流派：%1$s</string>
+    <plurals name="stats_plays">
+        <item quantity="other">%d 次播放</item>
+    </plurals>
 </resources>

@@ -29,6 +29,10 @@ import com.biasnil.audioforge.audio.parseReplayGainDb
 import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.AnalysisStore
+import com.biasnil.audioforge.data.ListenTracker
+import com.biasnil.audioforge.data.PlayEntry
+import com.biasnil.audioforge.data.PlayKind
+import com.biasnil.audioforge.data.PlayLogStore
 import com.biasnil.audioforge.data.SongAnalysis
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.harmonicOrder
@@ -124,6 +128,8 @@ class PlaybackManager(
     private val store: AppStore,
     private val queueStore: QueueStore,
     private val songData: SongDataStore,
+    /** The listening log behind Settings -> Listening stats. */
+    private val playLog: PlayLogStore,
     private val analysisStore: AnalysisStore,
     private val scope: CoroutineScope,
     /** Whether a song (by URI) is a podcast episode: those always resume and get marked played. */
@@ -174,6 +180,10 @@ class PlaybackManager(
     private var abRepeat: AbRepeat = AbRepeat.Off
     /** The track whose play has been counted (once per time it's played). */
     private var countedUri: String? = null
+    /** How long the current song has really been heard, for the listening log. */
+    private val listening = ListenTracker()
+    private var lastListenTickMs = 0L
+    private var lastListenCheckpointMs = 0L
     /** The settings last applied (declared before init, which applies the first ones). */
     private var appliedSettings: AppSettings? = null
     /** Songs that failed in a row (skipping stops after a run of them, so a dead queue can't spin). */
@@ -499,6 +509,7 @@ class PlaybackManager(
         }
         if (fromAutoAdvance && queue.repeatMode == RepeatMode.One) {
             countedUri = null // each repeat counts as a play
+            startListening()
             active.player.seekTo(active.beginMs)
             active.player.play()
             return
@@ -558,6 +569,23 @@ class PlaybackManager(
     private fun songStarted() {
         countedUri = null
         abRepeat = AbRepeat.Off
+        startListening()
+    }
+
+    /** Logs the song before (if it counted as a play) and starts timing the current one. */
+    private fun startListening() {
+        val track = active.track ?: return
+        val entry = PlayEntry(
+            uri = track.uri,
+            title = track.title,
+            artist = track.artist,
+            album = track.album,
+            startedAtMs = System.currentTimeMillis(),
+            listenedMs = 0,
+            kind = if (isPodcast(track.uri)) PlayKind.Podcast else PlayKind.Music,
+        )
+        val finished = listening.start(entry, track.durationMs)
+        if (finished != null) playLog.append(finished) else playLog.checkpoint(null)
     }
 
     private fun tick() {
@@ -570,9 +598,17 @@ class PlaybackManager(
         }
 
         val player = active.player
+        // Listening time, in real time (100 ms ticks; a stalled tick adds at most a second).
+        if (player.isPlaying) listening.listened(now - lastListenTickMs)
+        lastListenTickMs = now
         val track = active.track ?: return
         val length = player.knownDurationMs ?: return
         val cursor = player.currentPosition
+        listening.setLength(length)
+        if (now - lastListenCheckpointMs >= LISTEN_CHECKPOINT_MS) {
+            lastListenCheckpointMs = now
+            listening.counted?.let(playLog::checkpoint)
+        }
 
         // While playing, remember the position every few seconds in case the app is killed.
         if (player.isPlaying && now - lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS) {
@@ -1001,6 +1037,8 @@ class PlaybackManager(
         const val PODCAST_PLAYED_WITHIN_MS = 30_000L
         private const val TAG = "PlaybackManager"
         private const val POSITION_SAVE_INTERVAL_MS = 5_000L
+        /** How often the play in progress is saved (in case the app is killed). */
+        private const val LISTEN_CHECKPOINT_MS = 10_000L
         private const val QUEUE_SAVE_DELAY_MS = 1_000L
         private const val RESTART_THRESHOLD_MS = 3_000L
         /** How early the next song is queued for a gapless hand-off. */

@@ -38,6 +38,7 @@ the Android app. Read the whole file before starting.
 | Play Console guide: signing, privacy URL, Data safety answers, background-playback form, Android Auto review, 12-tester rule, store listing | `android/PLAY_STORE.md` |
 | README release steps for both flavors | `README.md`, "Android app" section |
 | Feature 1, widget gallery (below): eight styles, Settings → Widgets, per-widget background | `widget/`, `ui/WidgetsPage.kt` |
+| Feature 2, listening stats (below): play log, Settings → Listening stats, Year in Review image | `data/PlayLog.kt`, `data/ListeningStats.kt`, `ui/ListeningStatsPage.kt`, `ui/YearInReview.kt` |
 
 Commit `7ad35cd` on `main` (pushed). The owner's Play developer account is
 still being verified; until then releases go to GitHub only.
@@ -52,6 +53,14 @@ added. Tested on an API 36 emulator: all eight previews, Add (Practical), its
 play/pause, next, shuffle and Loved buttons, the widget's background
 settings, and play from a killed process. Not yet tried: the other seven
 styles placed on a home screen, other launchers, the owner's own devices.
+
+Feature 2 notes: the log is `files/playlog.jsonl` (one JSON line per play,
+with title/artist/album as they were). The song playing now is checkpointed
+to `files/playlog-current.json` every 10 s once it counts, and added to the
+log on the next launch if the app was killed (tested). Genres: detected
+genre, else the GENRE tag. The existing play count (`SongStats.playCount`,
+half the song or 4 minutes) is unchanged; the log uses the roadmap's 30 s
+rule, so the two can differ. No way to clear the log yet.
 
 ## Next release: Androidv1.4.1 (GitHub)
 

@@ -191,6 +191,11 @@ It was built in stages:
    the launcher's widget picker; **Settings → Widgets** shows them with live
    previews and an **Add** button. Each widget's background is cover colours,
    black or translucent.
+9. Listening stats. **Done:** **Settings → Listening stats** shows time
+   listened, plays, and top songs, artists, albums and genres per month, per
+   year or for all time (podcasts counted separately), from a play log kept on
+   the phone (a play counts after 30 s, or half a short song). A year can be
+   shared as an "AudioForge Year in Review" image.
 
 Code layout (`android/app/src/main/java/com/biasnil/audioforge/`):
 ```
@@ -215,6 +220,7 @@ data/
   LibraryRepository.kt   # the library: MediaStoreSource (phone) + FolderSource (added folders)
   Track.kt, TrackTags.kt, LibraryModel.kt # song model, tag reading, grouping/sorting/search
   SongData.kt            # play counts, Loved, long-track positions, lyrics offsets
+  PlayLog.kt, ListeningStats.kt # listening log (files/playlog.jsonl) and Listening stats totals
   Analysis.kt            # analysis results, MusicKey (Camelot), harmonic order
   Genre.kt, GenreTaxonomy.kt # detected genres (files/genre.json), YAMNet labels -> genre/subgenre
   SmartPlaylists.kt      # smart playlist rules
