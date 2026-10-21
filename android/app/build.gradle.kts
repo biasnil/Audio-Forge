@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,17 +22,47 @@ android {
         // Each Android release is tagged "Androidv<versionName>" on GitHub, which
         // the in-app update check (Settings -> About -> Version) compares with this.
         versionName = "1.0.2"
-        // A Play Store build would set this to false: Play doesn't allow apps
-        // to point users at updates from elsewhere.
-        buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "true")
         ndk {
             // The ABIs LiteRT ships (no 32-bit x86, which no phone this app supports uses).
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
     }
 
+    // Two builds of the same app, differing only in the update check:
+    //   github: the APK attached to GitHub releases (./gradlew assembleGithubRelease)
+    //   play:   the Play Store bundle (./gradlew bundlePlayRelease). Play doesn't
+    //           allow apps to point users at updates from elsewhere.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") {
+            dimension = "store"
+            buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "true")
+        }
+        create("play") {
+            dimension = "store"
+            buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
+        }
+    }
+
+    // Release signing, only if android/keystore.properties exists (it is
+    // gitignored; see keystore.properties.example). Without it, release
+    // builds come out unsigned, as before.
+    val keystoreFile = rootProject.file("keystore.properties")
+    val releaseSigning = if (keystoreFile.exists()) {
+        val props = Properties().apply { keystoreFile.inputStream().use { load(it) } }
+        signingConfigs.create("release") {
+            storeFile = rootProject.file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
+    } else {
+        null
+    }
+
     buildTypes {
         release {
+            signingConfig = releaseSigning
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

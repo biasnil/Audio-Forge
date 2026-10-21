@@ -236,10 +236,21 @@ To build, open the `android/` folder in Android Studio (**File → Open**), let
 Gradle sync, then run the `app` configuration. It uses Kotlin, Jetpack Compose,
 Gradle 8.14.3 (through the included wrapper) and Android Gradle Plugin 8.11.1.
 
-Releasing: tag each Android release `Androidv<versionName>`, exactly matching
-`versionName` in `android/app/build.gradle.kts` (for example `Androidv1.0.2`),
-and attach the APK. The app's update check (Settings → About → Version) only
-looks at `Androidv*` releases, so desktop releases don't affect it.
+The app has two build flavors that differ only in the update check
+(Settings → About → Version): `github`, with the check, and `play`, without it,
+since Play doesn't allow pointing users at updates from elsewhere. In Android
+Studio pick one under **Build → Select Build Variant**.
+
+Releasing on GitHub: `./gradlew assembleGithubRelease`, tag the release
+`Androidv<versionName>`, exactly matching `versionName` in
+`android/app/build.gradle.kts` (for example `Androidv1.0.2`), and attach the
+APK. The update check only looks at `Androidv*` releases, so desktop releases
+don't affect it.
+
+Releasing on Google Play: `./gradlew bundlePlayRelease` and upload the `.aab`;
+see [`android/PLAY_STORE.md`](android/PLAY_STORE.md). Raise `versionCode` for
+every release. To sign release builds, copy `android/keystore.properties.example`
+to `android/keystore.properties` (gitignored) and fill it in.
 
 ## iOS app
 
