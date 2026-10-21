@@ -7,6 +7,7 @@ import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.SongDataStore
+import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.data.WallpaperRepository
 import com.biasnil.audioforge.lyrics.LyricLineTracker
 import com.biasnil.audioforge.lyrics.LyricsRepository
@@ -41,6 +42,8 @@ class AppContainer(context: Context) {
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
     val wallpapers = WallpaperRepository(context, store)
+    /** Settings -> About -> Version: is there a newer Android release on GitHub? */
+    val updates = UpdateChecker(store)
 
     /** The synced lyric line being sung (index into the current lyrics), for the lock screen and Android Auto. */
     val currentLyricLine: StateFlow<Int> = LyricLineTracker(playback, lyrics, songData, store, appScope).index

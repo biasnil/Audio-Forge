@@ -73,6 +73,11 @@ data class AppSettings(
     val harmonicShuffle: Boolean = false,
     /** The synced lyric line being sung, in place of the artist on the lock screen and Android Auto. */
     val lyricsOnNowPlaying: Boolean = false,
+    /** Settings -> About: look for a newer Android release on GitHub at most once a day. */
+    val autoUpdateCheck: Boolean = true,
+    val lastUpdateCheckMs: Long = 0,
+    /** The newest Android version the last check found ("" = this one is the newest). */
+    val latestKnownVersion: String = "",
 ) {
     val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
     val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
@@ -136,6 +141,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 beatMatchedCrossfade = root.optBoolean("beatMatchedCrossfade", false),
                 harmonicShuffle = root.optBoolean("harmonicShuffle", false),
                 lyricsOnNowPlaying = root.optBoolean("lyricsOnNowPlaying", false),
+                autoUpdateCheck = root.optBoolean("autoUpdateCheck", true),
+                lastUpdateCheckMs = root.optLong("lastUpdateCheckMs", 0),
+                latestKnownVersion = root.optString("latestKnownVersion", ""),
                 volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
                 replayGainEnabled = root.optBoolean("replayGainEnabled", true),
                 crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
@@ -174,6 +182,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("beatMatchedCrossfade", settings.beatMatchedCrossfade)
             .put("harmonicShuffle", settings.harmonicShuffle)
             .put("lyricsOnNowPlaying", settings.lyricsOnNowPlaying)
+            .put("autoUpdateCheck", settings.autoUpdateCheck)
+            .put("lastUpdateCheckMs", settings.lastUpdateCheckMs)
+            .put("latestKnownVersion", settings.latestKnownVersion)
             .put("includePhoneLibrary", settings.includePhoneLibrary)
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))

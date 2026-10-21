@@ -362,4 +362,24 @@
     <string name="eq_preset_vocal_boost">Voix renforcée</string>
 
     <string name="m3u_default_name">Playlist importée</string>
+
+    <!-- Settings: About -->
+    <string name="settings_about">À propos</string>
+    <string name="about_report">Signaler un problème</string>
+    <string name="about_source">Code source sur GitHub</string>
+    <string name="about_terms">Conditions d\'utilisation</string>
+    <string name="about_privacy">Confidentialité</string>
+    <string name="about_acknowledgements">Remerciements</string>
+    <string name="about_version">Version</string>
+    <string name="update_checking">Vérification…</string>
+    <string name="update_available">Mise à jour disponible : %1$s</string>
+    <string name="update_up_to_date">À jour</string>
+    <string name="update_failed">Impossible de vérifier les mises à jour</string>
+    <string name="update_auto">Rechercher les mises à jour automatiquement</string>
+    <string name="update_auto_explanation">Au plus une fois par jour, à l\'ouverture des Réglages. L\'application demande seulement à GitHub le numéro de la dernière version. Rien n\'est téléchargé ni installé.</string>
+    <string name="report_describe">Décrivez le problème :</string>
+    <string name="email_copied">Adresse e-mail copiée</string>
+    <string name="no_browser">Aucune application ne peut ouvrir ce lien.</string>
+    <string name="terms_english_applies">Seule la version anglaise fait foi.</string>
+    <string name="ack_service_thanks">Service en ligne. Merci.</string>
 </resources>

@@ -155,6 +155,9 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
                 Text(stringResource(tab.title))
             }
         }
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+        AboutSection(onOpenPage)
         Spacer(Modifier.padding(bottom = 16.dp))
     }
 }

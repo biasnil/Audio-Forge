@@ -61,7 +61,6 @@ fun AudioForgeApp(container: AppContainer) {
         var stack by rememberSaveable(stateSaver = PageStackSaver) { mutableStateOf(emptyList<Page>()) }
         val openPage: (Page) -> Unit = { page -> stack = stack + page }
         val closePage: () -> Unit = { stack = stack.dropLast(1) }
-        BackHandler(enabled = stack.isNotEmpty(), onBack = closePage)
 
         val requestAudioPermission = rememberAudioPermissionRequest()
         val snackbarHostState = remember { SnackbarHostState() }
@@ -93,6 +92,10 @@ fun AudioForgeApp(container: AppContainer) {
                 // The library stays composed underneath the pages, so its tab,
                 // search text and scroll position are still there on the way back.
                 LibraryScreen(onOpenPage = openPage, onRequestAudioPermission = requestAudioPermission)
+                // After the library's own back handlers (leave the More tab, end
+                // a selection): the last one registered wins, and an open page
+                // has to close first. A page's own handlers come later still.
+                BackHandler(enabled = stack.isNotEmpty(), onBack = closePage)
 
                 stack.lastOrNull()?.let { page ->
                     Surface(Modifier.fillMaxSize()) {
@@ -146,6 +149,10 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.AddTracks -> AddTracksPage(page.playlistId, onBack = onBack)
         is Page.EditTags -> TagEditorPage(page.trackUri, onBack = onBack)
         is Page.WallpaperTracks -> WallpaperTracksPage(page.entryId, page.newVideoUri, onBack = onBack)
+        Page.Terms -> TermsPage(onBack = onBack)
+        Page.Privacy -> PrivacyPage(onBack = onBack)
+        Page.Acknowledgements -> AcknowledgementsPage(onBack = onBack, onOpenPage = onOpenPage)
+        is Page.LicenseText -> LicenseTextPage(page.id, onBack = onBack)
     }
 }
 

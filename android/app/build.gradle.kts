@@ -17,7 +17,12 @@ android {
         minSdk = 31
         targetSdk = 36
         versionCode = 6
-        versionName = "1.0.0"
+        // Each Android release is tagged "Androidv<versionName>" on GitHub, which
+        // the in-app update check (Settings -> About -> Version) compares with this.
+        versionName = "1.0.2"
+        // A Play Store build would set this to false: Play doesn't allow apps
+        // to point users at updates from elsewhere.
+        buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "true")
     }
 
     buildTypes {
@@ -37,6 +42,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // VERSION_NAME for Settings -> About
     }
 
     androidResources {
@@ -80,4 +86,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    // Android's org.json is only a stub in JVM unit tests; this is the real one (tests only).
+    testImplementation(libs.json)
 }

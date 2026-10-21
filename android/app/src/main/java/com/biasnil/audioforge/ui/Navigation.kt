@@ -24,6 +24,12 @@ sealed interface Page {
     data class EditTags(val trackUri: String) : Page
     /** Songs for a wallpaper video: an existing assignment ([entryId]) or a new one ([newVideoUri]). */
     data class WallpaperTracks(val entryId: String?, val newVideoUri: String?) : Page
+    // Settings -> About
+    data object Terms : Page
+    data object Privacy : Page
+    data object Acknowledgements : Page
+    /** The full text of one licence from the Acknowledgements list. */
+    data class LicenseText(val id: String) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -39,6 +45,10 @@ sealed interface Page {
         is AddTracks -> "add:$playlistId"
         is EditTags -> "tags:$trackUri"
         is WallpaperTracks -> if (entryId != null) "wall:$entryId" else "wallnew:${newVideoUri.orEmpty()}"
+        Terms -> "terms"
+        Privacy -> "privacy"
+        Acknowledgements -> "acks"
+        is LicenseText -> "license:$id"
     }
 
     companion object {
@@ -57,6 +67,10 @@ sealed interface Page {
             value.startsWith("tags:") -> EditTags(value.removePrefix("tags:"))
             value.startsWith("wallnew:") -> WallpaperTracks(entryId = null, newVideoUri = value.removePrefix("wallnew:"))
             value.startsWith("wall:") -> WallpaperTracks(entryId = value.removePrefix("wall:"), newVideoUri = null)
+            value == "terms" -> Terms
+            value == "privacy" -> Privacy
+            value == "acks" -> Acknowledgements
+            value.startsWith("license:") -> LicenseText(value.removePrefix("license:"))
             else -> null
         }
     }

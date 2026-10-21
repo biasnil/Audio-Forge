@@ -6,6 +6,7 @@ import android.util.Log
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.SecretBox
 import com.biasnil.audioforge.data.Track
+import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -253,7 +254,7 @@ class LyricsRepository(
 
     private companion object {
         const val TAG = "LyricsRepository"
-        const val USER_AGENT = "AudioForge-Android/0.3 ( https://github.com/biasnil/Audio-Forge )"
+        const val USER_AGENT = UpdateChecker.USER_AGENT // the real app version
     }
 }
 

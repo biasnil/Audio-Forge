@@ -174,6 +174,11 @@ To build, open the `android/` folder in Android Studio (**File → Open**), let
 Gradle sync, then run the `app` configuration. It uses Kotlin, Jetpack Compose,
 Gradle 8.14.3 (through the included wrapper) and Android Gradle Plugin 8.11.1.
 
+Releasing: tag each Android release `Androidv<versionName>`, exactly matching
+`versionName` in `android/app/build.gradle.kts` (for example `Androidv1.0.2`),
+and attach the APK. The app's update check (Settings → About → Version) only
+looks at `Androidv*` releases, so desktop releases don't affect it.
+
 ## iOS app
 
 `ios/AudioForge/` is a SwiftUI app for iPhone (iOS 17+) with the same features as

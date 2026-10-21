@@ -1,0 +1,31 @@
+# Privasi
+
+AudioForge ialah pemain muzik yang berfungsi pada telefon anda. Ia tiada akaun, tiada iklan, tiada analitik dan tiada penjejakan.
+
+# Apa yang dibaca oleh aplikasi
+
+Pustaka muzik pada telefon anda, jika anda membenarkannya, dan folder yang anda tambah sendiri.
+
+# Apa yang kekal pada telefon anda
+
+Tetapan, senarai main, kiraan main dan lagu yang disukai, cache lirik, hasil analisis Kunci dan BPM, dan kunci API Musixmatch anda, yang disulitkan dengan Android Keystore.
+
+Menyahpasang aplikasi atau mengosongkan storannya akan memadam semua ini. Jika sandaran Android dihidupkan pada telefon anda, Android mungkin menyertakan tetapan dan senarai main aplikasi ini dalam sandaran telefon ke akaun Google anda, seperti kebanyakan aplikasi lain. Kunci Musixmatch tidak boleh dipulihkan daripada sandaran dan perlu dimasukkan semula.
+
+# Apa yang keluar dari telefon anda, hanya apabila perlu
+
+LRCLIB (lrclib.net): untuk mencari lirik, tajuk dan artis lagu, atau carian yang dibina daripada nama fail.
+
+Musixmatch: tajuk dan artis lagu, serta kunci API anda. Hanya jika anda menambah kunci.
+
+GitHub (api.github.com): satu permintaan untuk nombor keluaran AudioForge yang terkini, untuk memberitahu anda tentang kemas kini. Anda boleh mematikannya dalam Tetapan, di bawah Perihal.
+
+Perkhidmatan ini nampak alamat IP telefon anda, sama seperti mana-mana laman web yang anda lawati. Dasar privasi mereka sendiri terpakai.
+
+# Fail anda
+
+Aplikasi hanya mengubah tag atau kulit lagu apabila anda mengetik Simpan, dan hanya memadam lagu selepas anda mengesahkannya.
+
+# Hubungi
+
+workacckwanrong@gmail.com

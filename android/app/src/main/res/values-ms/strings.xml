@@ -346,4 +346,24 @@
     <string name="eq_preset_vocal_boost">Penguat Vokal</string>
 
     <string name="m3u_default_name">Senarai Main Diimport</string>
+
+    <!-- Settings: About -->
+    <string name="settings_about">Perihal</string>
+    <string name="about_report">Laporkan Masalah</string>
+    <string name="about_source">Kod Sumber di GitHub</string>
+    <string name="about_terms">Terma &amp; Syarat</string>
+    <string name="about_privacy">Privasi</string>
+    <string name="about_acknowledgements">Penghargaan</string>
+    <string name="about_version">Versi</string>
+    <string name="update_checking">Menyemak…</string>
+    <string name="update_available">Kemas kini tersedia: %1$s</string>
+    <string name="update_up_to_date">Terkini</string>
+    <string name="update_failed">Tidak dapat menyemak kemas kini</string>
+    <string name="update_auto">Semak kemas kini secara automatik</string>
+    <string name="update_auto_explanation">Paling banyak sekali sehari, apabila Tetapan dibuka. Ia hanya bertanya kepada GitHub nombor keluaran terkini. Tiada apa-apa dimuat turun atau dipasang.</string>
+    <string name="report_describe">Terangkan masalahnya:</string>
+    <string name="email_copied">Alamat e-mel disalin</string>
+    <string name="no_browser">Tiada aplikasi yang boleh membuka pautan ini.</string>
+    <string name="terms_english_applies">Versi bahasa Inggeris terpakai.</string>
+    <string name="ack_service_thanks">Perkhidmatan dalam talian. Terima kasih.</string>
 </resources>

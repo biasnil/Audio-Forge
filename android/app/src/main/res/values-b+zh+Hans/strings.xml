@@ -346,4 +346,24 @@
     <string name="eq_preset_vocal_boost">人声增强</string>
 
     <string name="m3u_default_name">导入的播放列表</string>
+
+    <!-- Settings: About -->
+    <string name="settings_about">关于</string>
+    <string name="about_report">报告问题</string>
+    <string name="about_source">GitHub 上的源代码</string>
+    <string name="about_terms">条款和条件</string>
+    <string name="about_privacy">隐私</string>
+    <string name="about_acknowledgements">致谢</string>
+    <string name="about_version">版本</string>
+    <string name="update_checking">正在检查…</string>
+    <string name="update_available">有可用更新：%1$s</string>
+    <string name="update_up_to_date">已是最新版本</string>
+    <string name="update_failed">无法检查更新</string>
+    <string name="update_auto">自动检查更新</string>
+    <string name="update_auto_explanation">每天最多一次，在打开“设置”时进行。只会向 GitHub 查询最新版本的版本号，不会下载或安装任何内容。</string>
+    <string name="report_describe">描述问题：</string>
+    <string name="email_copied">已复制电子邮件地址</string>
+    <string name="no_browser">没有应用可以打开此链接。</string>
+    <string name="terms_english_applies">以英文版本为准。</string>
+    <string name="ack_service_thanks">在线服务。谢谢。</string>
 </resources>
