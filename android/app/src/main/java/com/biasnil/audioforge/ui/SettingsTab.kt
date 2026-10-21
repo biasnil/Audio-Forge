@@ -1,6 +1,17 @@
 package com.biasnil.audioforge.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import com.biasnil.audioforge.AppLanguage
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -111,8 +122,9 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
                 }
             }
         }
+        LanguageRow()
 
-        HorizontalDivider(Modifier.padding(top = 8.dp))
+        HorizontalDivider()
         PlaybackSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
@@ -145,6 +157,73 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
         }
         Spacer(Modifier.padding(bottom = 16.dp))
     }
+}
+
+/**
+ * Language: the app's own language, or the phone's. Language names are
+ * shown in their own language, so anyone can find theirs.
+ */
+@Composable
+private fun LanguageRow() {
+    val context = LocalContext.current
+    // Changing it recreates the screen, and so does changing it in the
+    // phone's App languages settings, so reading it once here is enough.
+    val current = remember { AppLanguage.current(context) }
+    var choosing by remember { mutableStateOf(false) }
+    val systemName = stringResource(R.string.language_system)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { choosing = true }
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.settings_language), modifier = Modifier.weight(1f))
+        Text(
+            text = current?.let(AppLanguage::nativeName) ?: systemName,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+
+    if (choosing) {
+        val options = listOf<String?>(null) + AppLanguage.TAGS
+        AlertDialog(
+            onDismissRequest = { choosing = false },
+            title = { Text(stringResource(R.string.settings_language)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    options.forEach { tag ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .selectable(selected = tag == current, role = Role.RadioButton) {
+                                    choosing = false
+                                    if (tag != current) context.findActivity()?.let { AppLanguage.set(it, tag) }
+                                },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = tag == current, onClick = null)
+                            Spacer(Modifier.width(12.dp))
+                            Text(tag?.let(AppLanguage::nativeName) ?: systemName)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /** ReplayGain and crossfade (the desktop's ReplayGain button and Crossfade settings). */

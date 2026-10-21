@@ -1,0 +1,349 @@
+<resources>
+    <!-- Malay. Machine-drafted, needs native review before release. -->
+    <string name="app_name">AudioForge</string>
+
+    <string name="tab_albums">Album</string>
+    <string name="tab_tracks">Trek</string>
+    <string name="tab_artists">Artis</string>
+    <string name="tab_folders">Folder</string>
+    <string name="tab_playlists">Senarai Main</string>
+    <string name="tab_equalizer">Penyama</string>
+    <string name="tab_wallpapers">Kertas Dinding</string>
+    <string name="tab_settings">Tetapan</string>
+
+    <plurals name="track_count">
+        <item quantity="other">%d trek</item>
+    </plurals>
+    <string name="unknown_album">Album Tidak Diketahui</string>
+    <string name="unknown_artist">Artis Tidak Diketahui</string>
+
+    <!-- Library -->
+    <string name="library_scanning">Mengimbas muzik anda…</string>
+    <string name="library_needs_permission">AudioForge memerlukan akses kepada muzik pada telefon ini untuk menunjukkan pustaka muziknya. Ia hanya membaca fail audio.</string>
+    <string name="library_empty">Tiada muzik ditemui. Tambah folder dalam tab Folder, atau pastikan muzik anda ada pada telefon ini.</string>
+    <string name="allow_access">Benarkan akses</string>
+    <string name="refresh_library">Muat semula pustaka</string>
+
+    <!-- Tracks tab -->
+    <string name="search_hint">Lagu, artis, album</string>
+    <string name="clear_search">Kosongkan carian</string>
+    <string name="search_no_results">Tiada trek sepadan dengan carian anda.</string>
+    <string name="sort_by">Isih: %1$s</string>
+    <string name="sort_title">Tajuk</string>
+    <string name="sort_artist">Artis</string>
+    <string name="sort_album">Album</string>
+    <string name="sort_year">Tahun</string>
+
+    <!-- Folders tab -->
+    <string name="folders_phone_library">Pustaka muzik telefon</string>
+    <string name="folders_include_phone_library">Sertakan muzik daripada pustaka telefon</string>
+    <string name="folders_added">Folder yang ditambah</string>
+    <string name="folders_none">Tiada folder ditambah.</string>
+    <string name="folders_add">Tambah folder</string>
+    <string name="folders_explanation">Folder yang ditambah diimbas bersama subfoldernya, sama seperti aplikasi desktop. Gunakannya untuk muzik yang tidak dikesan oleh pustaka telefon, seperti folder pada kad SD.</string>
+    <string name="folders_internal_storage">Storan dalaman</string>
+    <string name="remove">Alih keluar</string>
+
+    <!-- Playlists -->
+    <string name="playlists_empty">Belum ada senarai main.</string>
+    <string name="playlist_new">Senarai Main Baharu</string>
+    <string name="playlist_name_hint">Masukkan nama senarai main</string>
+    <string name="playlist_create">Cipta</string>
+    <string name="playlist_add_tracks">Tambah trek</string>
+    <string name="playlist_add_to">Tambah ke %1$s</string>
+    <string name="playlist_add_count">Tambah (%1$d)</string>
+    <string name="playlist_nothing_to_add">Setiap trek dalam pustaka anda sudah ada dalam senarai main ini.</string>
+    <string name="playlist_is_empty">Senarai main ini kosong. Gunakan Tambah trek untuk mengisinya.</string>
+    <string name="playlist_delete">Padam</string>
+    <string name="playlist_delete_confirm">Padam \"%1$s\"? Tindakan ini tidak boleh dibuat asal.</string>
+    <string name="playlist_track_unavailable">Tiada lagi dalam pustaka anda</string>
+    <string name="playlist_unknown_track">Trek tidak tersedia</string>
+    <string name="cancel">Batal</string>
+
+    <!-- Settings -->
+    <string name="settings_library">Pustaka</string>
+    <string name="settings_stats">Trek: %1$d\nAlbum: %2$d\nArtis: %3$d\nGenre: %4$d</string>
+    <string name="settings_appearance">Penampilan</string>
+    <string name="settings_dark_theme">Tema gelap</string>
+    <string name="settings_visible_tabs">Tab yang ditunjukkan</string>
+
+    <!-- Playback -->
+    <string name="back">Kembali</string>
+    <string name="play">Main</string>
+    <string name="pause">Jeda</string>
+    <string name="next">Seterusnya</string>
+    <string name="previous">Sebelumnya</string>
+    <string name="shuffle">Rombak</string>
+    <string name="shuffle_random">Rawak</string>
+    <string name="shuffle_smart">Pintar</string>
+    <string name="repeat">Ulang</string>
+    <string name="repeat_all">Semua</string>
+    <string name="repeat_one">Satu</string>
+    <string name="mode_off">Mati</string>
+    <string name="volume">Kelantangan</string>
+    <string name="error_cannot_play">Tidak dapat memainkan %1$s</string>
+    <!-- Equalizer -->
+    <string name="eq_preset">Praset: %1$s</string>
+    <string name="eq_preset_custom">Tersuai</string>
+    <string name="eq_post_gain">Gandaan akhir</string>
+    <string name="eq_post_gain_explanation">Tahap keseluruhan selepas penyama. Rendahkan jika jalur yang dikuatkan menyebabkan trek yang kuat herot.</string>
+    <string name="eq_reset">Tetapkan semula penyama</string>
+
+    <!-- Settings: playback -->
+    <string name="settings_playback">Main balik</string>
+    <string name="settings_replaygain">ReplayGain</string>
+    <string name="settings_replaygain_explanation">Menyamakan kekuatan bunyi antara trek menggunakan tag ReplayGain (MP3, FLAC, OGG, Opus, M4A).</string>
+    <string name="settings_crossfade">Resap silang antara trek</string>
+    <string name="settings_crossfade_duration">Tempoh resap silang: %1$d s</string>
+
+    <!-- Settings: lyrics -->
+    <string name="settings_lyrics">Lirik (Musixmatch)</string>
+    <string name="settings_lyrics_explanation">Lirik diambil daripada LRCLIB (percuma, tiada kunci diperlukan), kemudian Musixmatch jika anda menambah kunci API daripada musixmatch.com (kunci percuma hanya memberikan petikan), kemudian fail .lrc atau .txt dengan nama yang sama di sebelah trek dalam folder yang ditambah. Kunci disimpan secara disulitkan pada telefon ini.</string>
+    <string name="settings_musixmatch_key_hint">Kunci API Musixmatch (pilihan)</string>
+    <string name="settings_musixmatch_key_clear">Alih keluar kunci</string>
+    <string name="save">Simpan</string>
+
+    <!-- Now Playing: lyrics -->
+    <string name="show_lyrics">Lirik</string>
+    <string name="show_cover">Kulit</string>
+    <string name="lyrics_loading">Memuatkan lirik…</string>
+    <string name="lyrics_not_found">Tiada lirik ditemui.</string>
+    <!-- Tag editor -->
+    <string name="tags_edit">Edit tag</string>
+    <string name="tags_title">Edit tag</string>
+    <string name="tags_loading">Membaca tag…</string>
+    <string name="tags_add_field">+ Tambah medan</string>
+    <string name="tags_add_field_filter">Tapis medan</string>
+    <string name="tags_remove_field">Alih keluar medan</string>
+    <string name="tags_hint">Petua: tekan lama pada lagu dalam mana-mana senarai untuk mengedit tagnya.</string>
+    <string name="tags_folder_access_title">Benarkan pengeditan dalam folder ini</string>
+    <string name="tags_folder_access_text">Folder ini ditambah sebelum AudioForge boleh mengedit tag, jadi ia hanya ada kebenaran untuk membacanya. Pada skrin seterusnya, pilih folder yang sama sekali lagi dan ketik \"Gunakan folder ini\" untuk membenarkan tag disimpan ke dalam failnya. Ini hanya perlu sekali bagi setiap folder.</string>
+    <string name="tags_folder_access_continue">Teruskan</string>
+    <string name="tags_error_wrong_folder">Itu folder yang berlainan. Pilih folder yang sama tempat lagu itu berada untuk membenarkan pengeditan.</string>
+    <string name="tags_error_unsupported">Jenis fail ini tidak boleh diedit (fail Opus belum disokong).</string>
+    <string name="tags_error_not_a_number">%1$s mestilah nombor bulat.</string>
+    <string name="tags_error_permission">AudioForge tidak dibenarkan mengubah fail ini.</string>
+    <string name="tags_error_io">Tidak dapat membaca atau menulis fail. Fail mungkin telah dialihkan atau dipadam.</string>
+    <string name="tags_error_write">Tidak dapat menyimpan tag.</string>
+    <!-- Cover art -->
+    <string name="cover_change">Tukar kulit</string>
+    <string name="cover_changed">Kulit dikemas kini.</string>
+    <string name="cover_error_image">Tidak dapat membaca imej itu.</string>
+
+    <!-- Wallpapers tab -->
+    <string name="wallpaper_global">Kertas dinding global</string>
+    <string name="wallpaper_global_explanation">Dimainkan di belakang Sedang Dimainkan untuk mana-mana lagu yang tiada kertas dinding sendiri.</string>
+    <string name="wallpaper_none">Tiada</string>
+    <string name="wallpaper_choose_video">Pilih video</string>
+    <string name="wallpaper_clear">Kosongkan</string>
+    <string name="wallpaper_per_song">Kertas dinding lagu</string>
+    <string name="wallpaper_per_song_none">Belum ada kertas dinding lagu. Yang pertama yang merangkumi sesuatu lagu akan digunakan untuknya.</string>
+    <string name="wallpaper_edit_songs">Lagu</string>
+    <string name="wallpaper_add">Tambah kertas dinding</string>
+    <string name="wallpaper_remove_title">Alih keluar kertas dinding</string>
+    <string name="wallpaper_remove_confirm">Alih keluar tugasan kertas dinding ini? Fail video itu sendiri tidak dipadam.</string>
+    <string name="wallpaper_done_count">Selesai (%1$d)</string>
+    <string name="wallpaper_select_all_shown">Pilih / kosongkan semua yang ditunjukkan</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_wallpaper">Kertas dinding video</string>
+    <string name="settings_wallpaper_enabled">Tunjukkan kertas dinding video</string>
+    <string name="settings_wallpaper_opacity">Kelegapan kertas dinding: %1$d%%</string>
+    <!-- Hiding phone-library folders -->
+    <string name="folders_phone_folders">Folder dalam pustaka telefon</string>
+    <string name="folders_phone_folders_explanation">Matikan folder untuk menyembunyikan lagunya, termasuk subfoldernya. Berguna untuk nota suara WhatsApp, rakaman atau nada dering yang dikira sebagai muzik oleh Android.</string>
+    <string name="folders_phone_folders_none">Belum ada lagu ditemui dalam pustaka telefon.</string>
+    <string name="folder_hide">Sembunyikan folder “%1$s”</string>
+    <string name="folder_hidden">Folder “%1$s” disembunyikan. Tunjukkan semula dalam tab Folder.</string>
+    <string name="undo">Buat asal</string>
+
+    <!-- Queue -->
+    <string name="more_options">Lagi pilihan</string>
+    <string name="queue_play_next">Main seterusnya</string>
+    <string name="queue_add">Tambah ke baris gilir</string>
+    <string name="queue_playing_next_one">“%1$s” akan dimainkan seterusnya.</string>
+    <plurals name="queue_playing_next_many">
+        <item quantity="other">%d lagu akan dimainkan seterusnya.</item>
+    </plurals>
+    <string name="queue_added_one">“%1$s” ditambah ke baris gilir.</string>
+    <plurals name="queue_added_many">
+        <item quantity="other">%d lagu ditambah ke baris gilir.</item>
+    </plurals>
+    <string name="up_next">Seterusnya</string>
+    <string name="queue_played">Telah dimainkan</string>
+    <string name="queue_now_playing">Sedang Dimainkan</string>
+    <string name="queue_nothing_next">Tiada lagu lain dalam baris gilir. Main balik berhenti selepas lagu ini.</string>
+    <string name="queue_then_random">Kemudian lagu rawak daripada baris gilir.</string>
+    <string name="queue_then_repeat">Kemudian baris gilir bermula semula (Ulang Semua).</string>
+    <string name="queue_clear">Kosongkan</string>
+    <string name="queue_clear_title">Kosongkan Seterusnya</string>
+    <string name="queue_clear_confirm">Alih keluar setiap lagu yang menunggu untuk dimainkan? Lagu semasa terus dimainkan.</string>
+    <string name="queue_save_playlist">Simpan sebagai senarai main</string>
+    <plurals name="queue_saved_playlist">
+        <item quantity="other">%1$d lagu disimpan sebagai “%2$s”.</item>
+    </plurals>
+    <string name="queue_reorder">Seret untuk menyusun semula</string>
+    <string name="queue_history">Sejarah</string>
+    <string name="queue_playing_next">Dimainkan Seterusnya</string>
+    <string name="queue_clear_playing_next">Kosongkan Dimainkan Seterusnya</string>
+    <string name="queue_next_from">Seterusnya Daripada %1$s</string>
+    <string name="queue_next_from_list">Seterusnya Daripada Senarai Anda</string>
+    <string name="queue_random_note">Rombak rawak memilih setiap lagu seterusnya apabila diperlukan.</string>
+    <string name="queue_smart_footer">Rombak pintar: setiap lagu dimainkan sekali, mengikut susunan ini.</string>
+    <string name="queue_nothing_after">Tiada apa-apa selepas lagu ini.</string>
+    <string name="queue_repeating">Mengulang.</string>
+    <string name="done">Selesai</string>
+
+    <!-- iOS-style tabs and lists -->
+    <string name="tab_songs">Lagu</string>
+    <string name="tab_genres">Genre</string>
+    <string name="tab_more">Lagi</string>
+    <string name="unknown_genre">Genre Tidak Diketahui</string>
+    <string name="various_artists">Pelbagai Artis</string>
+    <string name="sort_recent">Ditambah Baru-baru Ini</string>
+    <plurals name="song_count">
+        <item quantity="other">%d lagu</item>
+    </plurals>
+    <plurals name="album_count">
+        <item quantity="other">%d album</item>
+    </plurals>
+
+    <!-- Now Playing extras -->
+    <string name="love">Suka</string>
+    <string name="unlove">Batal suka</string>
+    <string name="back_15">Undur 15 saat</string>
+    <string name="forward_15">Maju 15 saat</string>
+    <string name="sleep_timer">Pemasa tidur</string>
+    <string name="sleep_minutes">%1$d minit</string>
+    <string name="sleep_end_of_song">Hujung lagu semasa</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance_system">Sistem</string>
+    <string name="settings_appearance_light">Cerah</string>
+    <string name="settings_appearance_dark">Gelap</string>
+    <string name="settings_sleep_fade">Pudarkan pemasa tidur</string>
+    <string name="settings_resume_long">Sambung trek panjang</string>
+    <!-- Multi-select, import, delete -->
+    <string name="select_songs">Pilih Lagu</string>
+    <string name="select_all">Semua</string>
+    <string name="select_none">Tiada</string>
+    <string name="selected_count">%1$d Dipilih</string>
+    <string name="selection">Pilihan</string>
+    <string name="delete_ellipsis">Padam…</string>
+    <string name="delete_song">Padam Lagu</string>
+    <string name="delete_one_title">Padam “%1$s”?</string>
+    <string name="delete_many_title">Padam %1$d lagu?</string>
+    <string name="delete_warning">Fail dialih keluar daripada telefon ini. Tindakan ini tidak boleh dibuat asal.</string>
+    <string name="import_songs">Import lagu</string>
+    <plurals name="imported_songs">
+        <item quantity="other">%d lagu diimport ke dalam Music/AudioForge.</item>
+    </plurals>
+
+    <!-- Playlists -->
+    <string name="playlist_add_to_title">Tambah ke Senarai Main</string>
+    <string name="playlist_new_ellipsis">Senarai Main Baharu…</string>
+    <plurals name="playlist_added_songs">
+        <item quantity="other">%1$d lagu ditambah ke %2$s.</item>
+    </plurals>
+    <string name="playlist_rename">Namakan Semula Senarai Main</string>
+    <string name="rename">Namakan semula</string>
+    <string name="playlist_use_album_covers">Guna Kulit Album</string>
+    <string name="m3u_import">Import Senarai Main .m3u…</string>
+    <string name="m3u_export">Eksport Senarai Main .m3u</string>
+    <string name="m3u_imported">%1$s: %2$d daripada %3$d lagu ditemui</string>
+    <string name="m3u_nothing_found">Tiada lagu ditemui dalam senarai main itu.</string>
+    <string name="m3u_exported">%1$s disimpan sebagai .m3u8.</string>
+    <string name="m3u_export_failed">Tidak dapat menyimpan fail senarai main.</string>
+
+    <!-- Smart playlists -->
+    <string name="smart_lists">Senarai Pintar</string>
+    <string name="smart_loved">Disukai</string>
+    <string name="smart_most_played">Paling Kerap Dimainkan</string>
+    <string name="smart_recently_played">Dimainkan Baru-baru Ini</string>
+    <string name="smart_recently_added">Ditambah Baru-baru Ini</string>
+    <string name="smart_never_played">Tidak Pernah Dimainkan</string>
+    <string name="smart_playlist">Senarai Main Pintar</string>
+    <string name="smart_new">Senarai Main Pintar Baharu</string>
+    <string name="smart_edit_rules">Edit Peraturan</string>
+    <string name="smart_empty_builtin">Lagu muncul di sini apabila anda memainkan dan menyukainya.</string>
+    <string name="smart_empty">Belum ada lagu yang sepadan dengan peraturan.</string>
+    <string name="smart_name">Nama</string>
+    <string name="smart_match">Padanan</string>
+    <string name="smart_match_all">Semua peraturan</string>
+    <string name="smart_match_any">Mana-mana peraturan</string>
+    <string name="smart_rules">Peraturan</string>
+    <string name="smart_add_rule">Tambah Peraturan</string>
+    <string name="smart_sort_by">Isih Mengikut</string>
+    <string name="smart_limit">Had</string>
+    <string name="smart_limit_songs">%1$d lagu</string>
+    <string name="smart_footer">Senarai main pintar dikemas kini sendiri apabila pustaka, kiraan main dan lagu yang disukai berubah.</string>
+    <string name="smart_number">Nombor</string>
+    <string name="smart_text">Teks</string>
+    <string name="smart_field_genre">Genre</string>
+    <string name="smart_field_play_count">Kiraan Main</string>
+    <string name="smart_field_last_played">Terakhir Dimainkan (hari lalu)</string>
+    <string name="smart_field_added">Ditambah (hari lalu)</string>
+    <string name="smart_field_minutes">Panjang (minit)</string>
+    <string name="smart_op_contains">mengandungi</string>
+    <string name="smart_op_is">ialah</string>
+    <string name="smart_op_is_not">bukan</string>
+    <string name="smart_op_more">lebih daripada</string>
+    <string name="smart_op_less">kurang daripada</string>
+    <string name="smart_op_yes">ya</string>
+    <string name="smart_op_no">tidak</string>
+
+    <!-- Analysis and Smart Options -->
+    <string name="sort_bpm">BPM</string>
+    <string name="sort_key">Kunci</string>
+    <string name="smart_field_key">Kunci (cth. 8A atau Am)</string>
+    <string name="smart_options">Pilihan Pintar</string>
+    <string name="analysis_start">Analisis Kunci dan BPM Lagu Anda</string>
+    <string name="analysis_all_done">Kesemua %1$d lagu telah dianalisis</string>
+    <string name="analysis_some_done">%1$d daripada %2$d lagu telah dianalisis</string>
+    <string name="analysis_running">Menganalisis… %1$d daripada %2$d</string>
+    <string name="analysis_stop">Henti</string>
+    <string name="analysis_background_note">Anda boleh terus menggunakan aplikasi. Semasa di latar belakang, analisis hanya diteruskan ketika telefon sedang dicas.</string>
+    <string name="smart_locked">Jalankan “Analisis Kunci dan BPM Lagu Anda” (di atas) untuk membuka kunci pilihan ini.</string>
+    <string name="smart_transitions">Peralihan Pintar</string>
+    <string name="smart_beat_matched">Resap Silang Padan Rentak</string>
+    <string name="smart_harmonic">Rombak Harmonik</string>
+    <string name="smart_options_footer">Peralihan Pintar: lagu daripada album yang sama dimainkan tanpa jeda, resap silang bermula di tempat penghujung lagu benar-benar pudar, dan kesenyapan pada permulaan dan penghujung dilangkau. Resap Silang Padan Rentak (memerlukan Resap silang dihidupkan): tempo lagu seterusnya dipadankan dan rentaknya diselaraskan semasa resapan, kemudian ia kembali perlahan-lahan ke kelajuan biasa. Rombak Harmonik: rombak pintar memainkan lagu dalam kunci yang serasi dan tempo yang hampir sama bersebelahan.</string>
+    <string name="tags_fill_from_analysis">Isi BPM dan Kunci daripada analisis</string>
+
+    <!-- Lyrics, visualizer, Android Auto, skipping -->
+    <string name="close">Tutup</string>
+    <string name="lyrics_full_screen">Lirik skrin penuh</string>
+    <string name="lyrics_earlier">− Lebih awal</string>
+    <string name="lyrics_later">Lebih lewat +</string>
+    <string name="lyrics_in_sync">Selari</string>
+    <string name="lyrics_reset">Tetapkan semula</string>
+    <string name="visualizer">Pengvisual</string>
+    <string name="settings_lyrics_lock_screen">Lirik pada Skrin Kunci &amp; Android Auto</string>
+    <string name="settings_lyrics_lock_screen_explanation">Menunjukkan baris yang sedang dinyanyikan (lirik selari) menggantikan nama artis dalam pemberitahuan main balik, pada skrin kunci dan di dalam kereta.</string>
+    <string name="auto_nothing_playing">Tiada Apa-apa Dimainkan</string>
+    <string name="error_skipped">Tidak dapat memainkan “%1$s”, dilangkau.</string>
+
+    <!-- Duplicates -->
+    <string name="duplicates">Pendua</string>
+    <string name="duplicates_find">Cari Pendua</string>
+    <string name="duplicates_none">Tiada pendua. Setiap lagu disimpan sekali sahaja.</string>
+    <string name="duplicates_group">%1$s — %2$d salinan</string>
+
+    <string name="settings_resume_long_explanation">Lagu yang 10 minit atau lebih (buku audio, campuran) bersambung dari tempat anda menghentikannya.</string>
+
+    <!-- Language -->
+    <string name="settings_language">Bahasa</string>
+    <string name="language_system">Lalai sistem</string>
+
+    <!-- Equalizer presets -->
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_classical">Klasik</string>
+    <string name="eq_preset_dance">Tarian</string>
+    <string name="eq_preset_hip_hop">Hip-Hop</string>
+    <string name="eq_preset_blues">Blues</string>
+    <string name="eq_preset_vocal_boost">Penguat Vokal</string>
+
+    <string name="m3u_default_name">Senarai Main Diimport</string>
+</resources>

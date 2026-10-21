@@ -173,7 +173,7 @@ fun PlaylistsTab(onOpenPage: (Page) -> Unit) {
         }
     }
     smartMenuFor?.let { smart ->
-        MenuDialog(title = smart.name, onDismiss = { smartMenuFor = null }) { close ->
+        MenuDialog(title = smartName(smart), onDismiss = { smartMenuFor = null }) { close ->
             MenuDialogButton(stringResource(R.string.smart_edit_rules)) { close(); onOpenPage(Page.SmartPlaylistEdit(smart.id)) }
             MenuDialogButton(stringResource(R.string.playlist_delete), destructive = true) {
                 close()

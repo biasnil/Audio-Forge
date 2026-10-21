@@ -113,15 +113,15 @@ private fun PresetMenu(bandGains: List<Float>, enabled: Boolean, onApply: (List<
     var expanded by remember { mutableStateOf(false) }
     // Shows the preset the bands currently match, or "Custom".
     val current = EqualizerPresets.firstOrNull { it.second == bandGains }?.first
-        ?: stringResource(R.string.eq_preset_custom)
+    val currentName = if (current != null) presetName(current) else stringResource(R.string.eq_preset_custom)
     Box(Modifier.padding(horizontal = 8.dp)) {
         TextButton(onClick = { expanded = true }, enabled = enabled) {
-            Text(stringResource(R.string.eq_preset, current))
+            Text(stringResource(R.string.eq_preset, currentName))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             EqualizerPresets.forEach { (name, gains) ->
                 DropdownMenuItem(
-                    text = { Text(name) },
+                    text = { Text(presetName(name)) },
                     onClick = {
                         onApply(gains)
                         expanded = false
@@ -130,6 +130,20 @@ private fun PresetMenu(bandGains: List<Float>, enabled: Boolean, onApply: (List<
             }
         }
     }
+}
+
+/** A preset's name in the app language ([EqualizerPresets] keys them in English). */
+@Composable
+private fun presetName(key: String): String = when (key) {
+    "Rock" -> stringResource(R.string.eq_preset_rock)
+    "Pop" -> stringResource(R.string.eq_preset_pop)
+    "Jazz" -> stringResource(R.string.eq_preset_jazz)
+    "Classical" -> stringResource(R.string.eq_preset_classical)
+    "Dance" -> stringResource(R.string.eq_preset_dance)
+    "Hip-Hop" -> stringResource(R.string.eq_preset_hip_hop)
+    "Blues" -> stringResource(R.string.eq_preset_blues)
+    "Vocal Boost" -> stringResource(R.string.eq_preset_vocal_boost)
+    else -> key
 }
 
 /** "1K  [----o----]  +3.0 dB", -15..+15 dB in 0.5 dB steps. */

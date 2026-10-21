@@ -1,0 +1,349 @@
+<resources>
+    <!-- Traditional Chinese (Taiwan terms). Machine-drafted, needs native review before release. -->
+    <string name="app_name">AudioForge</string>
+
+    <string name="tab_albums">專輯</string>
+    <string name="tab_tracks">曲目</string>
+    <string name="tab_artists">演出者</string>
+    <string name="tab_folders">資料夾</string>
+    <string name="tab_playlists">播放清單</string>
+    <string name="tab_equalizer">等化器</string>
+    <string name="tab_wallpapers">桌布</string>
+    <string name="tab_settings">設定</string>
+
+    <plurals name="track_count">
+        <item quantity="other">%d 首曲目</item>
+    </plurals>
+    <string name="unknown_album">未知專輯</string>
+    <string name="unknown_artist">未知演出者</string>
+
+    <!-- Library -->
+    <string name="library_scanning">正在掃描你的音樂…</string>
+    <string name="library_needs_permission">AudioForge 需要存取這支手機上的音樂，才能顯示音樂庫。只會讀取音訊檔案。</string>
+    <string name="library_empty">找不到音樂。請在「資料夾」分頁中新增資料夾，或確認音樂已存放在這支手機上。</string>
+    <string name="allow_access">允許存取</string>
+    <string name="refresh_library">重新整理音樂庫</string>
+
+    <!-- Tracks tab -->
+    <string name="search_hint">歌曲、演出者、專輯</string>
+    <string name="clear_search">清除搜尋</string>
+    <string name="search_no_results">沒有符合搜尋內容的曲目。</string>
+    <string name="sort_by">排序：%1$s</string>
+    <string name="sort_title">標題</string>
+    <string name="sort_artist">演出者</string>
+    <string name="sort_album">專輯</string>
+    <string name="sort_year">年份</string>
+
+    <!-- Folders tab -->
+    <string name="folders_phone_library">手機音樂庫</string>
+    <string name="folders_include_phone_library">包含手機音樂庫中的音樂</string>
+    <string name="folders_added">已新增的資料夾</string>
+    <string name="folders_none">尚未新增資料夾。</string>
+    <string name="folders_add">新增資料夾</string>
+    <string name="folders_explanation">與桌面版一樣，已新增的資料夾會連同子資料夾一起掃描。可用於手機音樂庫偵測不到的音樂，例如 SD 卡上的資料夾。</string>
+    <string name="folders_internal_storage">內部儲存空間</string>
+    <string name="remove">移除</string>
+
+    <!-- Playlists -->
+    <string name="playlists_empty">還沒有播放清單。</string>
+    <string name="playlist_new">新增播放清單</string>
+    <string name="playlist_name_hint">輸入播放清單名稱</string>
+    <string name="playlist_create">建立</string>
+    <string name="playlist_add_tracks">加入曲目</string>
+    <string name="playlist_add_to">加入 %1$s</string>
+    <string name="playlist_add_count">加入 (%1$d)</string>
+    <string name="playlist_nothing_to_add">音樂庫中的所有曲目都已在這個播放清單中。</string>
+    <string name="playlist_is_empty">這個播放清單是空的。使用「加入曲目」來加入。</string>
+    <string name="playlist_delete">刪除</string>
+    <string name="playlist_delete_confirm">要刪除「%1$s」嗎？此動作無法復原。</string>
+    <string name="playlist_track_unavailable">已不在音樂庫中</string>
+    <string name="playlist_unknown_track">無法使用的曲目</string>
+    <string name="cancel">取消</string>
+
+    <!-- Settings -->
+    <string name="settings_library">音樂庫</string>
+    <string name="settings_stats">曲目：%1$d\n專輯：%2$d\n演出者：%3$d\n類型：%4$d</string>
+    <string name="settings_appearance">外觀</string>
+    <string name="settings_dark_theme">深色主題</string>
+    <string name="settings_visible_tabs">顯示的分頁</string>
+
+    <!-- Playback -->
+    <string name="back">返回</string>
+    <string name="play">播放</string>
+    <string name="pause">暫停</string>
+    <string name="next">下一首</string>
+    <string name="previous">上一首</string>
+    <string name="shuffle">隨機播放</string>
+    <string name="shuffle_random">隨機</string>
+    <string name="shuffle_smart">智慧</string>
+    <string name="repeat">重複播放</string>
+    <string name="repeat_all">全部</string>
+    <string name="repeat_one">單曲</string>
+    <string name="mode_off">關閉</string>
+    <string name="volume">音量</string>
+    <string name="error_cannot_play">無法播放 %1$s</string>
+    <!-- Equalizer -->
+    <string name="eq_preset">預設集：%1$s</string>
+    <string name="eq_preset_custom">自訂</string>
+    <string name="eq_post_gain">後置增益</string>
+    <string name="eq_post_gain_explanation">等化器之後的整體音量。如果提升的頻段讓大聲的曲目失真，請調低。</string>
+    <string name="eq_reset">重設等化器</string>
+
+    <!-- Settings: playback -->
+    <string name="settings_playback">播放</string>
+    <string name="settings_replaygain">ReplayGain</string>
+    <string name="settings_replaygain_explanation">根據曲目的 ReplayGain 標籤平衡各曲目之間的響度（MP3、FLAC、OGG、Opus、M4A）。</string>
+    <string name="settings_crossfade">曲目之間淡入淡出</string>
+    <string name="settings_crossfade_duration">淡入淡出長度：%1$d 秒</string>
+
+    <!-- Settings: lyrics -->
+    <string name="settings_lyrics">歌詞（Musixmatch）</string>
+    <string name="settings_lyrics_explanation">歌詞會先從 LRCLIB 取得（免費，不需要金鑰）；如果你加入了 musixmatch.com 的 API 金鑰，再從 Musixmatch 取得（免費金鑰只會傳回片段）；最後使用已新增資料夾中曲目旁邊同名的 .lrc 或 .txt 檔案。金鑰會加密儲存在這支手機上。</string>
+    <string name="settings_musixmatch_key_hint">Musixmatch API 金鑰（選填）</string>
+    <string name="settings_musixmatch_key_clear">移除金鑰</string>
+    <string name="save">儲存</string>
+
+    <!-- Now Playing: lyrics -->
+    <string name="show_lyrics">歌詞</string>
+    <string name="show_cover">封面</string>
+    <string name="lyrics_loading">正在載入歌詞…</string>
+    <string name="lyrics_not_found">找不到歌詞。</string>
+    <!-- Tag editor -->
+    <string name="tags_edit">編輯標籤</string>
+    <string name="tags_title">編輯標籤</string>
+    <string name="tags_loading">正在讀取標籤…</string>
+    <string name="tags_add_field">+ 新增欄位</string>
+    <string name="tags_add_field_filter">篩選欄位</string>
+    <string name="tags_remove_field">移除欄位</string>
+    <string name="tags_hint">提示：在任何清單中長按歌曲即可編輯它的標籤。</string>
+    <string name="tags_folder_access_title">允許在此資料夾中編輯</string>
+    <string name="tags_folder_access_text">這個資料夾是在 AudioForge 支援編輯標籤之前新增的，因此只有讀取權限。在下一個畫面中，請再次選擇同一個資料夾，然後輕觸「使用這個資料夾」，以允許將標籤儲存到其中的檔案。每個資料夾只需設定一次。</string>
+    <string name="tags_folder_access_continue">繼續</string>
+    <string name="tags_error_wrong_folder">選擇的不是同一個資料夾。請選擇歌曲所在的資料夾以允許編輯。</string>
+    <string name="tags_error_unsupported">無法編輯此類檔案（尚未支援 Opus 檔案）。</string>
+    <string name="tags_error_not_a_number">%1$s 必須是整數。</string>
+    <string name="tags_error_permission">AudioForge 未獲准修改此檔案。</string>
+    <string name="tags_error_io">無法讀取或寫入檔案。檔案可能已被移動或刪除。</string>
+    <string name="tags_error_write">無法儲存標籤。</string>
+    <!-- Cover art -->
+    <string name="cover_change">更換封面</string>
+    <string name="cover_changed">封面已更新。</string>
+    <string name="cover_error_image">無法讀取該圖片。</string>
+
+    <!-- Wallpapers tab -->
+    <string name="wallpaper_global">全域桌布</string>
+    <string name="wallpaper_global_explanation">沒有專屬桌布的歌曲會在「正在播放」畫面後方播放此桌布。</string>
+    <string name="wallpaper_none">無</string>
+    <string name="wallpaper_choose_video">選擇影片</string>
+    <string name="wallpaper_clear">清除</string>
+    <string name="wallpaper_per_song">歌曲桌布</string>
+    <string name="wallpaper_per_song_none">還沒有歌曲桌布。包含某首歌曲的第一個桌布會用於該歌曲。</string>
+    <string name="wallpaper_edit_songs">歌曲</string>
+    <string name="wallpaper_add">新增桌布</string>
+    <string name="wallpaper_remove_title">移除桌布</string>
+    <string name="wallpaper_remove_confirm">要移除這個桌布指定嗎？影片檔案本身不會被刪除。</string>
+    <string name="wallpaper_done_count">完成 (%1$d)</string>
+    <string name="wallpaper_select_all_shown">全選 / 取消全選</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_wallpaper">影片桌布</string>
+    <string name="settings_wallpaper_enabled">顯示影片桌布</string>
+    <string name="settings_wallpaper_opacity">桌布不透明度：%1$d%%</string>
+    <!-- Hiding phone-library folders -->
+    <string name="folders_phone_folders">手機音樂庫中的資料夾</string>
+    <string name="folders_phone_folders_explanation">關閉某個資料夾即可隱藏其中的歌曲（包括子資料夾）。適用於被 Android 當成音樂的 WhatsApp 語音訊息、錄音或鈴聲。</string>
+    <string name="folders_phone_folders_none">手機音樂庫中暫時找不到歌曲。</string>
+    <string name="folder_hide">隱藏資料夾「%1$s」</string>
+    <string name="folder_hidden">已隱藏「%1$s」資料夾。可在「資料夾」分頁中重新顯示。</string>
+    <string name="undo">復原</string>
+
+    <!-- Queue -->
+    <string name="more_options">更多選項</string>
+    <string name="queue_play_next">下一首播放</string>
+    <string name="queue_add">加入待播清單</string>
+    <string name="queue_playing_next_one">「%1$s」將在下一首播放。</string>
+    <plurals name="queue_playing_next_many">
+        <item quantity="other">%d 首歌曲將在接下來播放。</item>
+    </plurals>
+    <string name="queue_added_one">已將「%1$s」加入待播清單。</string>
+    <plurals name="queue_added_many">
+        <item quantity="other">已將 %d 首歌曲加入待播清單。</item>
+    </plurals>
+    <string name="up_next">待播清單</string>
+    <string name="queue_played">已播放</string>
+    <string name="queue_now_playing">正在播放</string>
+    <string name="queue_nothing_next">待播清單中沒有其他歌曲。播完這首後停止播放。</string>
+    <string name="queue_then_random">然後隨機播放待播清單中的歌曲。</string>
+    <string name="queue_then_repeat">然後從頭播放待播清單（全部重複）。</string>
+    <string name="queue_clear">清除</string>
+    <string name="queue_clear_title">清除待播清單</string>
+    <string name="queue_clear_confirm">要移除所有等待播放的歌曲嗎？目前的歌曲會繼續播放。</string>
+    <string name="queue_save_playlist">儲存為播放清單</string>
+    <plurals name="queue_saved_playlist">
+        <item quantity="other">已將 %1$d 首歌曲儲存為「%2$s」。</item>
+    </plurals>
+    <string name="queue_reorder">拖曳以重新排序</string>
+    <string name="queue_history">播放記錄</string>
+    <string name="queue_playing_next">接下來播放</string>
+    <string name="queue_clear_playing_next">清除接下來播放</string>
+    <string name="queue_next_from">接下來來自 %1$s</string>
+    <string name="queue_next_from_list">接下來來自你的清單</string>
+    <string name="queue_random_note">隨機播放會在需要時挑選下一首歌曲。</string>
+    <string name="queue_smart_footer">智慧隨機：每首歌曲依此順序播放一次。</string>
+    <string name="queue_nothing_after">這首歌之後沒有歌曲。</string>
+    <string name="queue_repeating">重複播放中。</string>
+    <string name="done">完成</string>
+
+    <!-- iOS-style tabs and lists -->
+    <string name="tab_songs">歌曲</string>
+    <string name="tab_genres">類型</string>
+    <string name="tab_more">更多</string>
+    <string name="unknown_genre">未知類型</string>
+    <string name="various_artists">多位演出者</string>
+    <string name="sort_recent">最近加入</string>
+    <plurals name="song_count">
+        <item quantity="other">%d 首歌曲</item>
+    </plurals>
+    <plurals name="album_count">
+        <item quantity="other">%d 張專輯</item>
+    </plurals>
+
+    <!-- Now Playing extras -->
+    <string name="love">喜愛</string>
+    <string name="unlove">取消喜愛</string>
+    <string name="back_15">倒轉 15 秒</string>
+    <string name="forward_15">快轉 15 秒</string>
+    <string name="sleep_timer">睡眠計時器</string>
+    <string name="sleep_minutes">%1$d 分鐘</string>
+    <string name="sleep_end_of_song">目前歌曲結束時</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance_system">跟隨系統</string>
+    <string name="settings_appearance_light">淺色</string>
+    <string name="settings_appearance_dark">深色</string>
+    <string name="settings_sleep_fade">睡眠計時器淡出</string>
+    <string name="settings_resume_long">長曲目接續播放</string>
+    <!-- Multi-select, import, delete -->
+    <string name="select_songs">選擇歌曲</string>
+    <string name="select_all">全部</string>
+    <string name="select_none">無</string>
+    <string name="selected_count">已選取 %1$d 項</string>
+    <string name="selection">已選取的項目</string>
+    <string name="delete_ellipsis">刪除…</string>
+    <string name="delete_song">刪除歌曲</string>
+    <string name="delete_one_title">要刪除「%1$s」嗎？</string>
+    <string name="delete_many_title">要刪除 %1$d 首歌曲嗎？</string>
+    <string name="delete_warning">檔案會從這支手機中移除，無法復原。</string>
+    <string name="import_songs">匯入歌曲</string>
+    <plurals name="imported_songs">
+        <item quantity="other">已將 %d 首歌曲匯入 Music/AudioForge。</item>
+    </plurals>
+
+    <!-- Playlists -->
+    <string name="playlist_add_to_title">加入播放清單</string>
+    <string name="playlist_new_ellipsis">新增播放清單…</string>
+    <plurals name="playlist_added_songs">
+        <item quantity="other">已將 %1$d 首歌曲加入 %2$s。</item>
+    </plurals>
+    <string name="playlist_rename">重新命名播放清單</string>
+    <string name="rename">重新命名</string>
+    <string name="playlist_use_album_covers">使用專輯封面</string>
+    <string name="m3u_import">匯入 .m3u 播放清單…</string>
+    <string name="m3u_export">匯出 .m3u 播放清單</string>
+    <string name="m3u_imported">%1$s：找到 %2$d / %3$d 首歌曲</string>
+    <string name="m3u_nothing_found">該播放清單中找不到歌曲。</string>
+    <string name="m3u_exported">已將 %1$s 儲存為 .m3u8。</string>
+    <string name="m3u_export_failed">無法儲存播放清單檔案。</string>
+
+    <!-- Smart playlists -->
+    <string name="smart_lists">智慧清單</string>
+    <string name="smart_loved">喜愛的歌曲</string>
+    <string name="smart_most_played">最常播放</string>
+    <string name="smart_recently_played">最近播放</string>
+    <string name="smart_recently_added">最近加入</string>
+    <string name="smart_never_played">從未播放</string>
+    <string name="smart_playlist">智慧型播放清單</string>
+    <string name="smart_new">新增智慧型播放清單</string>
+    <string name="smart_edit_rules">編輯規則</string>
+    <string name="smart_empty_builtin">你播放和喜愛的歌曲會顯示在這裡。</string>
+    <string name="smart_empty">還沒有符合規則的歌曲。</string>
+    <string name="smart_name">名稱</string>
+    <string name="smart_match">符合</string>
+    <string name="smart_match_all">所有規則</string>
+    <string name="smart_match_any">任一規則</string>
+    <string name="smart_rules">規則</string>
+    <string name="smart_add_rule">新增規則</string>
+    <string name="smart_sort_by">排序方式</string>
+    <string name="smart_limit">數量上限</string>
+    <string name="smart_limit_songs">%1$d 首歌曲</string>
+    <string name="smart_footer">智慧型播放清單會隨著你的音樂庫、播放次數和喜愛的歌曲自動更新。</string>
+    <string name="smart_number">數字</string>
+    <string name="smart_text">文字</string>
+    <string name="smart_field_genre">類型</string>
+    <string name="smart_field_play_count">播放次數</string>
+    <string name="smart_field_last_played">上次播放（幾天前）</string>
+    <string name="smart_field_added">加入時間（幾天前）</string>
+    <string name="smart_field_minutes">長度（分鐘）</string>
+    <string name="smart_op_contains">包含</string>
+    <string name="smart_op_is">是</string>
+    <string name="smart_op_is_not">不是</string>
+    <string name="smart_op_more">大於</string>
+    <string name="smart_op_less">小於</string>
+    <string name="smart_op_yes">是</string>
+    <string name="smart_op_no">否</string>
+
+    <!-- Analysis and Smart Options -->
+    <string name="sort_bpm">BPM</string>
+    <string name="sort_key">調性</string>
+    <string name="smart_field_key">調性（例如 8A 或 Am）</string>
+    <string name="smart_options">智慧選項</string>
+    <string name="analysis_start">分析歌曲的調性和 BPM</string>
+    <string name="analysis_all_done">全部 %1$d 首歌曲已分析</string>
+    <string name="analysis_some_done">已分析 %1$d / %2$d 首歌曲</string>
+    <string name="analysis_running">正在分析… %1$d / %2$d</string>
+    <string name="analysis_stop">停止</string>
+    <string name="analysis_background_note">你可以繼續使用 App。App 在背景執行時，只有手機充電時才會繼續分析。</string>
+    <string name="smart_locked">執行上方的「分析歌曲的調性和 BPM」即可解鎖這些選項。</string>
+    <string name="smart_transitions">智慧轉場</string>
+    <string name="smart_beat_matched">節拍對齊淡入淡出</string>
+    <string name="smart_harmonic">和聲隨機播放</string>
+    <string name="smart_options_footer">智慧轉場：同一張專輯的歌曲無縫接續播放，淡入淡出從歌曲真正開始淡出的位置開始，並略過開頭和結尾的靜音。節拍對齊淡入淡出（需開啟淡入淡出）：在淡入淡出期間配合下一首歌曲的速度並對齊節拍，之後慢慢恢復正常速度。和聲隨機播放：智慧隨機會把調性相容、速度相近的歌曲排在一起。</string>
+    <string name="tags_fill_from_analysis">用分析結果填入 BPM 和調性</string>
+
+    <!-- Lyrics, visualizer, Android Auto, skipping -->
+    <string name="close">關閉</string>
+    <string name="lyrics_full_screen">全螢幕歌詞</string>
+    <string name="lyrics_earlier">− 提前</string>
+    <string name="lyrics_later">延後 +</string>
+    <string name="lyrics_in_sync">已同步</string>
+    <string name="lyrics_reset">重設</string>
+    <string name="visualizer">視覺效果</string>
+    <string name="settings_lyrics_lock_screen">鎖定畫面和 Android Auto 歌詞</string>
+    <string name="settings_lyrics_lock_screen_explanation">在播放通知、鎖定畫面和車上，以正在演唱的歌詞行（同步歌詞）取代演出者名稱。</string>
+    <string name="auto_nothing_playing">未在播放</string>
+    <string name="error_skipped">無法播放「%1$s」，已略過。</string>
+
+    <!-- Duplicates -->
+    <string name="duplicates">重複歌曲</string>
+    <string name="duplicates_find">尋找重複歌曲</string>
+    <string name="duplicates_none">沒有重複歌曲。每首歌曲只儲存了一份。</string>
+    <string name="duplicates_group">%1$s — %2$d 份</string>
+
+    <string name="settings_resume_long_explanation">10 分鐘或更長的歌曲（有聲書、混音）會從上次停止的位置繼續播放。</string>
+
+    <!-- Language -->
+    <string name="settings_language">語言</string>
+    <string name="language_system">系統預設</string>
+
+    <!-- Equalizer presets -->
+    <string name="eq_preset_rock">搖滾</string>
+    <string name="eq_preset_pop">流行</string>
+    <string name="eq_preset_jazz">爵士</string>
+    <string name="eq_preset_classical">古典</string>
+    <string name="eq_preset_dance">舞曲</string>
+    <string name="eq_preset_hip_hop">嘻哈</string>
+    <string name="eq_preset_blues">藍調</string>
+    <string name="eq_preset_vocal_boost">人聲增強</string>
+
+    <string name="m3u_default_name">匯入的播放清單</string>
+</resources>

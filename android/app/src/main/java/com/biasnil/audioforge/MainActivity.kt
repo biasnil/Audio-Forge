@@ -1,6 +1,7 @@
 package com.biasnil.audioforge
 
 import android.content.ComponentName
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,6 +23,10 @@ class MainActivity : ComponentActivity() {
 
     private val container by lazy { (application as AudioForgeApplication).container }
     private var controllerFuture: ListenableFuture<MediaController>? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.localized(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge is mandatory when targeting Android 15+; the Scaffolds

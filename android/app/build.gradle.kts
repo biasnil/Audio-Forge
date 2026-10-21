@@ -39,6 +39,13 @@ android {
         compose = true
     }
 
+    androidResources {
+        // Lists the translated languages (res/values-*) for the system, so on
+        // Android 13+ the app also appears in Settings -> Apps -> Language.
+        // The untranslated res/values is English (res/resources.properties).
+        generateLocaleConfig = true
+    }
+
     lint {
         // Android Auto voice search ("play X on AudioForge") isn't supported
         // yet; adding the intent filter without handling the search would
@@ -71,4 +78,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }

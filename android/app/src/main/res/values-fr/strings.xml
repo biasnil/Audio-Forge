@@ -1,0 +1,365 @@
+<resources>
+    <!-- French. Machine-drafted, needs native review before release. -->
+    <string name="app_name">AudioForge</string>
+
+    <string name="tab_albums">Albums</string>
+    <string name="tab_tracks">Pistes</string>
+    <string name="tab_artists">Artistes</string>
+    <string name="tab_folders">Dossiers</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_equalizer">Égaliseur</string>
+    <string name="tab_wallpapers">Fonds d\'écran</string>
+    <string name="tab_settings">Réglages</string>
+
+    <plurals name="track_count">
+        <item quantity="one">%d piste</item>
+        <item quantity="many">%d pistes</item>
+        <item quantity="other">%d pistes</item>
+    </plurals>
+    <string name="unknown_album">Album inconnu</string>
+    <string name="unknown_artist">Artiste inconnu</string>
+
+    <!-- Library -->
+    <string name="library_scanning">Recherche de votre musique…</string>
+    <string name="library_needs_permission">AudioForge a besoin d\'accéder à la musique de ce téléphone pour afficher sa bibliothèque. Seuls les fichiers audio sont lus.</string>
+    <string name="library_empty">Aucune musique trouvée. Ajoutez un dossier dans l\'onglet Dossiers, ou vérifiez que votre musique est bien sur ce téléphone.</string>
+    <string name="allow_access">Autoriser l\'accès</string>
+    <string name="refresh_library">Actualiser la bibliothèque</string>
+
+    <!-- Tracks tab -->
+    <string name="search_hint">Titres, artistes, albums</string>
+    <string name="clear_search">Effacer la recherche</string>
+    <string name="search_no_results">Aucune piste ne correspond à votre recherche.</string>
+    <string name="sort_by">Tri : %1$s</string>
+    <string name="sort_title">Titre</string>
+    <string name="sort_artist">Artiste</string>
+    <string name="sort_album">Album</string>
+    <string name="sort_year">Année</string>
+
+    <!-- Folders tab -->
+    <string name="folders_phone_library">Bibliothèque musicale du téléphone</string>
+    <string name="folders_include_phone_library">Inclure la musique de la bibliothèque du téléphone</string>
+    <string name="folders_added">Dossiers ajoutés</string>
+    <string name="folders_none">Aucun dossier ajouté.</string>
+    <string name="folders_add">Ajouter un dossier</string>
+    <string name="folders_explanation">Les dossiers ajoutés sont analysés avec leurs sous-dossiers, comme dans l\'application de bureau. Utilisez-les pour la musique que la bibliothèque du téléphone ne détecte pas, par exemple sur une carte SD.</string>
+    <string name="folders_internal_storage">Stockage interne</string>
+    <string name="remove">Retirer</string>
+
+    <!-- Playlists -->
+    <string name="playlists_empty">Aucune playlist pour l\'instant.</string>
+    <string name="playlist_new">Nouvelle playlist</string>
+    <string name="playlist_name_hint">Nom de la playlist</string>
+    <string name="playlist_create">Créer</string>
+    <string name="playlist_add_tracks">Ajouter des pistes</string>
+    <string name="playlist_add_to">Ajouter à %1$s</string>
+    <string name="playlist_add_count">Ajouter (%1$d)</string>
+    <string name="playlist_nothing_to_add">Toutes les pistes de votre bibliothèque sont déjà dans cette playlist.</string>
+    <string name="playlist_is_empty">Cette playlist est vide. Utilisez Ajouter des pistes pour la remplir.</string>
+    <string name="playlist_delete">Supprimer</string>
+    <string name="playlist_delete_confirm">Supprimer « %1$s » ? Cette action est irréversible.</string>
+    <string name="playlist_track_unavailable">N\'est plus dans votre bibliothèque</string>
+    <string name="playlist_unknown_track">Piste indisponible</string>
+    <string name="cancel">Annuler</string>
+
+    <!-- Settings -->
+    <string name="settings_library">Bibliothèque</string>
+    <string name="settings_stats">Pistes : %1$d\nAlbums : %2$d\nArtistes : %3$d\nGenres : %4$d</string>
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_dark_theme">Thème sombre</string>
+    <string name="settings_visible_tabs">Onglets visibles</string>
+
+    <!-- Playback -->
+    <string name="back">Retour</string>
+    <string name="play">Lire</string>
+    <string name="pause">Pause</string>
+    <string name="next">Suivant</string>
+    <string name="previous">Précédent</string>
+    <string name="shuffle">Aléatoire</string>
+    <string name="shuffle_random">Au hasard</string>
+    <string name="shuffle_smart">Intelligent</string>
+    <string name="repeat">Répéter</string>
+    <string name="repeat_all">Tout</string>
+    <string name="repeat_one">Un</string>
+    <string name="mode_off">Désactivé</string>
+    <string name="volume">Volume</string>
+    <string name="error_cannot_play">Impossible de lire %1$s</string>
+    <!-- Equalizer -->
+    <string name="eq_preset">Préréglage : %1$s</string>
+    <string name="eq_preset_custom">Personnalisé</string>
+    <string name="eq_post_gain">Gain final</string>
+    <string name="eq_post_gain_explanation">Niveau global après l\'égaliseur. Baissez-le si des bandes amplifiées font saturer les morceaux forts.</string>
+    <string name="eq_reset">Réinitialiser l\'égaliseur</string>
+
+    <!-- Settings: playback -->
+    <string name="settings_playback">Lecture</string>
+    <string name="settings_replaygain">ReplayGain</string>
+    <string name="settings_replaygain_explanation">Égalise le volume entre les pistes grâce à leurs balises ReplayGain (MP3, FLAC, OGG, Opus, M4A).</string>
+    <string name="settings_crossfade">Fondu enchaîné entre les pistes</string>
+    <string name="settings_crossfade_duration">Durée du fondu : %1$d s</string>
+
+    <!-- Settings: lyrics -->
+    <string name="settings_lyrics">Paroles (Musixmatch)</string>
+    <string name="settings_lyrics_explanation">Les paroles viennent de LRCLIB (gratuit, sans clé), puis de Musixmatch si vous ajoutez une clé API de musixmatch.com (les clés gratuites ne renvoient qu\'un extrait), puis d\'un fichier .lrc ou .txt du même nom à côté de la piste dans un dossier ajouté. La clé est stockée chiffrée sur ce téléphone.</string>
+    <string name="settings_musixmatch_key_hint">Clé API Musixmatch (facultative)</string>
+    <string name="settings_musixmatch_key_clear">Supprimer la clé</string>
+    <string name="save">Enregistrer</string>
+
+    <!-- Now Playing: lyrics -->
+    <string name="show_lyrics">Paroles</string>
+    <string name="show_cover">Pochette</string>
+    <string name="lyrics_loading">Chargement des paroles…</string>
+    <string name="lyrics_not_found">Aucune parole trouvée.</string>
+    <!-- Tag editor -->
+    <string name="tags_edit">Modifier les balises</string>
+    <string name="tags_title">Modifier les balises</string>
+    <string name="tags_loading">Lecture des balises…</string>
+    <string name="tags_add_field">+ Ajouter un champ</string>
+    <string name="tags_add_field_filter">Filtrer les champs</string>
+    <string name="tags_remove_field">Retirer le champ</string>
+    <string name="tags_hint">Astuce : appuyez longuement sur un titre dans n\'importe quelle liste pour modifier ses balises.</string>
+    <string name="tags_folder_access_title">Autoriser la modification dans ce dossier</string>
+    <string name="tags_folder_access_text">Ce dossier a été ajouté avant qu\'AudioForge puisse modifier les balises, il n\'est donc autorisé qu\'en lecture. Dans l\'écran suivant, choisissez à nouveau le même dossier et appuyez sur « Utiliser ce dossier » pour autoriser l\'enregistrement des balises dans ses fichiers. Ce n\'est nécessaire qu\'une fois par dossier.</string>
+    <string name="tags_folder_access_continue">Continuer</string>
+    <string name="tags_error_wrong_folder">Ce n\'était pas le bon dossier. Choisissez le dossier qui contient le titre pour autoriser la modification.</string>
+    <string name="tags_error_unsupported">Ce type de fichier ne peut pas être modifié (les fichiers Opus ne sont pas encore pris en charge).</string>
+    <string name="tags_error_not_a_number">%1$s doit être un nombre entier.</string>
+    <string name="tags_error_permission">AudioForge n\'a pas été autorisé à modifier ce fichier.</string>
+    <string name="tags_error_io">Impossible de lire ou d\'écrire le fichier. Il a peut-être été déplacé ou supprimé.</string>
+    <string name="tags_error_write">Impossible d\'enregistrer les balises.</string>
+    <!-- Cover art -->
+    <string name="cover_change">Changer la pochette</string>
+    <string name="cover_changed">Pochette mise à jour.</string>
+    <string name="cover_error_image">Impossible de lire cette image.</string>
+
+    <!-- Wallpapers tab -->
+    <string name="wallpaper_global">Fond d\'écran global</string>
+    <string name="wallpaper_global_explanation">Lu derrière En cours de lecture pour tout titre qui n\'a pas son propre fond d\'écran.</string>
+    <string name="wallpaper_none">Aucun</string>
+    <string name="wallpaper_choose_video">Choisir une vidéo</string>
+    <string name="wallpaper_clear">Effacer</string>
+    <string name="wallpaper_per_song">Fonds d\'écran par titre</string>
+    <string name="wallpaper_per_song_none">Aucun fond d\'écran par titre pour l\'instant. Le premier qui inclut un titre est utilisé pour celui-ci.</string>
+    <string name="wallpaper_edit_songs">Titres</string>
+    <string name="wallpaper_add">Ajouter un fond d\'écran</string>
+    <string name="wallpaper_remove_title">Retirer le fond d\'écran</string>
+    <string name="wallpaper_remove_confirm">Retirer cette attribution de fond d\'écran ? Le fichier vidéo lui-même n\'est pas supprimé.</string>
+    <string name="wallpaper_done_count">OK (%1$d)</string>
+    <string name="wallpaper_select_all_shown">Tout sélectionner / désélectionner</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_wallpaper">Fond d\'écran vidéo</string>
+    <string name="settings_wallpaper_enabled">Afficher les fonds d\'écran vidéo</string>
+    <string name="settings_wallpaper_opacity">Opacité du fond d\'écran : %1$d %%</string>
+    <!-- Hiding phone-library folders -->
+    <string name="folders_phone_folders">Dossiers de la bibliothèque du téléphone</string>
+    <string name="folders_phone_folders_explanation">Désactivez un dossier pour masquer ses titres, sous-dossiers compris. Pratique pour les messages vocaux WhatsApp, les enregistrements ou les sonneries qu\'Android compte comme de la musique.</string>
+    <string name="folders_phone_folders_none">Aucun titre trouvé dans la bibliothèque du téléphone pour l\'instant.</string>
+    <string name="folder_hide">Masquer le dossier « %1$s »</string>
+    <string name="folder_hidden">Dossier « %1$s » masqué. Réaffichez-le dans l\'onglet Dossiers.</string>
+    <string name="undo">Annuler</string>
+
+    <!-- Queue -->
+    <string name="more_options">Plus d\'options</string>
+    <string name="queue_play_next">Lire ensuite</string>
+    <string name="queue_add">Ajouter à la file d\'attente</string>
+    <string name="queue_playing_next_one">« %1$s » sera lu ensuite.</string>
+    <plurals name="queue_playing_next_many">
+        <item quantity="one">%d titre sera lu ensuite.</item>
+        <item quantity="many">%d titres seront lus ensuite.</item>
+        <item quantity="other">%d titres seront lus ensuite.</item>
+    </plurals>
+    <string name="queue_added_one">« %1$s » ajouté à la file d\'attente.</string>
+    <plurals name="queue_added_many">
+        <item quantity="one">%d titre ajouté à la file d\'attente.</item>
+        <item quantity="many">%d titres ajoutés à la file d\'attente.</item>
+        <item quantity="other">%d titres ajoutés à la file d\'attente.</item>
+    </plurals>
+    <string name="up_next">À suivre</string>
+    <string name="queue_played">Lus</string>
+    <string name="queue_now_playing">En cours de lecture</string>
+    <string name="queue_nothing_next">Rien d\'autre dans la file d\'attente. La lecture s\'arrête après ce titre.</string>
+    <string name="queue_then_random">Puis des titres au hasard de la file d\'attente.</string>
+    <string name="queue_then_repeat">Puis la file d\'attente recommence (Tout répéter).</string>
+    <string name="queue_clear">Effacer</string>
+    <string name="queue_clear_title">Effacer À suivre</string>
+    <string name="queue_clear_confirm">Retirer tous les titres en attente ? Le titre en cours continue.</string>
+    <string name="queue_save_playlist">Enregistrer comme playlist</string>
+    <plurals name="queue_saved_playlist">
+        <item quantity="one">%1$d titre enregistré sous « %2$s ».</item>
+        <item quantity="many">%1$d titres enregistrés sous « %2$s ».</item>
+        <item quantity="other">%1$d titres enregistrés sous « %2$s ».</item>
+    </plurals>
+    <string name="queue_reorder">Faire glisser pour réorganiser</string>
+    <string name="queue_history">Historique</string>
+    <string name="queue_playing_next">Lus ensuite</string>
+    <string name="queue_clear_playing_next">Effacer Lus ensuite</string>
+    <string name="queue_next_from">Ensuite depuis %1$s</string>
+    <string name="queue_next_from_list">Ensuite depuis votre liste</string>
+    <string name="queue_random_note">La lecture au hasard choisit chaque titre suivant au moment voulu.</string>
+    <string name="queue_smart_footer">Aléatoire intelligent : chaque titre est lu une fois, dans cet ordre.</string>
+    <string name="queue_nothing_after">Rien après ce titre.</string>
+    <string name="queue_repeating">Répétition.</string>
+    <string name="done">OK</string>
+
+    <!-- iOS-style tabs and lists -->
+    <string name="tab_songs">Titres</string>
+    <string name="tab_genres">Genres</string>
+    <string name="tab_more">Plus</string>
+    <string name="unknown_genre">Genre inconnu</string>
+    <string name="various_artists">Artistes variés</string>
+    <string name="sort_recent">Ajouts récents</string>
+    <plurals name="song_count">
+        <item quantity="one">%d titre</item>
+        <item quantity="many">%d titres</item>
+        <item quantity="other">%d titres</item>
+    </plurals>
+    <plurals name="album_count">
+        <item quantity="one">%d album</item>
+        <item quantity="many">%d albums</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+
+    <!-- Now Playing extras -->
+    <string name="love">J\'aime</string>
+    <string name="unlove">Je n\'aime plus</string>
+    <string name="back_15">Reculer de 15 secondes</string>
+    <string name="forward_15">Avancer de 15 secondes</string>
+    <string name="sleep_timer">Minuteur de veille</string>
+    <string name="sleep_minutes">%1$d minutes</string>
+    <string name="sleep_end_of_song">Fin du titre en cours</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance_system">Système</string>
+    <string name="settings_appearance_light">Clair</string>
+    <string name="settings_appearance_dark">Sombre</string>
+    <string name="settings_sleep_fade">Fondu de fin du minuteur de veille</string>
+    <string name="settings_resume_long">Reprendre les longues pistes</string>
+    <!-- Multi-select, import, delete -->
+    <string name="select_songs">Sélectionner des titres</string>
+    <string name="select_all">Tout</string>
+    <string name="select_none">Aucun</string>
+    <string name="selected_count">%1$d sélectionné(s)</string>
+    <string name="selection">Sélection</string>
+    <string name="delete_ellipsis">Supprimer…</string>
+    <string name="delete_song">Supprimer le titre</string>
+    <string name="delete_one_title">Supprimer « %1$s » ?</string>
+    <string name="delete_many_title">Supprimer %1$d titres ?</string>
+    <string name="delete_warning">Le fichier est supprimé de ce téléphone. Cette action est irréversible.</string>
+    <string name="import_songs">Importer des titres</string>
+    <plurals name="imported_songs">
+        <item quantity="one">%d titre importé dans Music/AudioForge.</item>
+        <item quantity="many">%d titres importés dans Music/AudioForge.</item>
+        <item quantity="other">%d titres importés dans Music/AudioForge.</item>
+    </plurals>
+
+    <!-- Playlists -->
+    <string name="playlist_add_to_title">Ajouter à une playlist</string>
+    <string name="playlist_new_ellipsis">Nouvelle playlist…</string>
+    <plurals name="playlist_added_songs">
+        <item quantity="one">%1$d titre ajouté à %2$s.</item>
+        <item quantity="many">%1$d titres ajoutés à %2$s.</item>
+        <item quantity="other">%1$d titres ajoutés à %2$s.</item>
+    </plurals>
+    <string name="playlist_rename">Renommer la playlist</string>
+    <string name="rename">Renommer</string>
+    <string name="playlist_use_album_covers">Utiliser les pochettes d\'album</string>
+    <string name="m3u_import">Importer une playlist .m3u…</string>
+    <string name="m3u_export">Exporter en playlist .m3u</string>
+    <string name="m3u_imported">%1$s : %2$d titres trouvés sur %3$d</string>
+    <string name="m3u_nothing_found">Aucun titre trouvé dans cette playlist.</string>
+    <string name="m3u_exported">%1$s enregistrée en .m3u8.</string>
+    <string name="m3u_export_failed">Impossible d\'enregistrer le fichier de playlist.</string>
+
+    <!-- Smart playlists -->
+    <string name="smart_lists">Listes intelligentes</string>
+    <string name="smart_loved">Coups de cœur</string>
+    <string name="smart_most_played">Les plus écoutés</string>
+    <string name="smart_recently_played">Écoutés récemment</string>
+    <string name="smart_recently_added">Ajoutés récemment</string>
+    <string name="smart_never_played">Jamais écoutés</string>
+    <string name="smart_playlist">Playlist intelligente</string>
+    <string name="smart_new">Nouvelle playlist intelligente</string>
+    <string name="smart_edit_rules">Modifier les règles</string>
+    <string name="smart_empty_builtin">Les titres apparaissent ici à mesure que vous les écoutez et les aimez.</string>
+    <string name="smart_empty">Aucun titre ne correspond encore aux règles.</string>
+    <string name="smart_name">Nom</string>
+    <string name="smart_match">Correspondance</string>
+    <string name="smart_match_all">Toutes les règles</string>
+    <string name="smart_match_any">N\'importe quelle règle</string>
+    <string name="smart_rules">Règles</string>
+    <string name="smart_add_rule">Ajouter une règle</string>
+    <string name="smart_sort_by">Trier par</string>
+    <string name="smart_limit">Limite</string>
+    <string name="smart_limit_songs">%1$d titres</string>
+    <string name="smart_footer">Les playlists intelligentes se mettent à jour d\'elles-mêmes selon votre bibliothèque, vos écoutes et vos coups de cœur.</string>
+    <string name="smart_number">Nombre</string>
+    <string name="smart_text">Texte</string>
+    <string name="smart_field_genre">Genre</string>
+    <string name="smart_field_play_count">Nombre d\'écoutes</string>
+    <string name="smart_field_last_played">Dernière écoute (jours)</string>
+    <string name="smart_field_added">Ajout (jours)</string>
+    <string name="smart_field_minutes">Durée (minutes)</string>
+    <string name="smart_op_contains">contient</string>
+    <string name="smart_op_is">est</string>
+    <string name="smart_op_is_not">n\'est pas</string>
+    <string name="smart_op_more">est supérieur à</string>
+    <string name="smart_op_less">est inférieur à</string>
+    <string name="smart_op_yes">oui</string>
+    <string name="smart_op_no">non</string>
+
+    <!-- Analysis and Smart Options -->
+    <string name="sort_bpm">BPM</string>
+    <string name="sort_key">Tonalité</string>
+    <string name="smart_field_key">Tonalité (ex. 8A ou Am)</string>
+    <string name="smart_options">Options intelligentes</string>
+    <string name="analysis_start">Analyser la tonalité et le BPM de vos titres</string>
+    <string name="analysis_all_done">Les %1$d titres sont analysés</string>
+    <string name="analysis_some_done">%1$d titres analysés sur %2$d</string>
+    <string name="analysis_running">Analyse… %1$d sur %2$d</string>
+    <string name="analysis_stop">Arrêter</string>
+    <string name="analysis_background_note">Vous pouvez continuer à utiliser l\'application. En arrière-plan, l\'analyse ne continue que pendant la charge du téléphone.</string>
+    <string name="smart_locked">Lancez « Analyser la tonalité et le BPM de vos titres » (ci-dessus) pour les débloquer.</string>
+    <string name="smart_transitions">Transitions intelligentes</string>
+    <string name="smart_beat_matched">Fondus calés sur le tempo</string>
+    <string name="smart_harmonic">Aléatoire harmonique</string>
+    <string name="smart_options_footer">Transitions intelligentes : les titres d\'un même album s\'enchaînent sans blanc, les fondus commencent là où la fin d\'un titre s\'estompe vraiment, et les silences au début et à la fin sont sautés. Fondus calés sur le tempo (fondu enchaîné requis) : le tempo du titre suivant est ajusté et ses temps alignés pendant le fondu, puis il revient doucement à vitesse normale. Aléatoire harmonique : l\'aléatoire intelligent place côte à côte les titres de tonalités compatibles et de tempos proches.</string>
+    <string name="tags_fill_from_analysis">Remplir BPM et tonalité depuis l\'analyse</string>
+
+    <!-- Lyrics, visualizer, Android Auto, skipping -->
+    <string name="close">Fermer</string>
+    <string name="lyrics_full_screen">Paroles en plein écran</string>
+    <string name="lyrics_earlier">− Plus tôt</string>
+    <string name="lyrics_later">Plus tard +</string>
+    <string name="lyrics_in_sync">Synchronisé</string>
+    <string name="lyrics_reset">Réinitialiser</string>
+    <string name="visualizer">Visualiseur</string>
+    <string name="settings_lyrics_lock_screen">Paroles sur l\'écran de verrouillage et Android Auto</string>
+    <string name="settings_lyrics_lock_screen_explanation">Affiche la ligne chantée (paroles synchronisées) à la place de l\'artiste dans la notification de lecture, sur l\'écran de verrouillage et en voiture.</string>
+    <string name="auto_nothing_playing">Aucune lecture</string>
+    <string name="error_skipped">Impossible de lire « %1$s », titre ignoré.</string>
+
+    <!-- Duplicates -->
+    <string name="duplicates">Doublons</string>
+    <string name="duplicates_find">Trouver les doublons</string>
+    <string name="duplicates_none">Aucun doublon. Chaque titre n\'est présent qu\'une fois.</string>
+    <string name="duplicates_group">%1$s — %2$d copies</string>
+
+    <string name="settings_resume_long_explanation">Les titres de 10 minutes ou plus (livres audio, mixes) reprennent là où vous les avez arrêtés.</string>
+
+    <!-- Language -->
+    <string name="settings_language">Langue</string>
+    <string name="language_system">Langue du système</string>
+
+    <!-- Equalizer presets -->
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_classical">Classique</string>
+    <string name="eq_preset_dance">Dance</string>
+    <string name="eq_preset_hip_hop">Hip-hop</string>
+    <string name="eq_preset_blues">Blues</string>
+    <string name="eq_preset_vocal_boost">Voix renforcée</string>
+
+    <string name="m3u_default_name">Playlist importée</string>
+</resources>

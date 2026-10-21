@@ -338,5 +338,22 @@
     <string name="duplicates_group">%1$s — %2$d copies</string>
 
     <string name="settings_resume_long_explanation">Songs of 10 minutes or more (audiobooks, mixes) continue where you stopped them.</string>
+
+    <!-- Language. The language names themselves are never translated (AppLanguage.nativeName). -->
+    <string name="settings_language">Language</string>
+    <string name="language_system">System default</string>
+
+    <!-- Equalizer presets -->
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_classical">Classical</string>
+    <string name="eq_preset_dance">Dance</string>
+    <string name="eq_preset_hip_hop">Hip-Hop</string>
+    <string name="eq_preset_blues">Blues</string>
+    <string name="eq_preset_vocal_boost">Vocal Boost</string>
+
+    <!-- A playlist imported from an .m3u file with no usable file name -->
+    <string name="m3u_default_name">Imported Playlist</string>
 </resources>
 

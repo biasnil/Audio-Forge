@@ -1,8 +1,10 @@
 package com.biasnil.audioforge.playback
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -11,6 +13,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.biasnil.audioforge.AppContainer
+import com.biasnil.audioforge.AppLanguage
 import com.biasnil.audioforge.AudioForgeApplication
 import com.biasnil.audioforge.MainActivity
 import com.biasnil.audioforge.R
@@ -51,6 +54,17 @@ class PlaybackService : MediaLibraryService() {
     private var session: MediaLibrarySession? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val container: AppContainer get() = (application as AudioForgeApplication).container
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLanguage.localized(base))
+    }
+
+    /**
+     * Text for the Android Auto browse tree, in the app language. Looked up
+     * each time, so on Android 12 a language change made while this service
+     * runs shows up without restarting it.
+     */
+    private fun text(@StringRes id: Int): String = AppLanguage.localized(this).getString(id)
 
     override fun onCreate() {
         super.onCreate()
@@ -110,7 +124,7 @@ class PlaybackService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, getString(R.string.app_name)), params))
+            Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, text(R.string.app_name)), params))
 
         override fun onGetChildren(
             session: MediaLibrarySession,
@@ -187,17 +201,17 @@ class PlaybackService : MediaLibraryService() {
         val settings = container.store.settings.value
         return when {
             parentId == ROOT_ID -> listOf(
-                folder(SONGS_ID, getString(R.string.tab_songs)),
-                folder(ALBUMS_ID, getString(R.string.tab_albums)),
-                folder(ARTISTS_ID, getString(R.string.tab_artists)),
-                folder(PLAYLISTS_ID, getString(R.string.tab_playlists)),
-                folder(LYRICS_ID, getString(R.string.show_lyrics)),
+                folder(SONGS_ID, text(R.string.tab_songs)),
+                folder(ALBUMS_ID, text(R.string.tab_albums)),
+                folder(ARTISTS_ID, text(R.string.tab_artists)),
+                folder(PLAYLISTS_ID, text(R.string.tab_playlists)),
+                folder(LYRICS_ID, text(R.string.show_lyrics)),
             )
             parentId == ALBUMS_ID -> albumGroups(library).map {
-                folder("$ALBUM_PREFIX${it.name}", it.name.ifEmpty { getString(R.string.unknown_album) }, MediaMetadata.MEDIA_TYPE_ALBUM)
+                folder("$ALBUM_PREFIX${it.name}", it.name.ifEmpty { text(R.string.unknown_album) }, MediaMetadata.MEDIA_TYPE_ALBUM)
             }
             parentId == ARTISTS_ID -> artistGroups(library).map {
-                folder("$ARTIST_PREFIX${it.name}", it.name.ifEmpty { getString(R.string.unknown_artist) }, MediaMetadata.MEDIA_TYPE_ARTIST)
+                folder("$ARTIST_PREFIX${it.name}", it.name.ifEmpty { text(R.string.unknown_artist) }, MediaMetadata.MEDIA_TYPE_ARTIST)
             }
             parentId == PLAYLISTS_ID ->
                 (SmartPlaylist.BUILT_IN + settings.smartPlaylists).map {
@@ -231,7 +245,7 @@ class PlaybackService : MediaLibraryService() {
     private fun titleOf(parentId: String): String? {
         val settings = container.store.settings.value
         return when {
-            parentId == SONGS_ID -> getString(R.string.tab_songs)
+            parentId == SONGS_ID -> text(R.string.tab_songs)
             parentId.startsWith(ALBUM_PREFIX) -> parentId.removePrefix(ALBUM_PREFIX)
             parentId.startsWith(ARTIST_PREFIX) -> parentId.removePrefix(ARTIST_PREFIX)
             parentId.startsWith(PLAYLIST_PREFIX) -> settings.playlists.firstOrNull { it.id == parentId.removePrefix(PLAYLIST_PREFIX) }?.name
@@ -244,11 +258,11 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun smartTitle(smart: SmartPlaylist): String = when (smart.id) {
-        SmartPlaylist.LOVED_ID -> getString(R.string.smart_loved)
-        SmartPlaylist.MOST_PLAYED_ID -> getString(R.string.smart_most_played)
-        SmartPlaylist.RECENTLY_PLAYED_ID -> getString(R.string.smart_recently_played)
-        SmartPlaylist.RECENTLY_ADDED_ID -> getString(R.string.smart_recently_added)
-        SmartPlaylist.NEVER_PLAYED_ID -> getString(R.string.smart_never_played)
+        SmartPlaylist.LOVED_ID -> text(R.string.smart_loved)
+        SmartPlaylist.MOST_PLAYED_ID -> text(R.string.smart_most_played)
+        SmartPlaylist.RECENTLY_PLAYED_ID -> text(R.string.smart_recently_played)
+        SmartPlaylist.RECENTLY_ADDED_ID -> text(R.string.smart_recently_added)
+        SmartPlaylist.NEVER_PLAYED_ID -> text(R.string.smart_never_played)
         else -> smart.name
     }
 
@@ -268,11 +282,11 @@ class PlaybackService : MediaLibraryService() {
         is LyricsState.Plain -> lyrics.lines.chunked(2).take(MAX_LYRIC_ROWS).mapIndexed { index, pair ->
             lyricRow("$LYRICS_ID|plain$index", pair[0], pair.getOrNull(1))
         }
-        LyricsState.Loading -> listOf(lyricRow("$LYRICS_ID|none", getString(R.string.lyrics_loading), null))
+        LyricsState.Loading -> listOf(lyricRow("$LYRICS_ID|none", text(R.string.lyrics_loading), null))
         else -> listOf(
             lyricRow(
                 "$LYRICS_ID|none",
-                getString(if (container.playback.state.value.current == null) R.string.auto_nothing_playing else R.string.lyrics_not_found),
+                text(if (container.playback.state.value.current == null) R.string.auto_nothing_playing else R.string.lyrics_not_found),
                 null,
             )
         )

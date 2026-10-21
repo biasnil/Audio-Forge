@@ -15,6 +15,7 @@ import android.provider.OpenableColumns
 import android.util.Log
 import java.io.File
 import androidx.core.content.ContextCompat
+import com.biasnil.audioforge.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -276,7 +277,7 @@ class LibraryRepository(
         val entries = parseM3u(text)
         if (entries.isEmpty()) return null
         val matched = matchM3u(entries, _tracks.value, ::trackPath)
-        val id = createPlaylist(name.ifBlank { "Imported Playlist" })
+        val id = createPlaylist(name.ifBlank { context.getString(R.string.m3u_default_name) })
         addToPlaylist(id, matched.map { it.uri })
         return Triple(id, matched.size, entries.size)
     }
