@@ -53,11 +53,13 @@ play/pause, next, shuffle and Loved buttons, the widget's background
 settings, and play from a killed process. Not yet tried: the other seven
 styles placed on a home screen, other launchers, the owner's own devices.
 
-## Next release: Androidv1.4.2 (GitHub)
+## Next release: Androidv1.4.1 (GitHub)
 
-Set `versionName = "1.4.2"` and raise `versionCode` (currently 6) in
-`app/build.gradle.kts`; tag `Androidv1.4.2`; attach the `githubRelease` APK.
-The version jumps from 1.0.2 to line up with the desktop 1.4.x.
+`Androidv1.4.0` is already published (2026-10-21), but `app/build.gradle.kts`
+still says `versionName = "1.0.2"`. For this release set `versionName =
+"1.4.1"` and raise `versionCode` (currently 6); tag `Androidv1.4.1`; attach
+the `githubRelease` APK. The in-app update check compares `versionName` with
+the newest `Androidv*` tag, so they have to match.
 
 Features in order (smallest and most self-contained first).
 
@@ -207,7 +209,7 @@ on every phone)
 
 **Formats**
 - **APE (Monkey's Audio)**: Android and Media3 have no decoder. Skipped for
-  1.4.2. Best option when it's wanted: the official Monkey's Audio SDK (BSD)
+  1.4.1. Best option when it's wanted: the official Monkey's Audio SDK (BSD)
   via the NDK, a Media3 extractor that outputs PCM, and the same path in
   `audio/AudioDecoder.kt` for Key/BPM and genre analysis. Tag editing
   (jaudiotagger) can't write APE tags.
