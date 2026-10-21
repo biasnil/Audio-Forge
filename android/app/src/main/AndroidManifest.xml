@@ -49,6 +49,111 @@
             </intent-filter>
         </service>
 
+        <!-- Home-screen widgets: one provider per style, so each style is its
+             own entry in the launcher's widget picker (see widget/). -->
+        <receiver
+            android:name=".widget.MiniWidget"
+            android:exported="false"
+            android:label="@string/widget_style_mini">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_mini" />
+        </receiver>
+        <receiver
+            android:name=".widget.LiteWidget"
+            android:exported="false"
+            android:label="@string/widget_style_lite">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_lite" />
+        </receiver>
+        <receiver
+            android:name=".widget.ClassicWidget"
+            android:exported="false"
+            android:label="@string/widget_style_classic">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_classic" />
+        </receiver>
+        <receiver
+            android:name=".widget.SimpleWidget"
+            android:exported="false"
+            android:label="@string/widget_style_simple">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_simple" />
+        </receiver>
+        <receiver
+            android:name=".widget.StandardWidget"
+            android:exported="false"
+            android:label="@string/widget_style_standard">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_standard" />
+        </receiver>
+        <receiver
+            android:name=".widget.StylishWidget"
+            android:exported="false"
+            android:label="@string/widget_style_stylish">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_stylish" />
+        </receiver>
+        <receiver
+            android:name=".widget.PracticalWidget"
+            android:exported="false"
+            android:label="@string/widget_style_practical">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_practical" />
+        </receiver>
+        <receiver
+            android:name=".widget.FeatureRichWidget"
+            android:exported="false"
+            android:label="@string/widget_style_feature_rich">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_feature_rich" />
+        </receiver>
+        <receiver
+            android:name=".widget.WidgetActionReceiver"
+            android:exported="false" />
+        <!-- A widget's own settings (its background), from the home screen. -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AudioForge.Dialog">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Android Auto: AudioForge shows up as a media app in the car. -->
         <meta-data
             android:name="com.google.android.gms.car.application"

@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -123,6 +124,17 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
             }
         }
         LanguageRow()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenPage(Page.Widgets) }
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.widgets_settings_row), modifier = Modifier.weight(1f))
+            Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         HorizontalDivider()
         PlaybackSettings()

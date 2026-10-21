@@ -146,7 +146,7 @@ The GStreamer plugins are needed at runtime by Qt Multimedia (video wallpaper).
 ## Android app
 
 `android/` is a Kotlin port of the desktop app. It now has the same features as the
-iOS app (see below), except the home screen widget; Android Auto takes CarPlay's place.
+iOS app (see below), home-screen widgets included; Android Auto takes CarPlay's place.
 It was built in stages:
 
 1. Project setup. **Done.**
@@ -186,6 +186,11 @@ It was built in stages:
    on Now Playing; key/BPM analysis with Smart Transitions, Beat-Matched
    Crossfades and Harmonic Shuffle; Android Auto (browse the library, Lyrics
    list).
+8. Home-screen widgets. **Done:** eight styles, all free (Mini, Lite, Classic,
+   Simple, Standard, Stylish, Practical, Feature-Rich), each its own entry in
+   the launcher's widget picker; **Settings → Widgets** shows them with live
+   previews and an **Add** button. Each widget's background is cover colours,
+   black or translucent.
 
 Code layout (`android/app/src/main/java/com/biasnil/audioforge/`):
 ```
@@ -221,6 +226,8 @@ data/
 lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker
                          # follows the line being sung (lock screen, Android Auto)
 tags/                    # tag and cover writing (jaudiotagger)
+widget/                  # home-screen widgets: WidgetModel.kt (styles, what each shows), WidgetRenderer.kt
+                         # (RemoteViews), WidgetUpdater.kt (redraws on playback changes), the providers
 ui/                      # Compose screens: one file per tab or page; Common.kt (shared rows,
                          # buttons) and Bars.kt (top bar, tab bar, ⋮ menu) are shared by them
 ```

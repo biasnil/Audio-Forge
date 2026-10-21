@@ -444,4 +444,34 @@
         <item quantity="many">%d épisodes</item>
         <item quantity="other">%d épisodes</item>
     </plurals>
+
+    <!-- Home-screen widgets (Settings -> Widgets) -->
+    <string name="widgets">Widgets</string>
+    <string name="widgets_settings_row">Widgets de l\'écran d\'accueil</string>
+    <string name="widgets_intro">Placez un lecteur sur votre écran d\'accueil. Tous les styles sont gratuits, et chaque aperçu montre ce qui joue en ce moment.</string>
+    <string name="widgets_background">Arrière-plan</string>
+    <string name="widgets_background_cover">Couleurs de la pochette</string>
+    <string name="widgets_background_black">Noir</string>
+    <string name="widgets_background_translucent">Translucide</string>
+    <string name="widgets_background_hint">Pour les widgets ajoutés depuis cette page. Pour modifier un widget déjà sur l\'écran d\'accueil, appuyez longuement dessus et ouvrez ses réglages.</string>
+    <string name="widgets_add">Ajouter</string>
+    <string name="widgets_pin_unsupported">Votre écran d\'accueil ne permet pas aux applis d\'ajouter des widgets. Appuyez longuement sur un espace vide de l\'écran d\'accueil, choisissez Widgets et cherchez AudioForge.</string>
+    <string name="widgets_size">%1$d × %2$d</string>
+    <string name="widgets_preview_of">Aperçu du widget %1$s</string>
+    <string name="widget_style_mini">Mini</string>
+    <string name="widget_style_lite">Lite</string>
+    <string name="widget_style_classic">Classique</string>
+    <string name="widget_style_simple">Simple</string>
+    <string name="widget_style_standard">Standard</string>
+    <string name="widget_style_stylish">Élégant</string>
+    <string name="widget_style_practical">Pratique</string>
+    <string name="widget_style_feature_rich">Complet</string>
+    <string name="widget_desc_mini">Précédent, lecture/pause et suivant</string>
+    <string name="widget_desc_lite">Commandes avec lecture aléatoire et le cœur J\'aime</string>
+    <string name="widget_desc_classic">Pochette et commandes</string>
+    <string name="widget_desc_simple">Titre, barre de progression et commandes</string>
+    <string name="widget_desc_standard">Pochette ronde et commandes</string>
+    <string name="widget_desc_stylish">Pochette à gauche, commandes à droite</string>
+    <string name="widget_desc_practical">Pochette floutée, barre de progression et toutes les commandes</string>
+    <string name="widget_desc_feature_rich">Pratique, avec les deux prochains morceaux et la ligne de paroles en cours</string>
 </resources>

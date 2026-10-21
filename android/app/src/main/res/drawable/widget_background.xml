@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tinted by WidgetRenderer to the chosen background (cover
+     colour, black or translucent), keeping the launcher's corner radius.
+     The colour here is what the widget picker's preview shows. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+    <solid android:color="@color/window_background" />
+</shape>

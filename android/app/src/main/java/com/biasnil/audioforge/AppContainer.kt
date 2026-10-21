@@ -18,6 +18,7 @@ import com.biasnil.audioforge.lyrics.LyricsRepository
 import com.biasnil.audioforge.playback.PlaybackManager
 import com.biasnil.audioforge.playback.QueueStore
 import com.biasnil.audioforge.tags.TagEditor
+import com.biasnil.audioforge.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +62,9 @@ class AppContainer(context: Context) {
 
     /** The synced lyric line being sung (index into the current lyrics), for the lock screen and Android Auto. */
     val currentLyricLine: StateFlow<Int> = LyricLineTracker(playback, lyrics, songData, store, appScope).index
+
+    /** The home-screen widgets (Settings -> Widgets), redrawn as playback changes. */
+    val widgets = WidgetUpdater(context, playback, songData, lyrics, currentLyricLine, coverArt, appScope)
 
     init {
         // Last session's queue, paused where it was. Saved songs are looked up

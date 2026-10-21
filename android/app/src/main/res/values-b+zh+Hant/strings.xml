@@ -424,4 +424,34 @@
     <plurals name="podcast_episode_count">
         <item quantity="other">%d 集</item>
     </plurals>
+
+    <!-- Home-screen widgets (Settings -> Widgets) -->
+    <string name="widgets">小工具</string>
+    <string name="widgets_settings_row">主畫面小工具</string>
+    <string name="widgets_intro">把播放器放到主畫面上。所有樣式都免費，每個預覽都會顯示正在播放的內容。</string>
+    <string name="widgets_background">背景</string>
+    <string name="widgets_background_cover">封面顏色</string>
+    <string name="widgets_background_black">黑色</string>
+    <string name="widgets_background_translucent">半透明</string>
+    <string name="widgets_background_hint">用於從這裡新增的小工具。要變更主畫面上已有的小工具，請長按它並開啟其設定。</string>
+    <string name="widgets_add">新增</string>
+    <string name="widgets_pin_unsupported">你的主畫面不允許應用程式新增小工具。請長按主畫面空白處，選擇「小工具」，然後找到 AudioForge。</string>
+    <string name="widgets_size">%1$d × %2$d</string>
+    <string name="widgets_preview_of">%1$s 小工具預覽</string>
+    <string name="widget_style_mini">迷你</string>
+    <string name="widget_style_lite">輕量</string>
+    <string name="widget_style_classic">經典</string>
+    <string name="widget_style_simple">簡潔</string>
+    <string name="widget_style_standard">標準</string>
+    <string name="widget_style_stylish">時尚</string>
+    <string name="widget_style_practical">實用</string>
+    <string name="widget_style_feature_rich">全功能</string>
+    <string name="widget_desc_mini">上一首、播放/暫停和下一首</string>
+    <string name="widget_desc_lite">控制按鈕，加上隨機播放和「喜愛」</string>
+    <string name="widget_desc_classic">封面和控制按鈕</string>
+    <string name="widget_desc_simple">標題、進度列和控制按鈕</string>
+    <string name="widget_desc_standard">圓形封面和控制按鈕</string>
+    <string name="widget_desc_stylish">左側封面，右側控制按鈕</string>
+    <string name="widget_desc_practical">模糊封面背景、進度列和全部控制按鈕</string>
+    <string name="widget_desc_feature_rich">「實用」的全部內容，加上接下來的兩首歌和正在唱的歌詞</string>
 </resources>

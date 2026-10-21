@@ -37,12 +37,21 @@ the Android app. Read the whole file before starting.
 | Optional release signing from `android/keystore.properties` (gitignored) | `app/build.gradle.kts`, `keystore.properties.example` |
 | Play Console guide: signing, privacy URL, Data safety answers, background-playback form, Android Auto review, 12-tester rule, store listing | `android/PLAY_STORE.md` |
 | README release steps for both flavors | `README.md`, "Android app" section |
+| Feature 1, widget gallery (below): eight styles, Settings → Widgets, per-widget background | `widget/`, `ui/WidgetsPage.kt` |
 
 Commit `7ad35cd` on `main` (pushed). The owner's Play developer account is
 still being verified; until then releases go to GitHub only.
 
-Not yet verified: the flavor change has not been built (the session that made
-it had no Android SDK). Build it first.
+The flavor change is now built and verified (2026-10-22). Building from a
+terminal: Gradle 8.14 can't run on Android Studio's bundled JDK 25; point
+`JAVA_HOME` at a JDK 17 or 21 (Android Studio's downloaded `~/.jdks/jbr-21*`).
+
+Feature 1 notes: built with RemoteViews and XML layouts (no Glance), so the
+launcher's picker shows the real layout (`previewLayout`) and no library was
+added. Tested on an API 36 emulator: all eight previews, Add (Practical), its
+play/pause, next, shuffle and Loved buttons, the widget's background
+settings, and play from a killed process. Not yet tried: the other seven
+styles placed on a home screen, other launchers, the owner's own devices.
 
 ## Next release: Androidv1.4.2 (GitHub)
 

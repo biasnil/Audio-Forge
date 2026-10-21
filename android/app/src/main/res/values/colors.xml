@@ -4,4 +4,9 @@
     <color name="window_background">#FF1E1F22</color>
     <!-- The logo's own square background -->
     <color name="ic_launcher_background">#FF19181D</color>
+    <!-- Home-screen widgets: white on every background (cover colours are darkened for it). -->
+    <color name="widget_text">#FFFFFFFF</color>
+    <color name="widget_text_secondary">#B3FFFFFF</color>
+    <color name="widget_on_play">#FF1E1F22</color>
+    <color name="widget_placeholder">#33FFFFFF</color>
 </resources>

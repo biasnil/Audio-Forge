@@ -155,6 +155,7 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.LicenseText -> LicenseTextPage(page.id, onBack = onBack)
         is Page.MediaTracks -> MediaTracksPage(page.entryId, page.newUri, onBack = onBack)
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
+        Page.Widgets -> WidgetsPage(onBack = onBack)
     }
 }
 

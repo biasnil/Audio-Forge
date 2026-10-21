@@ -424,4 +424,34 @@
     <plurals name="podcast_episode_count">
         <item quantity="other">%d 集</item>
     </plurals>
+
+    <!-- Home-screen widgets (Settings -> Widgets) -->
+    <string name="widgets">小组件</string>
+    <string name="widgets_settings_row">主屏幕小组件</string>
+    <string name="widgets_intro">把播放器放到主屏幕上。所有样式都免费，每个预览都显示正在播放的内容。</string>
+    <string name="widgets_background">背景</string>
+    <string name="widgets_background_cover">封面颜色</string>
+    <string name="widgets_background_black">黑色</string>
+    <string name="widgets_background_translucent">半透明</string>
+    <string name="widgets_background_hint">用于从这里添加的小组件。要更改主屏幕上已有的小组件，请长按它并打开其设置。</string>
+    <string name="widgets_add">添加</string>
+    <string name="widgets_pin_unsupported">你的主屏幕不允许应用添加小组件。请长按主屏幕空白处，选择“小组件”，然后找到 AudioForge。</string>
+    <string name="widgets_size">%1$d × %2$d</string>
+    <string name="widgets_preview_of">%1$s 小组件预览</string>
+    <string name="widget_style_mini">迷你</string>
+    <string name="widget_style_lite">轻量</string>
+    <string name="widget_style_classic">经典</string>
+    <string name="widget_style_simple">简洁</string>
+    <string name="widget_style_standard">标准</string>
+    <string name="widget_style_stylish">时尚</string>
+    <string name="widget_style_practical">实用</string>
+    <string name="widget_style_feature_rich">全功能</string>
+    <string name="widget_desc_mini">上一首、播放/暂停和下一首</string>
+    <string name="widget_desc_lite">控制按钮，加上随机播放和“喜欢”</string>
+    <string name="widget_desc_classic">封面和控制按钮</string>
+    <string name="widget_desc_simple">标题、进度条和控制按钮</string>
+    <string name="widget_desc_standard">圆形封面和控制按钮</string>
+    <string name="widget_desc_stylish">左侧封面，右侧控制按钮</string>
+    <string name="widget_desc_practical">模糊封面背景、进度条和全部控制按钮</string>
+    <string name="widget_desc_feature_rich">“实用”的全部内容，加上接下来的两首歌和正在唱的歌词</string>
 </resources>

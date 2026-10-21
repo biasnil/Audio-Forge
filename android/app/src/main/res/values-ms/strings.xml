@@ -424,4 +424,34 @@
     <plurals name="podcast_episode_count">
         <item quantity="other">%d episod</item>
     </plurals>
+
+    <!-- Home-screen widgets (Settings -> Widgets) -->
+    <string name="widgets">Widget</string>
+    <string name="widgets_settings_row">Widget skrin utama</string>
+    <string name="widgets_intro">Letakkan pemain pada skrin utama anda. Semua gaya adalah percuma, dan setiap pratonton menunjukkan lagu yang sedang dimainkan.</string>
+    <string name="widgets_background">Latar belakang</string>
+    <string name="widgets_background_cover">Warna kulit album</string>
+    <string name="widgets_background_black">Hitam</string>
+    <string name="widgets_background_translucent">Lut sinar</string>
+    <string name="widgets_background_hint">Untuk widget yang anda tambah dari sini. Untuk menukar widget yang sudah ada pada skrin utama, tekan lama padanya dan buka tetapannya.</string>
+    <string name="widgets_add">Tambah</string>
+    <string name="widgets_pin_unsupported">Skrin utama anda tidak membenarkan apl menambah widget. Tekan lama pada ruang kosong di skrin utama, pilih Widget, dan cari AudioForge.</string>
+    <string name="widgets_size">%1$d × %2$d</string>
+    <string name="widgets_preview_of">Pratonton widget %1$s</string>
+    <string name="widget_style_mini">Mini</string>
+    <string name="widget_style_lite">Lite</string>
+    <string name="widget_style_classic">Klasik</string>
+    <string name="widget_style_simple">Ringkas</string>
+    <string name="widget_style_standard">Standard</string>
+    <string name="widget_style_stylish">Bergaya</string>
+    <string name="widget_style_practical">Praktikal</string>
+    <string name="widget_style_feature_rich">Lengkap</string>
+    <string name="widget_desc_mini">Sebelumnya, main/jeda dan seterusnya</string>
+    <string name="widget_desc_lite">Kawalan dengan rombak dan hati Disukai</string>
+    <string name="widget_desc_classic">Kulit album dan kawalan</string>
+    <string name="widget_desc_simple">Tajuk, bar kemajuan dan kawalan</string>
+    <string name="widget_desc_standard">Kulit album bulat dan kawalan</string>
+    <string name="widget_desc_stylish">Kulit album di kiri, kawalan di kanan</string>
+    <string name="widget_desc_practical">Kulit album kabur, bar kemajuan dan semua kawalan</string>
+    <string name="widget_desc_feature_rich">Praktikal, serta dua lagu seterusnya dan baris lirik yang sedang dinyanyikan</string>
 </resources>
