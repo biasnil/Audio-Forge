@@ -381,4 +381,12 @@
     <plurals name="duplicates_dismissed_count">
         <item quantity="other">已忽略 %d 組</item>
     </plurals>
+
+    <!-- Genre detection. Genre names themselves are data and never translated. -->
+    <string name="genre_start">偵測類型</string>
+    <string name="genre_running">正在偵測類型… %1$d / %2$d</string>
+    <string name="genre_all_done">已偵測全部 %1$d 首歌曲的類型</string>
+    <string name="genre_some_done">已偵測 %1$d / %2$d 首歌曲的類型</string>
+    <string name="genre_detected">偵測結果：%1$s</string>
+    <string name="tags_fill_genre">用分析結果填入類型</string>
 </resources>

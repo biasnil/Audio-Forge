@@ -381,4 +381,12 @@
     <plurals name="duplicates_dismissed_count">
         <item quantity="other">%d kumpulan diketepikan</item>
     </plurals>
+
+    <!-- Genre detection. Genre names themselves are data and never translated. -->
+    <string name="genre_start">Kesan Genre</string>
+    <string name="genre_running">Mengesan genre… %1$d daripada %2$d</string>
+    <string name="genre_all_done">Genre dikesan untuk kesemua %1$d lagu</string>
+    <string name="genre_some_done">Genre dikesan untuk %1$d daripada %2$d lagu</string>
+    <string name="genre_detected">Dikesan: %1$s</string>
+    <string name="tags_fill_genre">Isi Genre daripada analisis</string>
 </resources>

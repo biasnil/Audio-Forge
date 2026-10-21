@@ -12,8 +12,9 @@ android {
 
     defaultConfig {
         applicationId = "com.biasnil.audioforge"
-        // Android 12+. The app is pure Kotlin/Java (no native .so files), so
-        // it runs unchanged on both 4 KB and 16 KB memory page size devices.
+        // Android 12+. The only native code is LiteRT (genre detection), whose
+        // .so files are 16 KB aligned, so the app runs on both 4 KB and 16 KB
+        // memory page size devices (check: zipalign -c -P 16 -v 4 on the APK).
         minSdk = 31
         targetSdk = 36
         versionCode = 6
@@ -23,6 +24,10 @@ android {
         // A Play Store build would set this to false: Play doesn't allow apps
         // to point users at updates from elsewhere.
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "true")
+        ndk {
+            // The ABIs LiteRT ships (no 32-bit x86, which no phone this app supports uses).
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -50,6 +55,15 @@ android {
         // Android 13+ the app also appears in Settings -> Apps -> Language.
         // The untranslated res/values is English (res/resources.properties).
         generateLocaleConfig = true
+        // The genre model is memory-mapped straight from the APK, which needs it stored uncompressed.
+        noCompress += "tflite"
+    }
+
+    packaging {
+        jniLibs {
+            // LiteRT 2.2 bundles a GPU accelerator; genre detection only uses the CPU.
+            excludes += "**/libLiteRtClGlAccelerator.so"
+        }
     }
 
     lint {
@@ -76,6 +90,8 @@ dependencies {
     implementation(libs.androidx.media3.ui) // PlayerView, for the video wallpaper
     // Tag editing (the desktop uses TagLib; this is the pure-Java equivalent).
     implementation(libs.jaudiotagger)
+    // On-device genre detection (YAMNet). LiteRT is TensorFlow Lite's new name, same Interpreter API.
+    implementation(libs.litert)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))

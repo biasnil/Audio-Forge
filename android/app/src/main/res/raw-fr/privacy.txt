@@ -8,7 +8,7 @@ La bibliothèque musicale de votre téléphone, si vous l'autorisez, et les doss
 
 # Ce qui reste sur votre téléphone
 
-Vos réglages, playlists, nombres d'écoutes et coups de cœur, le cache des paroles, les résultats de l'analyse de tonalité et de BPM, et votre clé API Musixmatch, chiffrée avec le Keystore Android.
+Vos réglages, playlists, nombres d'écoutes et coups de cœur, le cache des paroles, les résultats de l'analyse de tonalité et de BPM et de la détection des genres, et votre clé API Musixmatch, chiffrée avec le Keystore Android.
 
 Désinstaller l'application ou effacer ses données supprime tout cela. Si la sauvegarde Android est activée sur votre téléphone, Android peut inclure les réglages et les playlists de l'application dans la sauvegarde de votre téléphone sur votre compte Google, comme pour la plupart des applications. La clé Musixmatch ne peut pas être restaurée depuis une sauvegarde et doit être saisie à nouveau.
 
@@ -21,6 +21,8 @@ Musixmatch : le titre et l'artiste du morceau, ainsi que votre clé API. Seuleme
 GitHub (api.github.com) : une requête pour connaître le numéro de la dernière version d'AudioForge, afin de vous signaler les mises à jour. Vous pouvez désactiver cela dans Réglages, sous À propos.
 
 Ces services voient l'adresse IP de votre téléphone, comme tout site web que vous visitez. Leurs propres politiques de confidentialité s'appliquent.
+
+La détection des genres se fait entièrement sur votre téléphone. Rien n'est envoyé.
 
 # Vos fichiers
 

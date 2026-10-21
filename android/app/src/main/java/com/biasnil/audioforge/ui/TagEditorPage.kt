@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.DetectedGenre
 import com.biasnil.audioforge.data.Track
 import com.biasnil.audioforge.tags.TagEditException
 import com.biasnil.audioforge.tags.TagFileEditor
@@ -198,6 +199,31 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                                 enabled = !saving,
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             ) { Text(stringResource(R.string.tags_fill_from_analysis)) }
+                        }
+                    }
+                    // Genre detection can fill the GENRE tag: the subgenre if one stood out, else the broad genre.
+                    val detected = container.genres.genreFor(track)?.takeIf { it.status == DetectedGenre.Status.OK }
+                    if (detected?.label != null) {
+                        item {
+                            Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                Text(
+                                    text = stringResource(R.string.genre_detected, detected.label!!),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                )
+                                if (canHold("GENRE")) {
+                                    TextButton(
+                                        onClick = {
+                                            val value = detected.subgenre ?: detected.broad!!
+                                            fields = if (currentFields.any { it.first == "GENRE" }) {
+                                                currentFields.map { if (it.first == "GENRE") "GENRE" to value else it }
+                                            } else currentFields + ("GENRE" to value)
+                                        },
+                                        enabled = !saving,
+                                    ) { Text(stringResource(R.string.tags_fill_genre)) }
+                                }
+                            }
                         }
                     }
                 }

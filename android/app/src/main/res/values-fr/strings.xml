@@ -399,4 +399,12 @@
         <item quantity="many">%d groupes écartés</item>
         <item quantity="other">%d groupes écartés</item>
     </plurals>
+
+    <!-- Genre detection. Genre names themselves are data and never translated. -->
+    <string name="genre_start">Détecter les genres</string>
+    <string name="genre_running">Détection des genres… %1$d sur %2$d</string>
+    <string name="genre_all_done">Genres détectés pour les %1$d titres</string>
+    <string name="genre_some_done">Genres détectés pour %1$d titres sur %2$d</string>
+    <string name="genre_detected">Détecté : %1$s</string>
+    <string name="tags_fill_genre">Remplir le genre depuis l\'analyse</string>
 </resources>

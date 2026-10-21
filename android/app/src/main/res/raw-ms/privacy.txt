@@ -8,7 +8,7 @@ Pustaka muzik pada telefon anda, jika anda membenarkannya, dan folder yang anda 
 
 # Apa yang kekal pada telefon anda
 
-Tetapan, senarai main, kiraan main dan lagu yang disukai, cache lirik, hasil analisis Kunci dan BPM, dan kunci API Musixmatch anda, yang disulitkan dengan Android Keystore.
+Tetapan, senarai main, kiraan main dan lagu yang disukai, cache lirik, hasil analisis Kunci dan BPM dan pengesanan genre, dan kunci API Musixmatch anda, yang disulitkan dengan Android Keystore.
 
 Menyahpasang aplikasi atau mengosongkan storannya akan memadam semua ini. Jika sandaran Android dihidupkan pada telefon anda, Android mungkin menyertakan tetapan dan senarai main aplikasi ini dalam sandaran telefon ke akaun Google anda, seperti kebanyakan aplikasi lain. Kunci Musixmatch tidak boleh dipulihkan daripada sandaran dan perlu dimasukkan semula.
 
@@ -21,6 +21,8 @@ Musixmatch: tajuk dan artis lagu, serta kunci API anda. Hanya jika anda menambah
 GitHub (api.github.com): satu permintaan untuk nombor keluaran AudioForge yang terkini, untuk memberitahu anda tentang kemas kini. Anda boleh mematikannya dalam Tetapan, di bawah Perihal.
 
 Perkhidmatan ini nampak alamat IP telefon anda, sama seperti mana-mana laman web yang anda lawati. Dasar privasi mereka sendiri terpakai.
+
+Pengesanan genre berjalan sepenuhnya pada telefon anda. Tiada apa-apa dimuat naik.
 
 # Fail anda
 

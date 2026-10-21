@@ -19,7 +19,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
@@ -40,6 +42,8 @@ class LibraryAnalyzer(
     private val scope: CoroutineScope,
     /** Whether the app is on screen (MainActivity started). */
     private val appVisible: StateFlow<Boolean>,
+    /** Shared with genre detection, so the two never decode at once. */
+    private val analysisLock: Mutex,
 ) {
     private val _progress = MutableStateFlow<AnalysisProgress?>(null)
     val progress: StateFlow<AnalysisProgress?> = _progress.asStateFlow()
@@ -61,18 +65,20 @@ class LibraryAnalyzer(
             var done = 0
             var cancelled = false
             try {
-                val permits = Semaphore(2)
-                todo.map { track ->
-                    async {
-                        permits.withPermit {
-                            waitUntilAllowed()
-                            val result = withContext(Dispatchers.Default) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
-                            if (result != null) analysis.store(track.uri, result)
-                            done++
-                            _progress.value = AnalysisProgress(done, todo.size)
+                analysisLock.withLock {
+                    val permits = Semaphore(2)
+                    todo.map { track ->
+                        async {
+                            permits.withPermit {
+                                waitUntilAllowed()
+                                val result = withContext(Dispatchers.Default) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
+                                if (result != null) analysis.store(track.uri, result)
+                                done++
+                                _progress.value = AnalysisProgress(done, todo.size)
+                            }
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 cancelled = true
                 throw e

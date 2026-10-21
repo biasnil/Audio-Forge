@@ -11,6 +11,9 @@ composeBom = "2025.06.00"
 media3 = "1.6.1"
 coroutines = "1.10.2"
 jaudiotagger = "3.0.1"
+# Genre detection. Only the core runtime (no -support, -gpu or -metadata). 2.3.0 is
+# built with Kotlin 2.4, newer than this project's; 2.2.0 is the newest that fits.
+litert = "2.2.0"
 junit = "4.13.2"
 json = "20240303"
 
@@ -22,6 +25,7 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
+litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

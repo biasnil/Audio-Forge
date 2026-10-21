@@ -381,4 +381,12 @@
     <plurals name="duplicates_dismissed_count">
         <item quantity="other">已忽略 %d 组</item>
     </plurals>
+
+    <!-- Genre detection. Genre names themselves are data and never translated. -->
+    <string name="genre_start">检测流派</string>
+    <string name="genre_running">正在检测流派… %1$d / %2$d</string>
+    <string name="genre_all_done">已检测全部 %1$d 首歌曲的流派</string>
+    <string name="genre_some_done">已检测 %1$d / %2$d 首歌曲的流派</string>
+    <string name="genre_detected">检测结果：%1$s</string>
+    <string name="tags_fill_genre">用分析结果填写流派</string>
 </resources>

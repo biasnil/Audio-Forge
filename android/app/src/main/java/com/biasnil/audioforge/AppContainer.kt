@@ -1,11 +1,13 @@
 package com.biasnil.audioforge
 
 import android.content.Context
+import com.biasnil.audioforge.audio.GenreAnalyzer
 import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
 import com.biasnil.audioforge.data.DuplicateDismissals
+import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.UpdateChecker
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 /** App-wide singletons, created once in [AudioForgeApplication]. */
 class AppContainer(context: Context) {
@@ -38,7 +41,12 @@ class AppContainer(context: Context) {
     val analysis = AnalysisStore(context, appScope)
     /** Whether the app is on screen (set by MainActivity); analysis only runs in the background while charging. */
     val appVisible = MutableStateFlow(false)
-    val analyzer = LibraryAnalyzer(context, analysis, store, appScope, appVisible)
+    /** Key/BPM analysis and genre detection take turns: both decode audio and work the CPU. */
+    private val analysisLock = Mutex()
+    val analyzer = LibraryAnalyzer(context, analysis, store, appScope, appVisible, analysisLock)
+    /** Detected genres per song (Settings -> Detect Genres); separate from the GENRE tag. */
+    val genres = GenreStore(context, appScope)
+    val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
     val playback = PlaybackManager(context, store, queueStore, songData, analysis, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)

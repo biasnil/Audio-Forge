@@ -21,6 +21,8 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("Kotlin, kotlinx.coroutines", "https://kotlinlang.org", License.Apache2),
     Acknowledgement("jaudiotagger", "https://bitbucket.org/ijabz/jaudiotagger", License.Lgpl21),
     Acknowledgement("Material Design icons", "https://github.com/google/material-design-icons", License.Apache2),
+    Acknowledgement("LiteRT", "https://ai.google.dev/edge/litert", License.Apache2),
+    Acknowledgement("YAMNet", "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet", License.Apache2),
     Acknowledgement("LRCLIB", "https://lrclib.net", null),
     Acknowledgement("Musixmatch", "https://www.musixmatch.com", null),
 )

@@ -391,5 +391,13 @@
         <item quantity="one">%d group dismissed</item>
         <item quantity="other">%d groups dismissed</item>
     </plurals>
+
+    <!-- Genre detection. Genre names themselves are data and never translated. -->
+    <string name="genre_start">Detect Genres</string>
+    <string name="genre_running">Detecting genres… %1$d of %2$d</string>
+    <string name="genre_all_done">Genres detected for all %1$d songs</string>
+    <string name="genre_some_done">Genres detected for %1$d of %2$d songs</string>
+    <string name="genre_detected">Detected: %1$s</string>
+    <string name="tags_fill_genre">Fill Genre from analysis</string>
 </resources>
 

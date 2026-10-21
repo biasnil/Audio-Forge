@@ -149,8 +149,11 @@ playback/
   QueueForwardingPlayer.kt # adds next/previous and the lyric line to the media session
 audio/
   AudioEffectsProcessor.kt, Equalizer.kt # EQ + gain inside each player's audio pipeline
+  AudioDecoder.kt        # decode part of a file to mono floats at a chosen rate (MediaCodec)
   AudioAnalyzer.kt, AnalysisMath.kt      # decode a song and find BPM, beats, key, silence, outro
   LibraryAnalyzer.kt     # runs the analysis over the library (background only while charging)
+  GenreClassifier.kt, GenreWindow.kt     # on-device genre detection (YAMNet via LiteRT)
+  GenreAnalyzer.kt       # runs genre detection over the library, like LibraryAnalyzer
   Visualizer.kt          # spectrum for Now Playing
 data/
   AppStore.kt            # settings + playlists (files/audioforge.json)
@@ -158,7 +161,10 @@ data/
   Track.kt, TrackTags.kt, LibraryModel.kt # song model, tag reading, grouping/sorting/search
   SongData.kt            # play counts, Loved, long-track positions, lyrics offsets
   Analysis.kt            # analysis results, MusicKey (Camelot), harmonic order
+  Genre.kt, GenreTaxonomy.kt # detected genres (files/genre.json), YAMNet labels -> genre/subgenre
   SmartPlaylists.kt      # smart playlist rules
+  DuplicateFinder.kt     # duplicate detection; DuplicateDismissals.kt keeps "Not duplicates"
+  UpdateChecker.kt, Acknowledgements.kt  # Settings -> About
   CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
 lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker
                          # follows the line being sung (lock screen, Android Auto)
@@ -167,8 +173,12 @@ ui/                      # Compose screens: one file per tab or page; Common.kt 
                          # buttons) and Bars.kt (top bar, tab bar, ⋮ menu) are shared by them
 ```
 
-Requirements: Android 12+ (minSdk 31), targeting API 36. The app has no native
-code, so it runs on both 4 KB and 16 KB memory page size devices.
+Requirements: Android 12+ (minSdk 31), targeting API 36. The only native code
+is LiteRT (genre detection) and a small Compose library, all 16 KB aligned, so
+the app runs on both 4 KB and 16 KB memory page size devices. The YAMNet model
+(`app/src/main/assets/yamnet.tflite`, Apache 2.0) is committed;
+`android/scripts/fetch_yamnet.sh` re-downloads it and checks its SHA-256, and
+`android/scripts/check_yamnet.py` prints its inputs and outputs.
 
 To build, open the `android/` folder in Android Studio (**File → Open**), let
 Gradle sync, then run the `app` configuration. It uses Kotlin, Jetpack Compose,

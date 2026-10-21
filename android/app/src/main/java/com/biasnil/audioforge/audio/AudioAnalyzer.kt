@@ -23,7 +23,14 @@ object AudioAnalyzer {
 
     suspend fun analyze(context: Context, uri: Uri): SongAnalysis? {
         val decoded = try {
-            decodeMono(context, uri)
+            // At most AnalysisMath.MAX_ANALYZED_SECONDS from the start, no low-pass (a box filter is enough for beats and notes).
+            AudioDecoder.decodeMono(
+                context, uri,
+                sampleRate = AnalysisMath.SAMPLE_RATE,
+                startMs = 0,
+                maxMs = AnalysisMath.MAX_ANALYZED_SECONDS * 1000L,
+                lowPass = false,
+            )
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(TAG, "Couldn't decode $uri", e)

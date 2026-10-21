@@ -335,6 +335,8 @@ private fun SmartSettings() {
         }
     }
 
+    GenreDetectionRow()
+
     val locked = !settings.analysisCompleted
     if (locked) {
         Text(
@@ -368,6 +370,56 @@ private fun SmartSettings() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp),
     )
+}
+
+/**
+ * "Detect Genres": runs genre detection on the phone (started by hand), with
+ * the same progress, Stop button and charging note as the key/BPM analysis.
+ * The results show in the tag editor; they don't change the GENRE tags.
+ */
+@Composable
+private fun GenreDetectionRow() {
+    val container = LocalAppContainer.current
+    val tracks by container.library.tracks.collectAsStateWithLifecycle()
+    val genres by container.genres.genres.collectAsStateWithLifecycle()
+    val progress by container.genreAnalyzer.progress.collectAsStateWithLifecycle()
+    val scanning by container.library.scanning.collectAsStateWithLifecycle()
+    val detected = remember(tracks, genres) { container.genres.detectedCount(tracks) }
+
+    val running = progress
+    if (running != null) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.genre_running, running.done, running.total), modifier = Modifier.weight(1f))
+                TextButton(onClick = container.genreAnalyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
+            }
+            LinearProgressIndicator(
+                progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = stringResource(R.string.analysis_background_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+    } else {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = tracks.isNotEmpty() && !scanning) { container.genreAnalyzer.start(tracks) }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(stringResource(R.string.genre_start), color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = if (detected == tracks.size) stringResource(R.string.genre_all_done, tracks.size)
+                else stringResource(R.string.genre_some_done, detected, tracks.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 /** The desktop's Video Wallpaper settings: on/off and opacity. Videos are chosen in the Wallpapers tab. */
