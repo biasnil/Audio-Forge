@@ -375,5 +375,21 @@
     <string name="no_browser">No app can open this link.</string>
     <string name="terms_english_applies">The English version applies.</string>
     <string name="ack_service_thanks">Online service. Thank you.</string>
+
+    <!-- Duplicates: similar names, Not duplicates -->
+    <string name="duplicates_select">Select</string>
+    <string name="duplicates_same_song">Same song (%1$d)</string>
+    <string name="duplicates_similar_names">Similar names (%1$d)</string>
+    <string name="duplicates_similar_label">Similar</string>
+    <string name="duplicates_not_duplicates">Not duplicates</string>
+    <string name="duplicates_dismissed_message">Marked as not duplicates.</string>
+    <string name="duplicates_show_dismissed">Show dismissed (%1$d)</string>
+    <string name="duplicates_hide_dismissed">Hide dismissed</string>
+    <string name="duplicates_restore">Restore</string>
+    <string name="duplicates_best">Best quality</string>
+    <plurals name="duplicates_dismissed_count">
+        <item quantity="one">%d group dismissed</item>
+        <item quantity="other">%d groups dismissed</item>
+    </plurals>
 </resources>
 

@@ -42,6 +42,8 @@ class TrackActions(
     val addToQueue: (List<Track>) -> Unit,
     /** The app's snackbar. */
     val showMessage: (String) -> Unit,
+    /** The snackbar with an Undo button; the lambda runs if it's tapped. */
+    val showUndoable: (String, () -> Unit) -> Unit,
     /** Choose a playlist (or make a new one) and add the songs to it. */
     val addToPlaylist: (List<Track>) -> Unit,
     /** Asks, then deletes the songs' files (phone-library files need the system's OK too). */
@@ -311,6 +313,7 @@ fun rememberTrackActions(
             playNext = playNext,
             addToQueue = addToQueue,
             showMessage = showMessage,
+            showUndoable = showUndoable,
             addToPlaylist = addToPlaylist,
             delete = delete,
         )

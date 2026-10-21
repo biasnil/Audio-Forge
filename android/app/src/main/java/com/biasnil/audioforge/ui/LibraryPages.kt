@@ -55,7 +55,6 @@ import com.biasnil.audioforge.data.SmartPlaylist
 import com.biasnil.audioforge.data.SmartRule
 import com.biasnil.audioforge.data.SmartSort
 import com.biasnil.audioforge.data.Track
-import com.biasnil.audioforge.data.duplicateGroups
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -349,59 +348,3 @@ private fun smartSortLabel(sort: SmartSort): String = stringResource(
     }
 )
 
-/**
- * The same song stored more than once (Settings > Find duplicates): each
- * group shows where every copy is, so you can delete the ones you don't
- * want (long-press > Delete Song).
- */
-@Composable
-fun DuplicatesPage(onBack: () -> Unit) {
-    val container = LocalAppContainer.current
-    val library by container.library.tracks.collectAsStateWithLifecycle()
-    val state by container.playback.state.collectAsStateWithLifecycle()
-    val trackActions = LocalTrackActions.current
-    val groups by produceState<List<List<Track>>?>(null, library) {
-        value = withContext(Dispatchers.Default) { duplicateGroups(library) }
-    }
-    val title = stringResource(R.string.duplicates)
-
-    Scaffold(topBar = { DetailTopBar(title, onBack) }) { innerPadding ->
-        val found = groups
-        when {
-            found == null -> Box(Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            found.isEmpty() -> Box(Modifier.padding(innerPadding).fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                CenteredText(stringResource(R.string.duplicates_none))
-            }
-            else -> LazyColumn(Modifier.padding(innerPadding)) {
-                found.forEachIndexed { groupIndex, group ->
-                    item(key = "header:$groupIndex") {
-                        GroupedHeader(stringResource(R.string.duplicates_group, group[0].title, group.size))
-                    }
-                    itemsIndexed(group, key = { _, track -> "$groupIndex:" + track.uri }) { index, track ->
-                        TrackRow(
-                            track = track,
-                            isCurrent = track.uri == state.current?.uri,
-                            onClick = { container.playback.playQueue(group, index, from = title) },
-                            onLongClick = { trackActions.showMenu(track) },
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = groupedShape(index, group.size),
-                            showDivider = index < group.lastIndex,
-                            extraLine = location(container.library.trackPath(track), track),
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** "Music/Rock/a.mp3 · 320 kbps · MP3" -- enough to decide which copy to keep. */
-private fun location(path: String, track: Track): String {
-    val parts = mutableListOf(path)
-    if (track.bitrateKbps > 0) parts += "${track.bitrateKbps} kbps"
-    track.fileName.substringAfterLast('.', "").takeIf { it.isNotEmpty() }?.let { parts += it.uppercase(Locale.ROOT) }
-    return parts.joinToString(" · ")
-}

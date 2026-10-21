@@ -366,4 +366,19 @@
     <string name="no_browser">Tiada aplikasi yang boleh membuka pautan ini.</string>
     <string name="terms_english_applies">Versi bahasa Inggeris terpakai.</string>
     <string name="ack_service_thanks">Perkhidmatan dalam talian. Terima kasih.</string>
+
+    <!-- Duplicates: similar names, Not duplicates -->
+    <string name="duplicates_select">Pilih</string>
+    <string name="duplicates_same_song">Lagu yang sama (%1$d)</string>
+    <string name="duplicates_similar_names">Nama yang serupa (%1$d)</string>
+    <string name="duplicates_similar_label">Serupa</string>
+    <string name="duplicates_not_duplicates">Bukan pendua</string>
+    <string name="duplicates_dismissed_message">Ditanda sebagai bukan pendua.</string>
+    <string name="duplicates_show_dismissed">Tunjukkan yang diketepikan (%1$d)</string>
+    <string name="duplicates_hide_dismissed">Sembunyikan yang diketepikan</string>
+    <string name="duplicates_restore">Pulihkan</string>
+    <string name="duplicates_best">Kualiti terbaik</string>
+    <plurals name="duplicates_dismissed_count">
+        <item quantity="other">%d kumpulan diketepikan</item>
+    </plurals>
 </resources>

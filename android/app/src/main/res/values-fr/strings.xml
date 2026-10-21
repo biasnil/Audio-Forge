@@ -382,4 +382,21 @@
     <string name="no_browser">Aucune application ne peut ouvrir ce lien.</string>
     <string name="terms_english_applies">Seule la version anglaise fait foi.</string>
     <string name="ack_service_thanks">Service en ligne. Merci.</string>
+
+    <!-- Duplicates: similar names, Not duplicates -->
+    <string name="duplicates_select">Sélectionner</string>
+    <string name="duplicates_same_song">Même titre (%1$d)</string>
+    <string name="duplicates_similar_names">Noms proches (%1$d)</string>
+    <string name="duplicates_similar_label">Proche</string>
+    <string name="duplicates_not_duplicates">Pas des doublons</string>
+    <string name="duplicates_dismissed_message">Marqués comme n\'étant pas des doublons.</string>
+    <string name="duplicates_show_dismissed">Afficher les écartés (%1$d)</string>
+    <string name="duplicates_hide_dismissed">Masquer les écartés</string>
+    <string name="duplicates_restore">Rétablir</string>
+    <string name="duplicates_best">Meilleure qualité</string>
+    <plurals name="duplicates_dismissed_count">
+        <item quantity="one">%d groupe écarté</item>
+        <item quantity="many">%d groupes écartés</item>
+        <item quantity="other">%d groupes écartés</item>
+    </plurals>
 </resources>

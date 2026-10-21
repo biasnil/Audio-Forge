@@ -3,9 +3,9 @@ package com.biasnil.audioforge.data
 import java.util.UUID
 import kotlin.math.abs
 
-// Smart playlists, the duplicate finder and .m3u reading/writing -- ports of
-// the iOS app's SmartPlaylists.swift, DuplicatesView.swift and
-// PlaylistManager.importM3U. Plain Kotlin (no Android types).
+// Smart playlists and .m3u reading/writing -- ports of the iOS app's
+// SmartPlaylists.swift and PlaylistManager.importM3U (the duplicate finder
+// is in DuplicateFinder.kt). Plain Kotlin (no Android types).
 
 /** What a smart-playlist rule looks at. */
 enum class SmartField(val kind: Kind) {
@@ -150,36 +150,6 @@ data class SmartPlaylist(
             ),
         )
     }
-}
-
-// --- Duplicates -------------------------------------------------------------
-
-/**
- * The same song stored more than once: same title and artist (ignoring
- * case, punctuation and "(Remastered)"-style suffixes) and a length within
- * 2 seconds. Groups of 2+, A-Z by title.
- */
-fun duplicateGroups(tracks: List<Track>): List<List<Track>> {
-    val bracketed = Regex("""\s*[(\[（【][^)\]）】]*[)\]）】]""")
-    fun normalized(text: String): String =
-        bracketed.replace(text.lowercase(), "").filter { it.isLetterOrDigit() }
-
-    val result = ArrayList<List<Track>>()
-    for (candidates in tracks.groupBy { normalized(it.title) + "|" + normalized(it.artist) }.values) {
-        if (candidates.size < 2) continue
-        // Split by length, so a live version or a remix isn't called a duplicate.
-        var cluster = ArrayList<Track>()
-        for (track in candidates.sortedBy { it.durationMs }) {
-            val last = cluster.lastOrNull()
-            if (last != null && track.durationMs - last.durationMs > 2_000) {
-                if (cluster.size > 1) result += cluster
-                cluster = ArrayList()
-            }
-            cluster += track
-        }
-        if (cluster.size > 1) result += cluster
-    }
-    return result.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it[0].title })
 }
 
 // --- .m3u ---------------------------------------------------------------------

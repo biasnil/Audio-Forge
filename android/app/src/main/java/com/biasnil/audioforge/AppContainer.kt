@@ -5,6 +5,7 @@ import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
+import com.biasnil.audioforge.data.DuplicateDismissals
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.UpdateChecker
@@ -44,6 +45,8 @@ class AppContainer(context: Context) {
     val wallpapers = WallpaperRepository(context, store)
     /** Settings -> About -> Version: is there a newer Android release on GitHub? */
     val updates = UpdateChecker(store)
+    /** Songs marked "Not duplicates" on the Duplicates page. */
+    val duplicateDismissals = DuplicateDismissals(context, appScope).apply { pruneWhenLoaded(library.tracks) }
 
     /** The synced lyric line being sung (index into the current lyrics), for the lock screen and Android Auto. */
     val currentLyricLine: StateFlow<Int> = LyricLineTracker(playback, lyrics, songData, store, appScope).index
