@@ -25,6 +25,8 @@ data class SongStats(
     val resumePositionMs: Long? = null,
     /** Lyrics timing adjustment (+ shows lines later). */
     val lyricsOffsetMs: Long = 0,
+    /** Podcast episodes: listened to the end (or marked as played). */
+    val played: Boolean = false,
 )
 
 /**
@@ -64,6 +66,13 @@ class SongDataStore(context: Context, private val scope: CoroutineScope) {
 
     fun setLyricsOffset(uri: String, offsetMs: Long) = update(uri) { it.copy(lyricsOffsetMs = offsetMs) }
 
+    /** Podcasts: marks an episode played or not; marking it played also forgets where it was left. */
+    fun setPlayed(uri: String, played: Boolean) {
+        val current = statsFor(uri)
+        if (current.played == played && (!played || current.resumePositionMs == null)) return
+        update(uri) { it.copy(played = played, resumePositionMs = if (played) null else it.resumePositionMs) }
+    }
+
     private fun update(uri: String, change: (SongStats) -> SongStats) {
         val current = _stats.value
         _stats.value = current + (uri to change(current[uri] ?: SongStats()))
@@ -92,6 +101,7 @@ class SongDataStore(context: Context, private val scope: CoroutineScope) {
                     favorite = obj.optBoolean("favorite", false),
                     resumePositionMs = if (obj.has("resumeMs")) obj.optLong("resumeMs") else null,
                     lyricsOffsetMs = obj.optLong("lyricsOffsetMs", 0),
+                    played = obj.optBoolean("played", false),
                 )
             }
             result
@@ -111,6 +121,7 @@ class SongDataStore(context: Context, private val scope: CoroutineScope) {
             if (value.favorite) obj.put("favorite", true)
             value.resumePositionMs?.let { obj.put("resumeMs", it) }
             if (value.lyricsOffsetMs != 0L) obj.put("lyricsOffsetMs", value.lyricsOffsetMs)
+            if (value.played) obj.put("played", true)
             root.put(uri, obj)
         }
         try {

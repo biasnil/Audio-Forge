@@ -389,4 +389,39 @@
     <string name="genre_some_done">Genre dikesan untuk %1$d daripada %2$d lagu</string>
     <string name="genre_detected">Dikesan: %1$s</string>
     <string name="tags_fill_genre">Isi Genre daripada analisis</string>
+
+    <!-- Visualizer styles and custom media; podcasts -->
+    <string name="settings_visualizer">Pengvisual</string>
+    <string name="visualizer_explanation">Dipaparkan menggantikan kulit apabila anda mengetik butang pengvisual pada Sedang Dimainkan. Warna mengikut kulit lagu.</string>
+    <string name="visualizer_classic_bars">Bar klasik</string>
+    <string name="visualizer_spectrum">Spektrum</string>
+    <string name="visualizer_neon_bars">Bar neon</string>
+    <string name="visualizer_line_wave">Gelombang garis</string>
+    <string name="visualizer_retro_wave">Gelombang retro</string>
+    <string name="visualizer_flowing_wave">Gelombang mengalir</string>
+    <string name="visualizer_radial">Bulatan</string>
+    <string name="visualizer_particles">Zarah</string>
+    <string name="visualizer_geometric">Geometri</string>
+    <string name="visualizer_disc">Piring hitam berputar</string>
+    <string name="custom_media">GIF atau video anda sendiri</string>
+    <string name="custom_media_explanation">Apabila pengvisual dihidupkan, GIF atau video berulang milik sesuatu lagu dipaparkan menggantikan gaya. Lagu tanpanya menggunakan yang untuk setiap lagu, jika ditetapkan.</string>
+    <string name="custom_media_global">Untuk setiap lagu</string>
+    <string name="custom_media_choose">Pilih GIF atau video</string>
+    <string name="custom_media_add">Tambah untuk lagu terpilih</string>
+    <string name="custom_media_round">Bulat</string>
+    <string name="custom_media_square">Segi empat</string>
+    <string name="custom_media_spin">Putar</string>
+    <string name="custom_media_remove_confirm">Alih keluar GIF atau video ini? Fail itu sendiri tidak dipadam.</string>
+    <string name="tab_podcasts">Podcast</string>
+    <string name="podcasts_empty">Belum ada podcast. Dalam tab Folder, tandakan folder sebagai Podcast.</string>
+    <string name="podcast_show_summary">%1$s · %2$d belum dimainkan</string>
+    <string name="podcast_played">Telah dimainkan</string>
+    <string name="podcast_time_left">Baki %1$s</string>
+    <string name="podcast_mark_played">Tanda sebagai telah dimainkan</string>
+    <string name="podcast_mark_unplayed">Tanda sebagai belum dimainkan</string>
+    <string name="folder_podcast">Podcast</string>
+    <string name="folders_podcast_explanation">Lagu dalam folder Podcast hanya dipaparkan dalam tab Podcast, bersambung dari tempat anda berhenti, dan tidak dianalisis.</string>
+    <plurals name="podcast_episode_count">
+        <item quantity="other">%d episod</item>
+    </plurals>
 </resources>

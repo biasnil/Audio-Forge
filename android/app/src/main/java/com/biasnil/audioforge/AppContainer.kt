@@ -6,6 +6,7 @@ import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.CoverArtLoader
+import com.biasnil.audioforge.data.CustomMediaRepository
 import com.biasnil.audioforge.data.DuplicateDismissals
 import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
@@ -47,10 +48,12 @@ class AppContainer(context: Context) {
     /** Detected genres per song (Settings -> Detect Genres); separate from the GENRE tag. */
     val genres = GenreStore(context, appScope)
     val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
-    val playback = PlaybackManager(context, store, queueStore, songData, analysis, appScope)
+    val playback = PlaybackManager(context, store, queueStore, songData, analysis, appScope, library::isPodcast)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
     val wallpapers = WallpaperRepository(context, store)
+    /** The visualizer's custom GIFs / videos (Settings -> Visualizer). */
+    val customMedia = CustomMediaRepository(context, store)
     /** Settings -> About -> Version: is there a newer Android release on GitHub? */
     val updates = UpdateChecker(store)
     /** Songs marked "Not duplicates" on the Duplicates page. */

@@ -6,7 +6,11 @@ import android.provider.MediaStore
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-/** The phone's own music index (needs [audioPermission]). Fast: no file is opened. */
+/**
+ * The phone's own music index (needs [audioPermission]). Fast: no file is opened.
+ * Includes what Android files as podcasts (e.g. anything in a Podcasts folder);
+ * those go to the Podcasts tab (Track.systemPodcast).
+ */
 class MediaStoreSource(private val resolver: ContentResolver) {
 
     suspend fun queryMusic(): List<Track> {
@@ -26,9 +30,10 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.VOLUME_NAME,
             MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.Audio.AudioColumns.IS_PODCAST,
         )
         val tracks = ArrayList<Track>()
-        resolver.query(collection, projection, "${MediaStore.Audio.AudioColumns.IS_MUSIC} != 0", null, null)?.use { cursor ->
+        resolver.query(collection, projection, "${MediaStore.Audio.AudioColumns.IS_MUSIC} != 0 OR ${MediaStore.Audio.AudioColumns.IS_PODCAST} != 0", null, null)?.use { cursor ->
             val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val title = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.TITLE)
             val artist = cursor.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ARTIST)
@@ -43,6 +48,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             val relativePath = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
             val volume = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.VOLUME_NAME)
             val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+            val podcast = cursor.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.IS_PODCAST)
 
             while (cursor.moveToNext()) {
                 currentCoroutineContext().ensureActive()
@@ -61,6 +67,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     sizeBytes = cursor.getLong(size),
                     folderKey = folderKey(cursor.getString(volume), cursor.getString(relativePath)),
                     dateAddedMs = cursor.getLong(dateAdded) * 1000, // MediaStore stores seconds
+                    systemPodcast = cursor.getInt(podcast) != 0,
                 )
             }
         }

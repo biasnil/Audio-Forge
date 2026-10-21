@@ -30,6 +30,10 @@ sealed interface Page {
     data object Acknowledgements : Page
     /** The full text of one licence from the Acknowledgements list. */
     data class LicenseText(val id: String) : Page
+    /** Songs for a visualizer GIF / video: an existing item ([entryId]) or a new one ([newUri]). */
+    data class MediaTracks(val entryId: String?, val newUri: String?) : Page
+    /** One podcast show's episodes. */
+    data class PodcastShow(val name: String) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -49,6 +53,8 @@ sealed interface Page {
         Privacy -> "privacy"
         Acknowledgements -> "acks"
         is LicenseText -> "license:$id"
+        is MediaTracks -> if (entryId != null) "media:$entryId" else "medianew:${newUri.orEmpty()}"
+        is PodcastShow -> "show:$name"
     }
 
     companion object {
@@ -71,6 +77,9 @@ sealed interface Page {
             value == "privacy" -> Privacy
             value == "acks" -> Acknowledgements
             value.startsWith("license:") -> LicenseText(value.removePrefix("license:"))
+            value.startsWith("medianew:") -> MediaTracks(entryId = null, newUri = value.removePrefix("medianew:"))
+            value.startsWith("media:") -> MediaTracks(entryId = value.removePrefix("media:"), newUri = null)
+            value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             else -> null
         }
     }

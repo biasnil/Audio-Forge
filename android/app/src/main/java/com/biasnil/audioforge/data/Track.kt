@@ -33,4 +33,6 @@ data class Track(
     val folderKey: String = "",
     /** When the file arrived (MediaStore's date added, or the file's last change); 0 = unknown. */
     val dateAddedMs: Long = 0,
+    /** Android itself files this as a podcast (MediaStore IS_PODCAST): always in the Podcasts tab. */
+    val systemPodcast: Boolean = false,
 )

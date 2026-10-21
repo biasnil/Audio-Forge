@@ -155,34 +155,51 @@ fun WallpapersTab(onOpenPage: (Page) -> Unit) {
 fun WallpaperTracksPage(entryId: String?, newVideoUri: String?, onBack: () -> Unit) {
     val container = LocalAppContainer.current
     val settings by container.store.settings.collectAsStateWithLifecycle()
-    val libraryTracks by container.library.tracks.collectAsStateWithLifecycle()
     val entry = entryId?.let { id -> settings.wallpapers.firstOrNull { it.id == id } }
     if (entry == null && newVideoUri == null) {
         LaunchedEffect(Unit) { onBack() } // assignment was removed
         return
     }
-
-    var query by rememberSaveable { mutableStateOf("") }
-    var selected by rememberSaveable { mutableStateOf(entry?.trackUris.orEmpty()) }
-    val allTracks = remember(libraryTracks) { sortTracks(libraryTracks, TrackSort.Title) }
-    val shown = remember(allTracks, query) { searchTracks(allTracks, query) }
     val videoName = remember(entry, newVideoUri) {
         container.wallpapers.displayName(entry?.videoUri ?: newVideoUri.orEmpty())
     }
+    SongChecklistPage(title = videoName, initial = entry?.trackUris.orEmpty(), allowNone = entry != null, onBack = onBack) { chosen ->
+        if (entry != null) {
+            container.wallpapers.setEntryTracks(entry.id, chosen)
+        } else if (newVideoUri != null) {
+            container.wallpapers.addEntry(Uri.parse(newVideoUri), chosen)
+        }
+    }
+}
+
+/**
+ * A searchable checkbox list of every song, starting with [initial] ticked
+ * (which songs a wallpaper video or visualizer GIF applies to). Done hands
+ * the ticked songs, A-Z, to [onDone]; [allowNone] lets Done save none.
+ */
+@Composable
+fun SongChecklistPage(
+    title: String,
+    initial: List<String>,
+    allowNone: Boolean,
+    onBack: () -> Unit,
+    onDone: (List<String>) -> Unit,
+) {
+    val container = LocalAppContainer.current
+    val libraryTracks by container.library.tracks.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    var selected by rememberSaveable { mutableStateOf(initial) }
+    val allTracks = remember(libraryTracks) { sortTracks(libraryTracks, TrackSort.Title) }
+    val shown = remember(allTracks, query) { searchTracks(allTracks, query) }
 
     Scaffold(
         topBar = {
-            DetailTopBar(videoName, onBack) {
+            DetailTopBar(title, onBack) {
                 TextButton(
-                    enabled = selected.isNotEmpty() || entry != null,
+                    enabled = selected.isNotEmpty() || allowNone,
                     onClick = {
                         val chosen = selected.toSet()
-                        val ordered = allTracks.map { it.uri }.filter { it in chosen }
-                        if (entry != null) {
-                            container.wallpapers.setEntryTracks(entry.id, ordered)
-                        } else if (newVideoUri != null) {
-                            container.wallpapers.addEntry(Uri.parse(newVideoUri), ordered)
-                        }
+                        onDone(allTracks.map { it.uri }.filter { it in chosen })
                         onBack()
                     },
                 ) { Text(stringResource(R.string.wallpaper_done_count, selected.size)) }

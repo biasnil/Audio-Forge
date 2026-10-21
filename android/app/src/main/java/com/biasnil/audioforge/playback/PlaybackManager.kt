@@ -126,6 +126,8 @@ class PlaybackManager(
     private val songData: SongDataStore,
     private val analysisStore: AnalysisStore,
     private val scope: CoroutineScope,
+    /** Whether a song (by URI) is a podcast episode: those always resume and get marked played. */
+    private val isPodcast: (String) -> Boolean = { false },
 ) {
     private val appContext: Context = context.applicationContext
     private val equalizer = EqualizerSettings()
@@ -313,8 +315,21 @@ class PlaybackManager(
     }
 
     /** Measure the spectrum only while the visualizer is on screen (it costs a little CPU per sample). */
-    fun setVisualizerActive(on: Boolean) {
-        visualizer.enabled = on
+    private var visualizerUsers = 0
+
+    /**
+     * The spectrum is only measured while something shows it: Now Playing's
+     * visualizer and the Settings previews each acquire it while on screen
+     * and release it after, so one closing doesn't switch it off for the other.
+     */
+    fun acquireVisualizer() {
+        visualizerUsers++
+        visualizer.enabled = true
+    }
+
+    fun releaseVisualizer() {
+        visualizerUsers = (visualizerUsers - 1).coerceAtLeast(0)
+        visualizer.enabled = visualizerUsers > 0
     }
 
     /**
@@ -569,6 +584,9 @@ class PlaybackManager(
             val ab = abRepeat
             if (ab is AbRepeat.Looping && cursor >= ab.bMs) player.seekTo(ab.aMs)
             countPlayIfDue(track, cursor, length)
+            if (length > 0 && cursor >= length - PODCAST_PLAYED_WITHIN_MS && isPodcast(track.uri)) {
+                songData.setPlayed(track.uri, true)
+            }
         }
         updateSleepFade(cursor, length)
 
@@ -642,7 +660,9 @@ class PlaybackManager(
         gaplessQueued = false
         val slot = active
         // The song that just ended played to its end: nothing to resume.
-        slot.track?.let { finished -> if (finished.durationMs >= LONG_TRACK_MS) songData.setResumePosition(finished.uri, null) }
+        slot.track?.let { finished ->
+            if (finished.durationMs >= LONG_TRACK_MS || isPodcast(finished.uri)) songData.setResumePosition(finished.uri, null)
+        }
         queue.commitPendingNext()
         val track = queue.currentItem ?: return
         prepareSlot(slot, track)
@@ -692,19 +712,22 @@ class PlaybackManager(
         slots.forEach(::applyGain)
     }
 
-    /** Where a long track was left, if it should continue from there. */
+    /** Where a long track (or any podcast episode) was left, if it should continue from there. */
     private fun resumePositionFor(track: Track): Long? {
-        if (!store.settings.value.rememberLongTrackPosition || track.durationMs < LONG_TRACK_MS) return null
+        if (!remembersPosition(track.uri, track.durationMs)) return null
         val saved = songData.statsFor(track.uri).resumePositionMs ?: return null
         return saved.takeIf { it > 15_000 && it < track.durationMs - 30_000 }
     }
 
-    /** Saves (or clears, near the start or end) the position of the long track that's playing. */
+    /** Podcasts always continue where they were left; other songs if they're long and the setting is on. */
+    private fun remembersPosition(uri: String, durationMs: Long): Boolean =
+        isPodcast(uri) || (store.settings.value.rememberLongTrackPosition && durationMs >= LONG_TRACK_MS)
+
+    /** Saves (or clears, near the start or end) the position of the long track or episode that's playing. */
     private fun rememberLongTrackPosition() {
-        if (!store.settings.value.rememberLongTrackPosition) return
         val track = active.track ?: return
         val duration = active.player.knownDurationMs ?: track.durationMs
-        if (duration < LONG_TRACK_MS) return
+        if (!remembersPosition(track.uri, duration)) return
         val position = active.player.currentPosition
         val keep = position > 15_000 && position < duration - 30_000
         songData.setResumePosition(track.uri, if (keep) position else null)
@@ -974,6 +997,8 @@ class PlaybackManager(
     companion object {
         /** Tracks this long get ±15 s buttons and remember where you stopped. */
         const val LONG_TRACK_MS = 10 * 60_000L
+        /** A podcast episode counts as played once this close to its end (outros, ads). */
+        const val PODCAST_PLAYED_WITHIN_MS = 30_000L
         private const val TAG = "PlaybackManager"
         private const val POSITION_SAVE_INTERVAL_MS = 5_000L
         private const val QUEUE_SAVE_DELAY_MS = 1_000L

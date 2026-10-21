@@ -165,6 +165,8 @@ data/
   SmartPlaylists.kt      # smart playlist rules
   DuplicateFinder.kt     # duplicate detection; DuplicateDismissals.kt keeps "Not duplicates"
   UpdateChecker.kt, Acknowledgements.kt  # Settings -> About
+  Podcasts.kt            # podcast folders: which songs are episodes, grouping into shows
+  CustomMedia.kt         # visualizer styles; GIFs / videos per song (Settings -> Visualizer)
   CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
 lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker
                          # follows the line being sung (lock screen, Android Auto)

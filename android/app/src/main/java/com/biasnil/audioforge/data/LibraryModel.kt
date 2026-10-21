@@ -88,7 +88,12 @@ fun tracksByArtist(tracks: List<Track>, artist: String): List<Track> =
         )
 
 /** A folder in the phone's music library, with how many songs it holds (for the Folders tab's hide list). */
-data class LibraryFolder(val key: String, val trackCount: Int) {
+data class LibraryFolder(
+    val key: String,
+    val trackCount: Int,
+    /** How many of them Android files as podcasts. */
+    val systemPodcastCount: Int = 0,
+) {
     /** "Music/Rock" (plus the storage volume if it isn't the internal one). */
     val path: String get() = folderPath(key)
     /** "Rock" */
@@ -114,9 +119,8 @@ fun excludeFolders(tracks: List<Track>, hiddenFolders: Set<String>): List<Track>
 /** Every phone-library folder that directly holds songs, A-Z by path. */
 fun folderCounts(tracks: List<Track>): List<LibraryFolder> =
     tracks.filter { it.folderKey.isNotEmpty() }
-        .groupingBy { it.folderKey }
-        .eachCount()
-        .map { (key, count) -> LibraryFolder(key, count) }
+        .groupBy { it.folderKey }
+        .map { (key, inFolder) -> LibraryFolder(key, inFolder.size, inFolder.count { it.systemPodcast }) }
         .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.path })
 
 fun libraryStats(tracks: List<Track>) = LibraryStats(

@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -99,6 +102,12 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
                 headlineContent = {
                     Text(folderLabel(folder), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 },
+                supportingContent = {
+                    PodcastChip(
+                        selected = folder in settings.podcastFolders,
+                        onClick = { library.setPodcastFolder(folder, folder !in settings.podcastFolders) },
+                    )
+                },
                 trailingContent = {
                     TextButton(onClick = { library.removeFolder(folder) }) {
                         Text(stringResource(R.string.remove))
@@ -118,6 +127,12 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
         }
         Text(
             text = stringResource(R.string.folders_explanation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        Text(
+            text = stringResource(R.string.folders_podcast_explanation),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -154,10 +169,22 @@ private fun PhoneLibraryFolders() {
         val hiddenItself = folder.key in settings.hiddenFolders
         // Inside a hidden parent: shown as off, and switched from the parent's row instead.
         val hiddenByParent = !hiddenItself && settings.hiddenFolders.any { isInFolder(folder.key, it) }
+        val podcastItself = folder.key in settings.podcastFolders
+        // Inside a podcast folder: shown as podcast, and switched from the parent's row instead.
+        // ...or every song in it is one Android itself files as a podcast.
+        val podcastByParent = !podcastItself && (settings.podcastFolders.any { isInFolder(folder.key, it) } ||
+            folder.systemPodcastCount == folder.trackCount)
         ListItem(
             headlineContent = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
-                Text("${folder.path}  •  ${trackCountText(folder.trackCount)}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Column {
+                    Text("${folder.path}  •  ${trackCountText(folder.trackCount)}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    PodcastChip(
+                        selected = podcastItself || podcastByParent,
+                        enabled = !podcastByParent,
+                        onClick = { container.library.setPodcastFolder(folder.key, !podcastItself) },
+                    )
+                }
             },
             trailingContent = {
                 Switch(
@@ -168,6 +195,18 @@ private fun PhoneLibraryFolders() {
             },
         )
     }
+}
+
+/** Marks a folder as Podcast: its songs move to the Podcasts tab and aren't analyzed. */
+@Composable
+private fun PodcastChip(selected: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(stringResource(R.string.folder_podcast)) },
+        leadingIcon = { Icon(AppIcons.Podcast, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+    )
 }
 
 /** "primary:Music/Rock" -> "Music/Rock"; the storage root -> "Internal storage" (or the volume's id). */

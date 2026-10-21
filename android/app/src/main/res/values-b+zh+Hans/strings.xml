@@ -389,4 +389,39 @@
     <string name="genre_some_done">已检测 %1$d / %2$d 首歌曲的流派</string>
     <string name="genre_detected">检测结果：%1$s</string>
     <string name="tags_fill_genre">用分析结果填写流派</string>
+
+    <!-- Visualizer styles and custom media; podcasts -->
+    <string name="settings_visualizer">可视化效果</string>
+    <string name="visualizer_explanation">在“正在播放”界面点按可视化按钮时，代替封面显示。颜色跟随歌曲封面。</string>
+    <string name="visualizer_classic_bars">经典柱状</string>
+    <string name="visualizer_spectrum">频谱</string>
+    <string name="visualizer_neon_bars">霓虹柱状</string>
+    <string name="visualizer_line_wave">线条波形</string>
+    <string name="visualizer_retro_wave">复古波形</string>
+    <string name="visualizer_flowing_wave">流动波浪</string>
+    <string name="visualizer_radial">环形</string>
+    <string name="visualizer_particles">粒子</string>
+    <string name="visualizer_geometric">几何</string>
+    <string name="visualizer_disc">旋转唱片</string>
+    <string name="custom_media">你自己的 GIF 或视频</string>
+    <string name="custom_media_explanation">可视化效果开启时，歌曲专属的 GIF 或循环视频会代替所选样式显示。没有专属内容的歌曲使用“所有歌曲”的那一个（如已设置）。</string>
+    <string name="custom_media_global">所有歌曲</string>
+    <string name="custom_media_choose">选择 GIF 或视频</string>
+    <string name="custom_media_add">为所选歌曲添加</string>
+    <string name="custom_media_round">圆形</string>
+    <string name="custom_media_square">方形</string>
+    <string name="custom_media_spin">旋转</string>
+    <string name="custom_media_remove_confirm">移除这个 GIF 或视频？文件本身不会被删除。</string>
+    <string name="tab_podcasts">播客</string>
+    <string name="podcasts_empty">还没有播客。在“文件夹”标签页中把文件夹标记为播客。</string>
+    <string name="podcast_show_summary">%1$s · %2$d 集未播放</string>
+    <string name="podcast_played">已播放</string>
+    <string name="podcast_time_left">剩余 %1$s</string>
+    <string name="podcast_mark_played">标记为已播放</string>
+    <string name="podcast_mark_unplayed">标记为未播放</string>
+    <string name="folder_podcast">播客</string>
+    <string name="folders_podcast_explanation">播客文件夹中的歌曲只显示在“播客”标签页中，会从上次停止的位置继续播放，并且不会被分析。</string>
+    <plurals name="podcast_episode_count">
+        <item quantity="other">%d 集</item>
+    </plurals>
 </resources>

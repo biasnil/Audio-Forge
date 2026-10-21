@@ -399,5 +399,41 @@
     <string name="genre_some_done">Genres detected for %1$d of %2$d songs</string>
     <string name="genre_detected">Detected: %1$s</string>
     <string name="tags_fill_genre">Fill Genre from analysis</string>
+
+    <!-- Visualizer styles and custom media; podcasts -->
+    <string name="settings_visualizer">Visualizer</string>
+    <string name="visualizer_explanation">Shows in place of the cover when you tap the visualizer button on Now Playing. Colours follow the song\'s cover.</string>
+    <string name="visualizer_classic_bars">Classic bars</string>
+    <string name="visualizer_spectrum">Spectrum</string>
+    <string name="visualizer_neon_bars">Neon bars</string>
+    <string name="visualizer_line_wave">Line wave</string>
+    <string name="visualizer_retro_wave">Retro wave</string>
+    <string name="visualizer_flowing_wave">Flowing wave</string>
+    <string name="visualizer_radial">Circular</string>
+    <string name="visualizer_particles">Particles</string>
+    <string name="visualizer_geometric">Geometric</string>
+    <string name="visualizer_disc">Spinning record</string>
+    <string name="custom_media">Your own GIF or video</string>
+    <string name="custom_media_explanation">While the visualizer is on, a song\'s own GIF or looping video shows instead of the style. Songs without one use the one for every song, if set.</string>
+    <string name="custom_media_global">For every song</string>
+    <string name="custom_media_choose">Choose GIF or video</string>
+    <string name="custom_media_add">Add for chosen songs</string>
+    <string name="custom_media_round">Round</string>
+    <string name="custom_media_square">Square</string>
+    <string name="custom_media_spin">Spin</string>
+    <string name="custom_media_remove_confirm">Remove this GIF or video? The file itself isn\'t deleted.</string>
+    <string name="tab_podcasts">Podcasts</string>
+    <string name="podcasts_empty">No podcasts yet. In the Folders tab, mark a folder as Podcast.</string>
+    <string name="podcast_show_summary">%1$s · %2$d unplayed</string>
+    <string name="podcast_played">Played</string>
+    <string name="podcast_time_left">%1$s left</string>
+    <string name="podcast_mark_played">Mark as played</string>
+    <string name="podcast_mark_unplayed">Mark as unplayed</string>
+    <string name="folder_podcast">Podcast</string>
+    <string name="folders_podcast_explanation">Podcast folders\' songs only show in the Podcasts tab, continue where you left them, and aren\'t analyzed.</string>
+    <plurals name="podcast_episode_count">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
 </resources>
 

@@ -77,7 +77,9 @@ class WallpaperRepository(private val context: Context, private val store: AppSt
     private fun releaseIfUnused(videoUri: String) {
         if (videoUri.isEmpty()) return
         val settings = store.settings.value
-        if (settings.globalWallpaperUri == videoUri || settings.wallpapers.any { it.videoUri == videoUri }) return
+        if (settings.globalWallpaperUri == videoUri || settings.wallpapers.any { it.videoUri == videoUri } ||
+            settings.customMedia.any { it.uri == videoUri } // the visualizer can use the same file
+        ) return
         try {
             context.contentResolver.releasePersistableUriPermission(Uri.parse(videoUri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (e: SecurityException) {

@@ -1,12 +1,10 @@
 package com.biasnil.audioforge.ui
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.withFrameMillis
-import androidx.compose.ui.geometry.CornerRadius
+import android.graphics.Bitmap
+import com.biasnil.audioforge.data.Track
+
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import com.biasnil.audioforge.audio.VisualizerTap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -115,11 +113,6 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
         val position by rememberPlaybackPositionMs()
         var showLyrics by rememberSaveable { mutableStateOf(false) }
         var showVisualizer by rememberSaveable { mutableStateOf(false) }
-        // The spectrum is only measured while the bars are on screen.
-        DisposableEffect(showVisualizer) {
-            playback.setVisualizerActive(showVisualizer)
-            onDispose { playback.setVisualizerActive(false) }
-        }
         val lyricsAvailable = lyrics is LyricsState.Plain || lyrics is LyricsState.Synced
         val lyricsMode = showLyrics && lyricsAvailable
 
@@ -205,7 +198,7 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                     ) {
                         val side: Dp = min(min(maxWidth, maxHeight), 340.dp)
                         if (showVisualizer) {
-                            VisualizerBars(Modifier.size(side))
+                            NowPlayingVisualizer(track, themeColor ?: MaterialTheme.colorScheme.primary, cover, Modifier.size(side))
                         } else {
                             CoverImage(
                                 track = track,
@@ -615,34 +608,21 @@ private fun rateText(rate: Float): String =
     (if (rate == rate.toInt().toFloat()) rate.toInt().toString() else rate.toString().trimEnd('0')) + "×"
 
 /**
- * The spectrum bars (the iOS VisualizerView): 24 bands, low to high,
- * rounded, in the accent colour, refreshed ~30 times a second.
+ * The visualizer in place of the cover: the song's own GIF / video (or the
+ * global one) if it has one, else the style chosen in Settings, in the
+ * cover's colour. Its own composable, so ~30 frames a second only redraw this.
  */
 @Composable
-private fun VisualizerBars(modifier: Modifier = Modifier) {
-    val visualizer = LocalAppContainer.current.playback.visualizer
-    var levels by remember { mutableStateOf(FloatArray(VisualizerTap.BANDS)) }
-    LaunchedEffect(visualizer) {
-        while (true) {
-            withFrameMillis { }
-            levels = visualizer.levels()
-            delay(33)
-        }
-    }
-    val accent = MaterialTheme.colorScheme.primary
-    Canvas(modifier) {
-        val count = levels.size
-        val spacing = 4.dp.toPx()
-        val width = (size.width - spacing * (count - 1)) / count
-        val brush = Brush.verticalGradient(listOf(accent, accent.copy(alpha = 0.55f)))
-        levels.forEachIndexed { band, level ->
-            val height = maxOf(width, size.height * level)
-            drawRoundRect(
-                brush = brush,
-                topLeft = Offset(band * (width + spacing), size.height - height),
-                size = Size(width, height),
-                cornerRadius = CornerRadius(width / 2, width / 2),
-            )
-        }
+private fun NowPlayingVisualizer(track: Track, color: Color, cover: Bitmap?, modifier: Modifier = Modifier) {
+    val container = LocalAppContainer.current
+    val settings by container.store.settings.collectAsStateWithLifecycle()
+    val frame by rememberVisualizerFrame(active = true)
+    val media = container.customMedia.resolveFor(track.uri, settings)
+    var mediaFailed by remember(media?.uri) { mutableStateOf(false) }
+    if (media != null && !mediaFailed) {
+        CustomMediaView(media, frame.spinDegrees, onFailed = { mediaFailed = true }, modifier = modifier)
+    } else {
+        val image = remember(cover) { cover?.asImageBitmap() }
+        VisualizerView(settings.visualizerStyle, frame, color, image, modifier)
     }
 }

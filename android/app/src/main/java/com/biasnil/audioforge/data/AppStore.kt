@@ -78,6 +78,16 @@ data class AppSettings(
     val lastUpdateCheckMs: Long = 0,
     /** The newest Android version the last check found ("" = this one is the newest). */
     val latestKnownVersion: String = "",
+    /** Now Playing's visualizer look (Settings -> Visualizer). */
+    val visualizerStyle: VisualizerStyle = VisualizerStyle.ClassicBars,
+    /** GIFs / looping videos the visualizer shows instead of its style (see CustomMediaRepository). */
+    val customMedia: List<CustomMediaEntry> = emptyList(),
+    /**
+     * Folders whose songs are podcasts: added folders (tree URIs) and
+     * phone-library folders (Track.folderKey values, subfolders included).
+     * Their songs only show in the Podcasts tab and are never analyzed.
+     */
+    val podcastFolders: Set<String> = emptySet(),
 ) {
     val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
     val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
@@ -144,6 +154,20 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 autoUpdateCheck = root.optBoolean("autoUpdateCheck", true),
                 lastUpdateCheckMs = root.optLong("lastUpdateCheckMs", 0),
                 latestKnownVersion = root.optString("latestKnownVersion", ""),
+                visualizerStyle = VisualizerStyle.entries.firstOrNull { it.name == root.optString("visualizerStyle") }
+                    ?: VisualizerStyle.ClassicBars,
+                customMedia = root.optJSONArray("customMedia").toObjects().map { obj ->
+                    CustomMediaEntry(
+                        id = obj.getString("id"),
+                        uri = obj.optString("uri"),
+                        isVideo = obj.optBoolean("video", false),
+                        round = obj.optBoolean("round", true),
+                        spin = obj.optBoolean("spin", true),
+                        trackUris = obj.optJSONArray("tracks").toStringList(),
+                        global = obj.optBoolean("global", false),
+                    )
+                },
+                podcastFolders = root.optJSONArray("podcastFolders").toStringList().toSet(),
                 volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
                 replayGainEnabled = root.optBoolean("replayGainEnabled", true),
                 crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
@@ -185,6 +209,18 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("autoUpdateCheck", settings.autoUpdateCheck)
             .put("lastUpdateCheckMs", settings.lastUpdateCheckMs)
             .put("latestKnownVersion", settings.latestKnownVersion)
+            .put("visualizerStyle", settings.visualizerStyle.name)
+            .put("customMedia", JSONArray(settings.customMedia.map { entry ->
+                JSONObject()
+                    .put("id", entry.id)
+                    .put("uri", entry.uri)
+                    .put("video", entry.isVideo)
+                    .put("round", entry.round)
+                    .put("spin", entry.spin)
+                    .put("tracks", JSONArray(entry.trackUris))
+                    .put("global", entry.global)
+            }))
+            .put("podcastFolders", JSONArray(settings.podcastFolders.toList()))
             .put("includePhoneLibrary", settings.includePhoneLibrary)
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))

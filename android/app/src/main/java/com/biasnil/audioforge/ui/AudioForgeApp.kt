@@ -153,6 +153,8 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         Page.Privacy -> PrivacyPage(onBack = onBack)
         Page.Acknowledgements -> AcknowledgementsPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.LicenseText -> LicenseTextPage(page.id, onBack = onBack)
+        is Page.MediaTracks -> MediaTracksPage(page.entryId, page.newUri, onBack = onBack)
+        is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
     }
 }
 
@@ -263,6 +265,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     LibraryTab.Equalizer -> EqualizerTab()
                     LibraryTab.Settings -> SettingsTab(onOpenPage)
                     LibraryTab.Wallpapers -> WallpapersTab(onOpenPage)
+                    LibraryTab.Podcasts -> PodcastsTab(onOpenPage)
                 }
             }
         }

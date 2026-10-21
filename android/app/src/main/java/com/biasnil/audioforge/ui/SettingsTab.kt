@@ -131,6 +131,9 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
         SmartSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
+        VisualizerSettings(onOpenPage)
+
+        HorizontalDivider(Modifier.padding(top = 8.dp))
         WallpaperSettings()
 
         HorizontalDivider(Modifier.padding(top = 8.dp))

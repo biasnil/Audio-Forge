@@ -407,4 +407,41 @@
     <string name="genre_some_done">Genres détectés pour %1$d titres sur %2$d</string>
     <string name="genre_detected">Détecté : %1$s</string>
     <string name="tags_fill_genre">Remplir le genre depuis l\'analyse</string>
+
+    <!-- Visualizer styles and custom media; podcasts -->
+    <string name="settings_visualizer">Visualiseur</string>
+    <string name="visualizer_explanation">S\'affiche à la place de la pochette quand vous appuyez sur le bouton du visualiseur dans En cours de lecture. Les couleurs suivent la pochette du titre.</string>
+    <string name="visualizer_classic_bars">Barres classiques</string>
+    <string name="visualizer_spectrum">Spectre</string>
+    <string name="visualizer_neon_bars">Barres néon</string>
+    <string name="visualizer_line_wave">Ligne</string>
+    <string name="visualizer_retro_wave">Onde rétro</string>
+    <string name="visualizer_flowing_wave">Vagues fluides</string>
+    <string name="visualizer_radial">Circulaire</string>
+    <string name="visualizer_particles">Particules</string>
+    <string name="visualizer_geometric">Géométrique</string>
+    <string name="visualizer_disc">Disque qui tourne</string>
+    <string name="custom_media">Votre GIF ou vidéo</string>
+    <string name="custom_media_explanation">Quand le visualiseur est activé, le GIF ou la vidéo en boucle propre à un titre s\'affiche à la place du style. Les titres sans le leur utilisent celui pour tous les titres, s\'il existe.</string>
+    <string name="custom_media_global">Pour tous les titres</string>
+    <string name="custom_media_choose">Choisir un GIF ou une vidéo</string>
+    <string name="custom_media_add">Ajouter pour des titres</string>
+    <string name="custom_media_round">Rond</string>
+    <string name="custom_media_square">Carré</string>
+    <string name="custom_media_spin">Rotation</string>
+    <string name="custom_media_remove_confirm">Retirer ce GIF ou cette vidéo ? Le fichier lui-même n\'est pas supprimé.</string>
+    <string name="tab_podcasts">Podcasts</string>
+    <string name="podcasts_empty">Aucun podcast pour l\'instant. Dans l\'onglet Dossiers, marquez un dossier comme Podcast.</string>
+    <string name="podcast_show_summary">%1$s · %2$d non écoutés</string>
+    <string name="podcast_played">Écouté</string>
+    <string name="podcast_time_left">%1$s restant</string>
+    <string name="podcast_mark_played">Marquer comme écouté</string>
+    <string name="podcast_mark_unplayed">Marquer comme non écouté</string>
+    <string name="folder_podcast">Podcast</string>
+    <string name="folders_podcast_explanation">Les titres des dossiers Podcast n\'apparaissent que dans l\'onglet Podcasts, reprennent là où vous les avez laissés et ne sont pas analysés.</string>
+    <plurals name="podcast_episode_count">
+        <item quantity="one">%d épisode</item>
+        <item quantity="many">%d épisodes</item>
+        <item quantity="other">%d épisodes</item>
+    </plurals>
 </resources>

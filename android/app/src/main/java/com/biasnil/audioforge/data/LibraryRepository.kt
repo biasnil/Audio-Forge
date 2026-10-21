@@ -45,8 +45,13 @@ class LibraryRepository(
     private val mediaStore = MediaStoreSource(context.contentResolver)
     private val folderSource = FolderSource(context)
 
+    /** The music: every song except podcasts. */
     private val _tracks = MutableStateFlow<List<Track>>(emptyList())
     val tracks: StateFlow<List<Track>> = _tracks.asStateFlow()
+
+    /** Songs in folders marked Podcast (the Podcasts tab); never in [tracks]. */
+    private val _podcasts = MutableStateFlow<List<Track>>(emptyList())
+    val podcasts: StateFlow<List<Track>> = _podcasts.asStateFlow()
 
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
@@ -125,7 +130,9 @@ class LibraryRepository(
                 // Not held with these flags (or already gone) -- try read-only / nothing to release.
             }
         }
-        store.update { settings -> settings.copy(folders = settings.folders.filterNot { it == treeUriString }) }
+        store.update { settings ->
+            settings.copy(folders = settings.folders.filterNot { it == treeUriString }, podcastFolders = settings.podcastFolders - treeUriString)
+        }
         refresh()
     }
 
@@ -140,12 +147,43 @@ class LibraryRepository(
         publish()
     }
 
-    /** The library as shown: phone tracks minus hidden folders, then added folders, de-duplicated. */
+    /**
+     * The library as shown: phone tracks minus hidden folders, then added
+     * folders, de-duplicated; podcasts split off into [podcasts].
+     */
     private fun publish() {
-        val merged = mergeSources(excludeFolders(phoneTracks, store.settings.value.hiddenFolders), addedFolderTracks)
+        val settings = store.settings.value
+        val merged = mergeSources(excludeFolders(phoneTracks, settings.hiddenFolders), addedFolderTracks)
         tracksByUri = merged.associateBy { it.uri }
-        _tracks.value = merged
+        val (podcastTracks, music) = merged.partition { isPodcast(it, settings.podcastFolders) }
+        _tracks.value = music
+        _podcasts.value = podcastTracks
         _phoneFolders.value = folderCounts(phoneTracks)
+    }
+
+    fun isPodcast(uri: String): Boolean = tracksByUri[uri]?.let { isPodcast(it, store.settings.value.podcastFolders) } == true
+
+    /** Marks an added folder (tree URI) or a phone-library folder (folder key) as Podcast, or back to music. */
+    fun setPodcastFolder(key: String, podcast: Boolean) {
+        if (key.isEmpty()) return
+        store.update { settings ->
+            settings.copy(podcastFolders = if (podcast) settings.podcastFolders + key else settings.podcastFolders - key)
+        }
+        publish()
+    }
+
+    /** Where a podcast episode sits under its podcast folder, for grouping it into a show. */
+    fun podcastPlace(track: Track): PodcastPlace {
+        val folders = store.settings.value.podcastFolders
+        val source = track.sourceFolder ?: return phonePodcastPlace(track.folderKey, folders)
+        return try {
+            documentPodcastPlace(
+                DocumentsContract.getTreeDocumentId(Uri.parse(source)),
+                DocumentsContract.getDocumentId(Uri.parse(track.uri)),
+            )
+        } catch (e: IllegalArgumentException) {
+            PodcastPlace(source.substringAfterLast("%2F").substringAfterLast("%3A"), "")
+        }
     }
 
     /** Whether tag edits can be saved into files of this added folder (folders added before tag editing existed are read-only). */
@@ -175,6 +213,7 @@ class LibraryRepository(
         addedFolderTracks = addedFolderTracks.map(replace)
         tracksByUri = tracksByUri + (updated.uri to updated)
         _tracks.value = _tracks.value.map(replace)
+        _podcasts.value = _podcasts.value.map(replace)
         return updated
     }
 
