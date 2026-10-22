@@ -36,6 +36,9 @@ sealed interface Page {
     data class PodcastShow(val name: String) : Page
     data object Widgets : Page
     data object ListeningStats : Page
+    data object PodcastSearch : Page
+    /** A show from its feed; [artworkUrl] is shown until the feed has loaded (from search results). */
+    data class PodcastFeed(val feedUrl: String, val artworkUrl: String?) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -59,6 +62,8 @@ sealed interface Page {
         is PodcastShow -> "show:$name"
         Widgets -> "widgets"
         ListeningStats -> "stats"
+        PodcastSearch -> "psearch"
+        is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
     }
 
     companion object {
@@ -86,6 +91,10 @@ sealed interface Page {
             value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             value == "widgets" -> Widgets
             value == "stats" -> ListeningStats
+            value == "psearch" -> PodcastSearch
+            value.startsWith("pfeed:") -> value.removePrefix("pfeed:").let {
+                PodcastFeed(feedUrl = it.substringAfter('\t'), artworkUrl = it.substringBefore('\t').ifEmpty { null })
+            }
             else -> null
         }
     }

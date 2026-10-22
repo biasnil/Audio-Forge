@@ -413,7 +413,7 @@
     <string name="custom_media_spin">旋转</string>
     <string name="custom_media_remove_confirm">移除这个 GIF 或视频？文件本身不会被删除。</string>
     <string name="tab_podcasts">播客</string>
-    <string name="podcasts_empty">还没有播客。在“文件夹”标签页中把文件夹标记为播客。</string>
+    <string name="podcasts_empty">还没有播客。搜索节目来订阅，或在“文件夹”标签页中把文件夹标记为播客。</string>
     <string name="podcast_show_summary">%1$s · %2$d 集未播放</string>
     <string name="podcast_played">已播放</string>
     <string name="podcast_time_left">剩余 %1$s</string>
@@ -479,5 +479,32 @@
     <string name="year_in_review_top_genre">最常听的流派：%1$s</string>
     <plurals name="stats_plays">
         <item quantity="other">%d 次播放</item>
+    </plurals>
+
+    <!-- Podcast search, subscriptions and downloads (Podcasts tab) -->
+    <string name="podcast_search">搜索播客</string>
+    <string name="podcast_search_hint">节目名称或主题</string>
+    <string name="podcast_search_privacy">搜索会发送到 Apple 播客目录。</string>
+    <string name="podcast_search_none">没有找到节目。</string>
+    <string name="podcast_search_failed">无法搜索。请检查网络连接。</string>
+    <string name="podcast_feed_failed">无法加载此节目。请检查网络连接。</string>
+    <string name="podcast_try_again">重试</string>
+    <string name="podcast_subscribe">订阅</string>
+    <string name="podcast_unsubscribe">取消订阅</string>
+    <string name="podcast_subscriptions">订阅</string>
+    <string name="podcast_on_phone">本机</string>
+    <string name="podcast_check_new">检查新单集</string>
+    <string name="podcast_no_new">没有新单集。</string>
+    <string name="podcast_new">新</string>
+    <string name="podcast_download">下载</string>
+    <string name="podcast_downloading">正在下载</string>
+    <string name="podcast_downloaded">已下载</string>
+    <string name="podcast_download_failed">下载失败</string>
+    <string name="podcast_download_refused">无法开始下载。</string>
+    <plurals name="podcast_new_count">
+        <item quantity="other">%d 个新单集</item>
+    </plurals>
+    <plurals name="podcast_new_found">
+        <item quantity="other">%d 个新单集。</item>
     </plurals>
 </resources>

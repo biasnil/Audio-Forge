@@ -25,4 +25,5 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("YAMNet", "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet", License.Apache2),
     Acknowledgement("LRCLIB", "https://lrclib.net", null),
     Acknowledgement("Musixmatch", "https://www.musixmatch.com", null),
+    Acknowledgement("Apple Podcasts directory (iTunes Search API)", "https://performance-partners.apple.com/search-api", null),
 )

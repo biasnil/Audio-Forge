@@ -1,6 +1,14 @@
 package com.biasnil.audioforge.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,23 +57,57 @@ private fun rememberPodcastShows(): List<PodcastShow> {
 }
 
 /**
- * The Podcasts tab: songs from folders marked Podcast in the Folders tab,
- * one row per show (a subfolder, else the Album tag), with how many
- * episodes are still unplayed.
+ * The Podcasts tab: the shows you subscribed to (Search, in the header),
+ * then the episodes on the phone -- downloaded ones, songs Android files as
+ * podcasts, and folders marked Podcast in the Folders tab -- one row per
+ * show (a subfolder, else the Album tag), with how many are still unplayed.
  */
 @Composable
 fun PodcastsTab(onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val shows = rememberPodcastShows()
     val stats by container.songData.stats.collectAsStateWithLifecycle()
+    val subscriptions by container.podcasts.subscriptions.collectAsStateWithLifecycle()
 
-    if (shows.isEmpty()) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    if (shows.isEmpty() && subscriptions.isEmpty()) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             CenteredText(stringResource(R.string.podcasts_empty))
+            Spacer(Modifier.height(16.dp))
+            FilledTonalButton(onClick = { onOpenPage(Page.PodcastSearch) }) {
+                Icon(AppIcons.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.podcast_search))
+            }
         }
         return
     }
     LazyColumn(Modifier.fillMaxSize()) {
+        if (subscriptions.isNotEmpty()) {
+            item { GroupedHeader(stringResource(R.string.podcast_subscriptions)) }
+            items(subscriptions, key = { "sub:" + it.feedUrl }) { sub ->
+                ShowRow(
+                    title = sub.title,
+                    detail = sub.author,
+                    artworkUrl = sub.artworkUrl,
+                    trailing = {
+                        if (sub.newGuids.isNotEmpty()) {
+                            Text(
+                                pluralStringResource(R.plurals.podcast_new_count, sub.newGuids.size, sub.newGuids.size),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                        }
+                        Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                ) { onOpenPage(Page.PodcastFeed(sub.feedUrl, sub.artworkUrl)) }
+            }
+            if (shows.isNotEmpty()) item { GroupedHeader(stringResource(R.string.podcast_on_phone)) }
+        }
         items(shows, key = { it.name }) { show ->
             val unplayed = show.episodes.count { stats[it.uri]?.played != true }
             Row(
@@ -93,6 +135,40 @@ fun PodcastsTab(onOpenPage: (Page) -> Unit) {
             }
             HorizontalDivider(Modifier.padding(start = 84.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
         }
+    }
+}
+
+/** The Podcasts tab's header buttons: Search, and Check for new episodes (with subscriptions). */
+@Composable
+fun PodcastsHeaderActions(onOpenPage: (Page) -> Unit) {
+    val container = LocalAppContainer.current
+    val trackActions = LocalTrackActions.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val subscriptions by container.podcasts.subscriptions.collectAsStateWithLifecycle()
+    var checking by remember { mutableStateOf(false) }
+
+    if (subscriptions.isNotEmpty()) {
+        if (checking) {
+            CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp), strokeWidth = 2.dp)
+        } else {
+            IconButton(onClick = {
+                checking = true
+                scope.launch {
+                    val found = container.podcasts.checkForNewEpisodes()
+                    checking = false
+                    trackActions.showMessage(
+                        if (found == 0) context.getString(R.string.podcast_no_new)
+                        else context.resources.getQuantityString(R.plurals.podcast_new_found, found, found)
+                    )
+                }
+            }) {
+                Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.podcast_check_new))
+            }
+        }
+    }
+    IconButton(onClick = { onOpenPage(Page.PodcastSearch) }) {
+        Icon(AppIcons.Search, contentDescription = stringResource(R.string.podcast_search))
     }
 }
 

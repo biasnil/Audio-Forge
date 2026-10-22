@@ -413,7 +413,7 @@
     <string name="custom_media_spin">Putar</string>
     <string name="custom_media_remove_confirm">Alih keluar GIF atau video ini? Fail itu sendiri tidak dipadam.</string>
     <string name="tab_podcasts">Podcast</string>
-    <string name="podcasts_empty">Belum ada podcast. Dalam tab Folder, tandakan folder sebagai Podcast.</string>
+    <string name="podcasts_empty">Belum ada podcast. Cari rancangan untuk dilanggan, atau tandakan folder sebagai Podcast dalam tab Folder.</string>
     <string name="podcast_show_summary">%1$s · %2$d belum dimainkan</string>
     <string name="podcast_played">Telah dimainkan</string>
     <string name="podcast_time_left">Baki %1$s</string>
@@ -479,5 +479,32 @@
     <string name="year_in_review_top_genre">Genre teratas: %1$s</string>
     <plurals name="stats_plays">
         <item quantity="other">%d main balik</item>
+    </plurals>
+
+    <!-- Podcast search, subscriptions and downloads (Podcasts tab) -->
+    <string name="podcast_search">Cari podcast</string>
+    <string name="podcast_search_hint">Nama rancangan atau topik</string>
+    <string name="podcast_search_privacy">Carian dihantar ke direktori podcast Apple.</string>
+    <string name="podcast_search_none">Tiada rancangan ditemui.</string>
+    <string name="podcast_search_failed">Tidak dapat mencari. Semak sambungan anda.</string>
+    <string name="podcast_feed_failed">Tidak dapat memuatkan rancangan ini. Semak sambungan anda.</string>
+    <string name="podcast_try_again">Cuba lagi</string>
+    <string name="podcast_subscribe">Langgan</string>
+    <string name="podcast_unsubscribe">Henti langgan</string>
+    <string name="podcast_subscriptions">Langganan</string>
+    <string name="podcast_on_phone">Dalam telefon ini</string>
+    <string name="podcast_check_new">Semak episod baharu</string>
+    <string name="podcast_no_new">Tiada episod baharu.</string>
+    <string name="podcast_new">Baharu</string>
+    <string name="podcast_download">Muat turun</string>
+    <string name="podcast_downloading">Sedang dimuat turun</string>
+    <string name="podcast_downloaded">Dimuat turun</string>
+    <string name="podcast_download_failed">Muat turun gagal</string>
+    <string name="podcast_download_refused">Tidak dapat memulakan muat turun.</string>
+    <plurals name="podcast_new_count">
+        <item quantity="other">%d baharu</item>
+    </plurals>
+    <plurals name="podcast_new_found">
+        <item quantity="other">%d episod baharu.</item>
     </plurals>
 </resources>

@@ -41,6 +41,10 @@ unaffected.
   (If you prefer to declare it: **App activity → Other user-generated
   content / Music files**, not shared, not stored, processed ephemerally, for
   app functionality.)
+  Podcast search terms go to Apple (itunes.apple.com), and show feeds,
+  artwork and episodes are fetched from the shows' own servers, only when the
+  user searches, opens a show, checks for new episodes or downloads. Same
+  answer: sent to provide the feature, not stored by the app or the developer.
 - **Is data encrypted in transit?** Yes (HTTPS).
 - **Can users request deletion?** Data stays on the phone; clearing the app's
   storage or uninstalling deletes it.

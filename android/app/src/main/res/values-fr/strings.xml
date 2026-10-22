@@ -431,7 +431,7 @@
     <string name="custom_media_spin">Rotation</string>
     <string name="custom_media_remove_confirm">Retirer ce GIF ou cette vidéo ? Le fichier lui-même n\'est pas supprimé.</string>
     <string name="tab_podcasts">Podcasts</string>
-    <string name="podcasts_empty">Aucun podcast pour l\'instant. Dans l\'onglet Dossiers, marquez un dossier comme Podcast.</string>
+    <string name="podcasts_empty">Aucun podcast pour l\'instant. Recherchez une émission pour vous y abonner, ou marquez un dossier comme Podcast dans l\'onglet Dossiers.</string>
     <string name="podcast_show_summary">%1$s · %2$d non écoutés</string>
     <string name="podcast_played">Écouté</string>
     <string name="podcast_time_left">%1$s restant</string>
@@ -501,5 +501,36 @@
         <item quantity="one">%d écoute</item>
         <item quantity="many">%d écoutes</item>
         <item quantity="other">%d écoutes</item>
+    </plurals>
+
+    <!-- Podcast search, subscriptions and downloads (Podcasts tab) -->
+    <string name="podcast_search">Rechercher des podcasts</string>
+    <string name="podcast_search_hint">Nom de l\'émission ou sujet</string>
+    <string name="podcast_search_privacy">Les recherches passent par l\'annuaire de podcasts d\'Apple.</string>
+    <string name="podcast_search_none">Aucune émission trouvée.</string>
+    <string name="podcast_search_failed">Recherche impossible. Vérifiez votre connexion.</string>
+    <string name="podcast_feed_failed">Impossible de charger cette émission. Vérifiez votre connexion.</string>
+    <string name="podcast_try_again">Réessayer</string>
+    <string name="podcast_subscribe">S\'abonner</string>
+    <string name="podcast_unsubscribe">Se désabonner</string>
+    <string name="podcast_subscriptions">Abonnements</string>
+    <string name="podcast_on_phone">Sur ce téléphone</string>
+    <string name="podcast_check_new">Rechercher de nouveaux épisodes</string>
+    <string name="podcast_no_new">Aucun nouvel épisode.</string>
+    <string name="podcast_new">Nouveau</string>
+    <string name="podcast_download">Télécharger</string>
+    <string name="podcast_downloading">Téléchargement</string>
+    <string name="podcast_downloaded">Téléchargé</string>
+    <string name="podcast_download_failed">Échec du téléchargement</string>
+    <string name="podcast_download_refused">Impossible de lancer le téléchargement.</string>
+    <plurals name="podcast_new_count">
+        <item quantity="one">%d nouveau</item>
+        <item quantity="many">%d nouveaux</item>
+        <item quantity="other">%d nouveaux</item>
+    </plurals>
+    <plurals name="podcast_new_found">
+        <item quantity="one">%d nouvel épisode.</item>
+        <item quantity="many">%d nouveaux épisodes.</item>
+        <item quantity="other">%d nouveaux épisodes.</item>
     </plurals>
 </resources>

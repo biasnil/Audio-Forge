@@ -11,6 +11,7 @@ import com.biasnil.audioforge.data.DuplicateDismissals
 import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.PlayLogStore
+import com.biasnil.audioforge.data.PodcastRepository
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.data.WallpaperRepository
@@ -55,6 +56,8 @@ class AppContainer(context: Context) {
     val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope, library::isPodcast)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
+    /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
+    val podcasts = PodcastRepository(context, library, appScope)
     val wallpapers = WallpaperRepository(context, store)
     /** The visualizer's custom GIFs / videos (Settings -> Visualizer). */
     val customMedia = CustomMediaRepository(context, store)

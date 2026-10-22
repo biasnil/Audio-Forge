@@ -48,13 +48,23 @@ fun isPodcast(track: Track, podcastFolders: Set<String>): Boolean {
 /**
  * A phone-library episode's place: below the deepest podcast folder that
  * holds it. "external_primary|Podcasts/Show A/" under "external_primary|Podcasts/"
- * -> subfolder "Show A", root "Podcasts".
+ * -> subfolder "Show A", root "Podcasts". The phone's own Podcasts folder
+ * (where downloaded episodes go, one subfolder per show) counts as a podcast
+ * folder even when it isn't marked as one.
  */
 fun phonePodcastPlace(folderKey: String, podcastFolders: Set<String>): PodcastPlace {
     val root = podcastFolders.filter { isInFolder(folderKey, it) }.maxByOrNull { it.length }
+        ?: androidPodcastsFolder(folderKey)
         ?: return PodcastPlace(folderPath(folderKey).substringAfterLast('/'), "")
     val below = folderKey.removePrefix(root).trim('/')
     return PodcastPlace(folderPath(root).substringAfterLast('/'), below.substringBefore('/'))
+}
+
+/** "<volume>|Podcasts/" if [folderKey] is in that volume's top-level Podcasts folder. */
+private fun androidPodcastsFolder(folderKey: String): String? {
+    val volume = folderKey.substringBefore('|', "")
+    val path = folderKey.substringAfter('|')
+    return if (path.startsWith("Podcasts/")) "$volume|Podcasts/" else null
 }
 
 /**

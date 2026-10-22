@@ -8,7 +8,7 @@ AudioForge 是在你手機上執行的音樂播放器。它沒有帳戶、沒有
 
 # 保留在手機上的內容
 
-你的設定、播放清單、播放次數和喜愛的歌曲、歌詞快取、調性和 BPM 分析結果、類型偵測結果，以及你的 Musixmatch API 金鑰（使用 Android Keystore 加密）。
+你的設定、播放清單、播放次數和喜愛的歌曲、歌詞快取、你的 Podcast 訂閱、你的收聽紀錄（用於收聽統計）、調性和 BPM 分析結果、類型偵測結果，以及你的 Musixmatch API 金鑰（使用 Android Keystore 加密）。
 
 解除安裝 App 或清除其儲存空間會刪除以上所有內容。如果手機開啟了 Android 備份，Android 可能會像對待大多數 App 一樣，將本 App 的設定和播放清單納入手機備份，儲存到你的 Google 帳戶。Musixmatch 金鑰無法從備份還原，需要重新輸入。
 
@@ -19,6 +19,10 @@ LRCLIB（lrclib.net）：為了尋找歌詞，傳送歌曲的標題和演出者�
 Musixmatch：歌曲的標題和演出者，以及你的 API 金鑰。只有在你加入金鑰時才會傳送。
 
 GitHub（api.github.com）：一次請求，用來取得 AudioForge 最新版本的版本號碼，以便通知你更新。你可以在「設定」的「關於」中關閉此功能。
+
+Apple（itunes.apple.com）：你搜尋 Podcast 時輸入的文字。搜尋結果中的節目封面從 Apple 的伺服器載入。
+
+Podcast 託管方：當你開啟節目、檢查新單集或下載單集時，會從該節目使用的伺服器取得節目的訂閱來源、封面和音訊。下載由 Android 的下載管理員完成，並儲存到手機的 Podcasts 資料夾。
 
 和你瀏覽任何網站一樣，這些服務會看到你手機的 IP 位址。它們各自的隱私權政策適用。
 

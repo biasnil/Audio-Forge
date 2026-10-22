@@ -8,7 +8,7 @@ The music library on your phone, if you allow it, and the folders you add yourse
 
 # What stays on your phone
 
-Your settings, playlists, play counts and loved songs, the lyrics cache, Key/BPM analysis and genre detection results, and your Musixmatch API key, which is encrypted with the Android Keystore.
+Your settings, playlists, play counts and loved songs, the lyrics cache, your podcast subscriptions, your listening history (for Listening stats), Key/BPM analysis and genre detection results, and your Musixmatch API key, which is encrypted with the Android Keystore.
 
 Uninstalling the app or clearing its storage deletes all of this. If Android backup is turned on for your phone, Android may include the app's settings and playlists in your phone's backup to your Google account, as it does for most apps. The Musixmatch key can't be restored from a backup and has to be entered again.
 
@@ -19,6 +19,10 @@ LRCLIB (lrclib.net): to find lyrics, the song's title and artist, or a search ma
 Musixmatch: the song's title and artist, and your API key. Only if you added a key.
 
 GitHub (api.github.com): one request for the number of the latest AudioForge release, to tell you about updates. You can turn this off in Settings, under About.
+
+Apple (itunes.apple.com): the words you type when you search for podcasts. Show artwork in the results is loaded from Apple's servers.
+
+Podcast hosts: when you open a show, check for new episodes or download an episode, the show's feed, artwork and audio are fetched from the servers the show uses. Downloads are made by Android's download manager and saved in your phone's Podcasts folder.
 
 These services see your phone's IP address, as any website you visit does. Their own privacy policies apply.
 

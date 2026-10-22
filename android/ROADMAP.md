@@ -39,6 +39,7 @@ the Android app. Read the whole file before starting.
 | README release steps for both flavors | `README.md`, "Android app" section |
 | Feature 1, widget gallery (below): eight styles, Settings → Widgets, per-widget background | `widget/`, `ui/WidgetsPage.kt` |
 | Feature 2, listening stats (below): play log, Settings → Listening stats, Year in Review image | `data/PlayLog.kt`, `data/ListeningStats.kt`, `ui/ListeningStatsPage.kt`, `ui/YearInReview.kt` |
+| Feature 3, podcast search and download (below) | `data/PodcastFeeds.kt`, `data/PodcastRepository.kt`, `data/RemoteImages.kt`, `ui/PodcastFeedPages.kt`, `ui/PodcastsTab.kt` |
 
 Commit `7ad35cd` on `main` (pushed). The owner's Play developer account is
 still being verified; until then releases go to GitHub only.
@@ -61,6 +62,23 @@ log on the next launch if the app was killed (tested). Genres: detected
 genre, else the GENRE tag. The existing play count (`SongStats.playCount`,
 half the song or 4 minutes) is unchanged; the log uses the roadmap's 30 s
 rule, so the two can differ. No way to clear the log yet.
+
+Feature 3 notes, where it differs from the plan below:
+- Downloads use Android's `DownloadManager` (its own progress notification,
+  carries on if the app closes) instead of WorkManager: no new library and no
+  `dataSync` foreground-service type to declare on Play. Files go to the
+  top-level `Podcasts/<Show>/` folder, not `Music/Podcasts/<Show>/`: Android
+  flags files there `IS_PODCAST` itself, and the app can't set that flag on
+  a file the download manager owns. `phonePodcastPlace` treats that folder as
+  a podcast folder, so the show is named after its subfolder.
+- Episode links pass through several tracking redirects (more than the
+  download manager's 5), so `PodcastRepository.finalUrl` follows them first.
+- Feeds and artwork are fetched over HTTPS (http links are tried as https;
+  the app still allows no cleartext). Plain-http audio is fine: the download
+  manager fetches it.
+- Tested on the emulator: search, subscribe, open a feed, download (Radiolab),
+  play the episode, Check for new episodes. Not yet tried: many shows, slow
+  or failing networks, a feed that needs cleartext.
 
 ## Next release: Androidv1.4.1 (GitHub)
 

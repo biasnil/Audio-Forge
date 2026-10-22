@@ -157,6 +157,8 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
         Page.Widgets -> WidgetsPage(onBack = onBack)
         Page.ListeningStats -> ListeningStatsPage(onBack = onBack)
+        Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
+        is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
     }
 }
 
@@ -232,6 +234,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                 when (tab) {
                     LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs)
                     LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
+                    LibraryTab.Podcasts -> PodcastsHeaderActions(onOpenPage)
                     else -> Unit
                 }
             }

@@ -49,6 +49,15 @@ class PodcastsTest {
         assertEquals(PodcastPlace("Podcasts", ""), phonePodcastPlace(flagged.folderKey, emptySet()))
     }
 
+    @Test fun downloadedEpisodesUseTheirShowFolder() {
+        // Downloads land in Podcasts/<Show>/; that beats an unhelpful Album tag ("Podcast").
+        val place = phonePodcastPlace("external_primary|Podcasts/Radiolab/", emptySet())
+        assertEquals(PodcastPlace("Podcasts", "Radiolab"), place)
+        assertEquals("Radiolab", showName(episode("ep", album = "Podcast"), place))
+        // Only the top-level Podcasts folder.
+        assertEquals(PodcastPlace("Talk", ""), phonePodcastPlace("external_primary|Music/Podcasts/Talk/", emptySet()))
+    }
+
     @Test fun phonePlace() {
         val folders = setOf("external_primary|Podcasts/")
         assertEquals(PodcastPlace("Podcasts", "Show A"), phonePodcastPlace("external_primary|Podcasts/Show A/Season 1/", folders))

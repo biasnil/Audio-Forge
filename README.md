@@ -196,6 +196,10 @@ It was built in stages:
    year or for all time (podcasts counted separately), from a play log kept on
    the phone (a play counts after 30 s, or half a short song). A year can be
    shared as an "AudioForge Year in Review" image.
+10. Podcast search and download. **Done:** search Apple's podcast directory,
+    subscribe, see a show's episodes from its RSS feed, "Check for new
+    episodes", and download episodes (Android's download manager, saved
+    unchanged in the phone's Podcasts folder, where they show up as episodes).
 
 Code layout (`android/app/src/main/java/com/biasnil/audioforge/`):
 ```
@@ -227,6 +231,7 @@ data/
   DuplicateFinder.kt     # duplicate detection; DuplicateDismissals.kt keeps "Not duplicates"
   UpdateChecker.kt, Acknowledgements.kt  # Settings -> About
   Podcasts.kt            # podcast folders: which songs are episodes, grouping into shows
+  PodcastFeeds.kt, PodcastRepository.kt # podcast search (iTunes Search API), RSS feeds, subscriptions, downloads
   CustomMedia.kt         # visualizer styles; GIFs / videos per song (Settings -> Visualizer)
   CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
 lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker

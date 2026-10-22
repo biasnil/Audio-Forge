@@ -413,7 +413,7 @@
     <string name="custom_media_spin">旋轉</string>
     <string name="custom_media_remove_confirm">要移除這個 GIF 或影片嗎？檔案本身不會被刪除。</string>
     <string name="tab_podcasts">Podcast</string>
-    <string name="podcasts_empty">還沒有 Podcast。在「資料夾」分頁中將資料夾標示為 Podcast。</string>
+    <string name="podcasts_empty">還沒有 Podcast。搜尋節目來訂閱，或在「資料夾」分頁中把資料夾標記為 Podcast。</string>
     <string name="podcast_show_summary">%1$s · %2$d 集未播放</string>
     <string name="podcast_played">已播放</string>
     <string name="podcast_time_left">剩餘 %1$s</string>
@@ -479,5 +479,32 @@
     <string name="year_in_review_top_genre">最常聽的類型：%1$s</string>
     <plurals name="stats_plays">
         <item quantity="other">%d 次播放</item>
+    </plurals>
+
+    <!-- Podcast search, subscriptions and downloads (Podcasts tab) -->
+    <string name="podcast_search">搜尋 Podcast</string>
+    <string name="podcast_search_hint">節目名稱或主題</string>
+    <string name="podcast_search_privacy">搜尋會傳送到 Apple 的 Podcast 目錄。</string>
+    <string name="podcast_search_none">找不到節目。</string>
+    <string name="podcast_search_failed">無法搜尋。請檢查網路連線。</string>
+    <string name="podcast_feed_failed">無法載入此節目。請檢查網路連線。</string>
+    <string name="podcast_try_again">重試</string>
+    <string name="podcast_subscribe">訂閱</string>
+    <string name="podcast_unsubscribe">取消訂閱</string>
+    <string name="podcast_subscriptions">訂閱</string>
+    <string name="podcast_on_phone">這支手機</string>
+    <string name="podcast_check_new">檢查新單集</string>
+    <string name="podcast_no_new">沒有新單集。</string>
+    <string name="podcast_new">新</string>
+    <string name="podcast_download">下載</string>
+    <string name="podcast_downloading">下載中</string>
+    <string name="podcast_downloaded">已下載</string>
+    <string name="podcast_download_failed">下載失敗</string>
+    <string name="podcast_download_refused">無法開始下載。</string>
+    <plurals name="podcast_new_count">
+        <item quantity="other">%d 個新單集</item>
+    </plurals>
+    <plurals name="podcast_new_found">
+        <item quantity="other">%d 個新單集。</item>
     </plurals>
 </resources>

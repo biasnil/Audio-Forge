@@ -8,7 +8,7 @@ Pustaka muzik pada telefon anda, jika anda membenarkannya, dan folder yang anda 
 
 # Apa yang kekal pada telefon anda
 
-Tetapan, senarai main, kiraan main dan lagu yang disukai, cache lirik, hasil analisis Kunci dan BPM dan pengesanan genre, dan kunci API Musixmatch anda, yang disulitkan dengan Android Keystore.
+Tetapan, senarai main, kiraan main dan lagu yang disukai, cache lirik, langganan podcast anda, sejarah pendengaran anda (untuk Statistik pendengaran), hasil analisis Kunci dan BPM dan pengesanan genre, dan kunci API Musixmatch anda, yang disulitkan dengan Android Keystore.
 
 Menyahpasang aplikasi atau mengosongkan storannya akan memadam semua ini. Jika sandaran Android dihidupkan pada telefon anda, Android mungkin menyertakan tetapan dan senarai main aplikasi ini dalam sandaran telefon ke akaun Google anda, seperti kebanyakan aplikasi lain. Kunci Musixmatch tidak boleh dipulihkan daripada sandaran dan perlu dimasukkan semula.
 
@@ -19,6 +19,10 @@ LRCLIB (lrclib.net): untuk mencari lirik, tajuk dan artis lagu, atau carian yang
 Musixmatch: tajuk dan artis lagu, serta kunci API anda. Hanya jika anda menambah kunci.
 
 GitHub (api.github.com): satu permintaan untuk nombor keluaran AudioForge yang terkini, untuk memberitahu anda tentang kemas kini. Anda boleh mematikannya dalam Tetapan, di bawah Perihal.
+
+Apple (itunes.apple.com): perkataan yang anda taip semasa mencari podcast. Gambar rancangan dalam hasil carian dimuatkan daripada pelayan Apple.
+
+Hos podcast: apabila anda membuka rancangan, menyemak episod baharu atau memuat turun episod, suapan, gambar dan audio rancangan itu diambil daripada pelayan yang digunakan oleh rancangan tersebut. Muat turun dibuat oleh pengurus muat turun Android dan disimpan dalam folder Podcasts telefon anda.
 
 Perkhidmatan ini nampak alamat IP telefon anda, sama seperti mana-mana laman web yang anda lawati. Dasar privasi mereka sendiri terpakai.
 

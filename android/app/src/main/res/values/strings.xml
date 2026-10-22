@@ -423,7 +423,7 @@
     <string name="custom_media_spin">Spin</string>
     <string name="custom_media_remove_confirm">Remove this GIF or video? The file itself isn\'t deleted.</string>
     <string name="tab_podcasts">Podcasts</string>
-    <string name="podcasts_empty">No podcasts yet. In the Folders tab, mark a folder as Podcast.</string>
+    <string name="podcasts_empty">No podcasts yet. Search for a show to subscribe to, or mark a folder as Podcast in the Folders tab.</string>
     <string name="podcast_show_summary">%1$s · %2$d unplayed</string>
     <string name="podcast_played">Played</string>
     <string name="podcast_time_left">%1$s left</string>
@@ -491,5 +491,34 @@
     <plurals name="stats_plays">
         <item quantity="one">%d play</item>
         <item quantity="other">%d plays</item>
+    </plurals>
+
+    <!-- Podcast search, subscriptions and downloads (Podcasts tab) -->
+    <string name="podcast_search">Search podcasts</string>
+    <string name="podcast_search_hint">Show name or topic</string>
+    <string name="podcast_search_privacy">Searches go to Apple\'s podcast directory.</string>
+    <string name="podcast_search_none">No shows found.</string>
+    <string name="podcast_search_failed">Couldn\'t search. Check your connection.</string>
+    <string name="podcast_feed_failed">Couldn\'t load this show. Check your connection.</string>
+    <string name="podcast_try_again">Try again</string>
+    <string name="podcast_subscribe">Subscribe</string>
+    <string name="podcast_unsubscribe">Unsubscribe</string>
+    <string name="podcast_subscriptions">Subscriptions</string>
+    <string name="podcast_on_phone">On this phone</string>
+    <string name="podcast_check_new">Check for new episodes</string>
+    <string name="podcast_no_new">No new episodes.</string>
+    <string name="podcast_new">New</string>
+    <string name="podcast_download">Download</string>
+    <string name="podcast_downloading">Downloading</string>
+    <string name="podcast_downloaded">Downloaded</string>
+    <string name="podcast_download_failed">Download failed</string>
+    <string name="podcast_download_refused">Couldn\'t start the download.</string>
+    <plurals name="podcast_new_count">
+        <item quantity="one">%d new</item>
+        <item quantity="other">%d new</item>
+    </plurals>
+    <plurals name="podcast_new_found">
+        <item quantity="one">%d new episode.</item>
+        <item quantity="other">%d new episodes.</item>
     </plurals>
 </resources>
