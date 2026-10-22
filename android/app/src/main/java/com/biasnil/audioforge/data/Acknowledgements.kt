@@ -17,7 +17,7 @@ data class Acknowledgement(val name: String, val url: String, val license: Licen
 val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("AndroidX Core, Lifecycle, Activity", "https://developer.android.com/jetpack/androidx", License.Apache2),
     Acknowledgement("Jetpack Compose, Material 3", "https://developer.android.com/compose", License.Apache2),
-    Acknowledgement("AndroidX Media3 (ExoPlayer, Session, UI)", "https://github.com/androidx/media", License.Apache2),
+    Acknowledgement("AndroidX Media3 (ExoPlayer, HLS, Session, UI)", "https://github.com/androidx/media", License.Apache2),
     Acknowledgement("Kotlin, kotlinx.coroutines", "https://kotlinlang.org", License.Apache2),
     Acknowledgement("jaudiotagger", "https://bitbucket.org/ijabz/jaudiotagger", License.Lgpl21),
     Acknowledgement("Material Design icons", "https://github.com/google/material-design-icons", License.Apache2),
@@ -26,4 +26,5 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("LRCLIB", "https://lrclib.net", null),
     Acknowledgement("Musixmatch", "https://www.musixmatch.com", null),
     Acknowledgement("Apple Podcasts directory (iTunes Search API)", "https://performance-partners.apple.com/search-api", null),
+    Acknowledgement("Radio Browser", "https://www.radio-browser.info", null),
 )

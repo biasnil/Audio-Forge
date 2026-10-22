@@ -533,4 +533,27 @@
         <item quantity="many">%d nouveaux épisodes.</item>
         <item quantity="other">%d nouveaux épisodes.</item>
     </plurals>
+
+    <!-- Internet radio (Radio tab) -->
+    <string name="tab_radio">Radio</string>
+    <string name="radio_live">Radio en direct</string>
+    <string name="radio_live_badge">DIRECT</string>
+    <string name="radio_search_hint">Nom de la station</string>
+    <string name="radio_search_tag_hint">Étiquette, comme jazz ou info</string>
+    <string name="radio_search_tags">Étiquette</string>
+    <string name="radio_all_countries">Tous les pays</string>
+    <string name="radio_country">Pays</string>
+    <string name="radio_favorites">Favoris</string>
+    <string name="radio_recent">Écoutées récemment</string>
+    <string name="radio_top">Stations populaires</string>
+    <string name="radio_none">Aucune station trouvée.</string>
+    <string name="radio_failed">Impossible de joindre l\'annuaire des stations. Vérifiez votre connexion.</string>
+    <string name="radio_favorite">Ajouter aux favoris</string>
+    <string name="radio_unfavorite">Retirer des favoris</string>
+    <string name="radio_vote">Voter pour cette station</string>
+    <string name="radio_voted">Merci, votre vote a été compté.</string>
+    <string name="radio_vote_failed">Vote impossible pour l\'instant. Radio Browser compte un vote par station toutes les 10 minutes.</string>
+    <string name="radio_homepage">Ouvrir le site de la station</string>
+    <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
+    <string name="stats_radio">Radio : %1$s</string>
 </resources>

@@ -9,7 +9,7 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <!-- Lyrics lookups (LRCLIB, Musixmatch). -->
+    <!-- Lyrics lookups (LRCLIB, Musixmatch), podcasts, internet radio. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Background playback: a media-playback foreground service, and
          keeping the CPU awake while playing with the screen off. -->
@@ -20,6 +20,7 @@
     <application
         android:name=".AudioForgeApplication"
         android:allowBackup="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"

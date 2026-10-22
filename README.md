@@ -200,6 +200,12 @@ It was built in stages:
     subscribe, see a show's episodes from its RSS feed, "Check for new
     episodes", and download episodes (Android's download manager, saved
     unchanged in the phone's Podcasts folder, where they show up as episodes).
+11. Internet radio. **Done:** a Radio tab with tens of thousands of stations
+    from Radio Browser (ported from the desktop World_Radio): search by name
+    or tag, filter by country, Top stations, Favorites and Recently played.
+    Stations play through the same player (EQ, effects, sleep timer,
+    notification, Android Auto), including HLS streams, with the station's
+    "now playing" title on Now Playing and the lock screen.
 
 Code layout (`android/app/src/main/java/com/biasnil/audioforge/`):
 ```
@@ -232,6 +238,7 @@ data/
   UpdateChecker.kt, Acknowledgements.kt  # Settings -> About
   Podcasts.kt            # podcast folders: which songs are episodes, grouping into shows
   PodcastFeeds.kt, PodcastRepository.kt # podcast search (iTunes Search API), RSS feeds, subscriptions, downloads
+  RadioBrowser.kt, RadioRepository.kt   # internet radio: Radio Browser directory, mirrors, favorites, recent
   CustomMedia.kt         # visualizer styles; GIFs / videos per song (Settings -> Visualizer)
   CoverArtLoader.kt, WallpaperRepository.kt, SecretBox.kt (Keystore-encrypted API key)
 lyrics/                  # LRCLIB / Musixmatch / local .lrc lookup and parsing; LyricLineTracker

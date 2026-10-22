@@ -3,6 +3,7 @@ package com.biasnil.audioforge.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.media3.common.MediaItem
@@ -17,6 +18,7 @@ import com.biasnil.audioforge.AppLanguage
 import com.biasnil.audioforge.AudioForgeApplication
 import com.biasnil.audioforge.MainActivity
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.RadioStation
 import com.biasnil.audioforge.data.SmartPlaylist
 import com.biasnil.audioforge.data.Track
 import com.biasnil.audioforge.data.TrackSort
@@ -44,7 +46,7 @@ import kotlinx.coroutines.launch
  * plays so it continues with the app closed.
  *
  * It's a media *library* session, so Android Auto can browse the music:
- * Songs, Albums, Artists, Playlists, and Lyrics -- the current song's
+ * Songs, Albums, Artists, Playlists, Radio (favorite and recent stations), and Lyrics -- the current song's
  * lyrics as a list (Android Auto has no lyrics view of its own), the line
  * being sung marked, tap a line to jump to it. Like the iOS app's CarPlay screens.
  */
@@ -183,6 +185,10 @@ class PlaybackService : MediaLibraryService() {
         val playback = container.playback
         val parent = mediaId.substringBefore('|')
         val key = mediaId.substringAfter('|', "")
+        if (parent == RADIO_FAVORITES_ID || parent == RADIO_RECENT_ID) {
+            stationsIn(parent).firstOrNull { it.uuid == key }?.let(container::playStation)
+            return
+        }
         if (parent == LYRICS_ID) {
             val lyrics = container.lyrics.state.value as? LyricsState.Synced ?: return
             val line = lyrics.lines.getOrNull(key.toIntOrNull() ?: return) ?: return
@@ -206,7 +212,14 @@ class PlaybackService : MediaLibraryService() {
                 folder(ARTISTS_ID, text(R.string.tab_artists)),
                 folder(PLAYLISTS_ID, text(R.string.tab_playlists)),
                 folder(LYRICS_ID, text(R.string.show_lyrics)),
+                folder(RADIO_ID, text(R.string.tab_radio)),
             )
+            parentId == RADIO_ID -> listOf(
+                folder(RADIO_FAVORITES_ID, text(R.string.radio_favorites)),
+                folder(RADIO_RECENT_ID, text(R.string.radio_recent)),
+            )
+            parentId == RADIO_FAVORITES_ID || parentId == RADIO_RECENT_ID ->
+                stationsIn(parentId).map { stationItem("$parentId|${it.uuid}", it) }
             parentId == ALBUMS_ID -> albumGroups(library).map {
                 folder("$ALBUM_PREFIX${it.name}", it.name.ifEmpty { text(R.string.unknown_album) }, MediaMetadata.MEDIA_TYPE_ALBUM)
             }
@@ -221,6 +234,23 @@ class PlaybackService : MediaLibraryService() {
             else -> tracksIn(parentId).map { song("$parentId|${it.uri}", it) }
         }
     }
+
+    private fun stationsIn(parentId: String): List<RadioStation> =
+        if (parentId == RADIO_FAVORITES_ID) container.radio.favorites.value else container.radio.recent.value
+
+    private fun stationItem(id: String, station: RadioStation): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(id)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(station.name)
+                    .setArtworkUri(station.favicon?.let(Uri::parse))
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+                    .build()
+            )
+            .build()
 
     /** The songs of a list in the browse tree, in the order they play. */
     private fun tracksIn(parentId: String): List<Track> {
@@ -341,6 +371,9 @@ class PlaybackService : MediaLibraryService() {
         const val ARTISTS_ID = "artists"
         const val PLAYLISTS_ID = "playlists"
         const val LYRICS_ID = "lyrics"
+        const val RADIO_ID = "radio"
+        const val RADIO_FAVORITES_ID = "radio_favorites"
+        const val RADIO_RECENT_ID = "radio_recent"
         const val ALBUM_PREFIX = "album:"
         const val ARTIST_PREFIX = "artist:"
         const val PLAYLIST_PREFIX = "playlist:"

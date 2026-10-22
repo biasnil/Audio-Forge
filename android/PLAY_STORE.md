@@ -21,6 +21,9 @@ unaffected.
 - **Ads:** no ads.
 - **Content rating:** music player; no user-to-user communication, no
   gambling or violence. Lyrics come from third parties and may be explicit.
+  The app streams third-party content (internet radio stations from a
+  community directory, and podcasts), which the app doesn't control; say so
+  in the questionnaire. There is no recording feature.
 - **Target audience:** 13+ (avoids the Families policy).
 - **Foreground service (media playback):** used for music that keeps playing
   with the screen off or another app open. Attach a short video: start a song,
@@ -45,6 +48,10 @@ unaffected.
   artwork and episodes are fetched from the shows' own servers, only when the
   user searches, opens a show, checks for new episodes or downloads. Same
   answer: sent to provide the feature, not stored by the app or the developer.
+  Internet radio: searches go to Radio Browser (radio-browser.info), which is
+  also told which station is played (their click count); streams come from
+  each station's own server. Only when the user opens the Radio tab or plays
+  a station. Same answer.
 - **Is data encrypted in transit?** Yes (HTTPS).
 - **Can users request deletion?** Data stays on the phone; clearing the app's
   storage or uninstalling deletes it.

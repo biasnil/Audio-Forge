@@ -217,7 +217,7 @@ private fun shortAmount(context: Context, ms: Long, locale: Locale): String {
     else context.getString(R.string.stats_short_minutes, String.format(locale, "%.0f", amount.value))
 }
 
-/** Time listened and plays; podcasts on their own line. */
+/** Time listened and plays; podcasts and radio on their own lines. */
 @Composable
 private fun Summary(stats: ListeningStats, locale: Locale) {
     val context = LocalContext.current
@@ -244,6 +244,15 @@ private fun Summary(stats: ListeningStats, locale: Locale) {
                         shortAmount(context, stats.podcastMs, locale),
                         pluralStringResource(R.plurals.podcast_episode_count, stats.podcastPlays, stats.podcastPlays),
                     ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.widthIn(max = 200.dp),
+                )
+            }
+            if (stats.radioPlays > 0) {
+                Text(
+                    text = stringResource(R.string.stats_radio, shortAmount(context, stats.radioMs, locale)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End,

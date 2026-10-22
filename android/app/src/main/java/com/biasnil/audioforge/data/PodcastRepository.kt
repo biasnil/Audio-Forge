@@ -293,15 +293,20 @@ class PodcastRepository(
          * from http to https (which HttpURLConnection won't by itself). Plain
          * http is tried as https: the app doesn't allow cleartext.
          */
-        fun <T> get(url: String, read: (InputStream) -> T): T {
+        fun <T> get(
+            url: String,
+            userAgent: String = UpdateChecker.USER_AGENT,
+            timeoutMs: Int = TIMEOUT_MS,
+            read: (InputStream) -> T,
+        ): T {
             var current = https(url)
             repeat(MAX_REDIRECTS + 1) {
                 val connection = URL(current).openConnection() as HttpURLConnection
                 try {
                     connection.instanceFollowRedirects = false
-                    connection.connectTimeout = TIMEOUT_MS
-                    connection.readTimeout = TIMEOUT_MS
-                    connection.setRequestProperty("User-Agent", UpdateChecker.USER_AGENT)
+                    connection.connectTimeout = timeoutMs
+                    connection.readTimeout = timeoutMs
+                    connection.setRequestProperty("User-Agent", userAgent)
                     when (val code = connection.responseCode) {
                         in 200..299 -> return connection.inputStream.use(read)
                         in 300..399 -> {

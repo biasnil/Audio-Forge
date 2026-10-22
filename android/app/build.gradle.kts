@@ -118,6 +118,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.media3.exoplayer.hls) // radio stations that stream HLS (.m3u8)
     implementation(libs.androidx.media3.ui) // PlayerView, for the video wallpaper
     // Tag editing (the desktop uses TagLib; this is the pure-Java equivalent).
     implementation(libs.jaudiotagger)

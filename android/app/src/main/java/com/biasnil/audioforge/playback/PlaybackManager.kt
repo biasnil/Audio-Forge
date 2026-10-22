@@ -9,6 +9,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -18,6 +19,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
@@ -33,6 +35,8 @@ import com.biasnil.audioforge.data.ListenTracker
 import com.biasnil.audioforge.data.PlayEntry
 import com.biasnil.audioforge.data.PlayKind
 import com.biasnil.audioforge.data.PlayLogStore
+import com.biasnil.audioforge.data.RadioStation
+import com.biasnil.audioforge.data.toTrack
 import com.biasnil.audioforge.data.SongAnalysis
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.harmonicOrder
@@ -92,6 +96,8 @@ data class PlaybackState(
     /** System.currentTimeMillis() when a Minutes timer runs out. */
     val sleepEndsAtMs: Long? = null,
     val abRepeat: AbRepeat = AbRepeat.Off,
+    /** Radio: what the station says is playing (its ICY StreamTitle), if it says. */
+    val liveTitle: String? = null,
 ) {
     /** 10 minutes or more (audiobooks, mixes): ±15 s buttons, and the position is remembered. */
     val isLongTrack: Boolean get() = durationMs >= PlaybackManager.LONG_TRACK_MS
@@ -190,6 +196,8 @@ class PlaybackManager(
     private var consecutiveFailures = 0
     /** The lyric line shown on the lock screen / Android Auto in place of the artist (null = the artist). */
     private var nowPlayingLine: String? = null
+    /** Radio: the station's ICY title (see [PlaybackState.liveTitle]). */
+    private var liveTitle: String? = null
 
     /** Spectrum of what's being heard, for the Now Playing visualizer. */
     val visualizer = VisualizerTap()
@@ -243,6 +251,9 @@ class PlaybackManager(
         queue.currentItem?.let(::load)
     }
 
+    /** Plays an internet radio station: it replaces the queue. */
+    fun playStation(station: RadioStation) = playQueue(listOf(station.toTrack()), 0)
+
     /** The list in a random order (the iOS album page's Shuffle button). */
     fun playShuffled(tracks: List<Track>, from: String? = null) = playQueue(tracks.shuffled(), 0, from)
 
@@ -257,6 +268,7 @@ class PlaybackManager(
             Player.STATE_ENDED -> player.seekTo(0) // end of the queue: play the last track again
             Player.STATE_IDLE -> player.prepare() // after an error
         }
+        if (active.track?.isRadio == true) player.seekToDefaultPosition()
         player.play() // a fading-in track follows along, see SlotListener.onPlayWhenReadyChanged
     }
 
@@ -289,6 +301,7 @@ class PlaybackManager(
      * the same track, from its beginning.
      */
     fun seekTo(positionMs: Long) {
+        if (active.track?.isRadio == true) return // live: nothing to seek in
         abortHandOff()
         val target = positionMs.coerceAtLeast(0)
         val ab = abRepeat
@@ -569,7 +582,15 @@ class PlaybackManager(
     private fun songStarted() {
         countedUri = null
         abRepeat = AbRepeat.Off
+        setLiveTitle(null)
         startListening()
+    }
+
+    private fun setLiveTitle(title: String?) {
+        if (title == liveTitle) return
+        liveTitle = title
+        (_sessionPlayer.value as? QueueForwardingPlayer)?.liveTitle = title
+        publish()
     }
 
     /** Logs the song before (if it counted as a play) and starts timing the current one. */
@@ -582,7 +603,11 @@ class PlaybackManager(
             album = track.album,
             startedAtMs = System.currentTimeMillis(),
             listenedMs = 0,
-            kind = if (isPodcast(track.uri)) PlayKind.Podcast else PlayKind.Music,
+            kind = when {
+                track.isRadio -> PlayKind.Radio
+                isPodcast(track.uri) -> PlayKind.Podcast
+                else -> PlayKind.Music
+            },
         )
         val finished = listening.start(entry, track.durationMs)
         if (finished != null) playLog.append(finished) else playLog.checkpoint(null)
@@ -602,13 +627,18 @@ class PlaybackManager(
         if (player.isPlaying) listening.listened(now - lastListenTickMs)
         lastListenTickMs = now
         val track = active.track ?: return
-        val length = player.knownDurationMs ?: return
-        val cursor = player.currentPosition
-        listening.setLength(length)
         if (now - lastListenCheckpointMs >= LISTEN_CHECKPOINT_MS) {
             lastListenCheckpointMs = now
             listening.counted?.let(playLog::checkpoint)
         }
+        // Radio is live: no position to save, no play count, no crossfade or end. Only the sleep timer's fade.
+        if (track.isRadio) {
+            updateSleepFade(player.currentPosition, Long.MAX_VALUE)
+            return
+        }
+        val length = player.knownDurationMs ?: return
+        val cursor = player.currentPosition
+        listening.setLength(length)
 
         // While playing, remember the position every few seconds in case the app is killed.
         if (player.isPlaying && now - lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS) {
@@ -873,7 +903,10 @@ class PlaybackManager(
         active.effects.visualizer = visualizer
 
         queue.commitPendingNext()
-        _sessionPlayer.value = QueueForwardingPlayer(active.player, this).also { it.lyricLine = nowPlayingLine }
+        _sessionPlayer.value = QueueForwardingPlayer(active.player, this).also {
+            it.lyricLine = nowPlayingLine
+            it.liveTitle = liveTitle
+        }
         publish()
     }
 
@@ -937,6 +970,7 @@ class PlaybackManager(
             sleepTimer = sleepTimer,
             sleepEndsAtMs = sleepEndsAtMs,
             abRepeat = abRepeat,
+            liveTitle = liveTitle,
         )
         if (queue.version != publishedQueueVersion) {
             publishedQueueVersion = queue.version
@@ -1002,12 +1036,26 @@ class PlaybackManager(
             if (mediaItem?.mediaId == queue.pendingNextItem?.uri) completeGapless() else cancelGapless()
         }
 
+        /** Radio stations send what's playing as ICY metadata ("Artist - Title"). */
+        override fun onMetadata(metadata: Metadata) {
+            if (slot !== active || slot.track?.isRadio != true) return
+            for (i in 0 until metadata.length()) {
+                val icy = metadata[i] as? IcyInfo ?: continue
+                setLiveTitle(icy.title?.trim()?.takeIf { it.isNotEmpty() })
+            }
+        }
+
         override fun onTracksChanged(tracks: Tracks) {
             slot.replayGainDb = readReplayGainDb(tracks) ?: 0f
             applyGain(slot)
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            if (slot === active && slot.track?.isRadio == true && error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                slot.player.seekToDefaultPosition()
+                slot.player.prepare()
+                return
+            }
             if (slot === active) {
                 val track = slot.track
                 Log.w(TAG, "Couldn't play ${track?.fileName}", error)
@@ -1118,6 +1166,7 @@ private fun Track.toMediaItem(): MediaItem =
     MediaItem.Builder()
         .setMediaId(uri)
         .setUri(uri)
+        .apply { if (station?.hls == true) setMimeType(MimeTypes.APPLICATION_M3U8) }
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)

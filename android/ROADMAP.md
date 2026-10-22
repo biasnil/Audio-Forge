@@ -40,6 +40,7 @@ the Android app. Read the whole file before starting.
 | Feature 1, widget gallery (below): eight styles, Settings → Widgets, per-widget background | `widget/`, `ui/WidgetsPage.kt` |
 | Feature 2, listening stats (below): play log, Settings → Listening stats, Year in Review image | `data/PlayLog.kt`, `data/ListeningStats.kt`, `ui/ListeningStatsPage.kt`, `ui/YearInReview.kt` |
 | Feature 3, podcast search and download (below) | `data/PodcastFeeds.kt`, `data/PodcastRepository.kt`, `data/RemoteImages.kt`, `ui/PodcastFeedPages.kt`, `ui/PodcastsTab.kt` |
+| Feature 4, internet radio (below) | `data/RadioBrowser.kt`, `data/RadioRepository.kt`, `ui/RadioTab.kt`, `playback/PlaybackManager.kt` (`playStation`, ICY titles) |
 
 Commit `7ad35cd` on `main` (pushed). The owner's Play developer account is
 still being verified; until then releases go to GitHub only.
@@ -79,6 +80,34 @@ Feature 3 notes, where it differs from the plan below:
 - Tested on the emulator: search, subscribe, open a feed, download (Radiolab),
   play the episode, Check for new episodes. Not yet tried: many shows, slow
   or failing networks, a feed that needs cleartext.
+
+Feature 4 notes:
+- A station is a `Track` with `station` set (`RadioStation.toTrack()`); playing
+  one replaces the queue. `PlaybackManager` skips crossfade, gapless, play
+  counts, resume and seeking for it (`tick()` returns early); lyrics and tag
+  editing are off; its cover is the station's favicon (`CoverArtLoader`), so
+  widgets and the mini player get it too. A paused station resumes at live.
+  The ICY StreamTitle is `PlaybackState.liveTitle`, shown on Now Playing, the
+  mini player, widgets and (through `QueueForwardingPlayer`) the lock screen.
+- Radio Browser: mirrors from a DNS lookup of all.api.radio-browser.info (their
+  documented method), else the desktop's list; a failed request moves to the
+  next mirror; `User-Agent: AudioForge/<version>`; `hidebroken=true`;
+  `/json/url/<uuid>` on every play. Country names come from `Locale` (no table).
+- **"Report broken station" isn't built: Radio Browser has no report
+  endpoint** (checked their API docs 2026-10-22: click, vote, add and a
+  read-only broken list only). They test every station daily and
+  `hidebroken=true` already drops failures. The station menu has **Vote**
+  instead. Decide with the owner whether Play needs more (e.g. hide a
+  station locally, or link to radio-browser.info).
+- Cleartext: Android can't allow http for the player only, so
+  `network_security_config.xml` allows it app-wide and the app keeps its own
+  requests on https (`PodcastRepository.get` upgrades http links).
+- Radio plays are logged as their own kind; Listening stats shows radio time
+  on its own line.
+- Tested on the emulator: top stations, search, favorites, recent, an Icecast
+  stream with ICY titles, an HLS stream (BBC), a plain-http stream on a raw IP.
+  Not tested: Android Auto's Radio node (needs the Desktop Head Unit or a car),
+  long sessions, network drops. A world map can come later, as planned.
 
 ## Next release: Androidv1.4.1 (GitHub)
 

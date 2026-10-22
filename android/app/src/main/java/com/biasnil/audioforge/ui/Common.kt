@@ -72,6 +72,20 @@ val LocalAppContainer = staticCompositionLocalOf<AppContainer> { error("AppConta
 fun trackCountText(count: Int): String =
     LocalContext.current.resources.getQuantityString(R.plurals.track_count, count, count)
 
+/**
+ * What's playing, as a title and a second line. A radio station: the song it
+ * announces over the station, or the station over "Live radio".
+ */
+@Composable
+fun nowPlayingText(track: Track, liveTitle: String?): Pair<String, String> {
+    val station = track.station
+    return when {
+        station != null && liveTitle != null -> liveTitle to station.name
+        station != null -> station.name to stringResource(R.string.radio_live)
+        else -> track.title to track.artist.ifEmpty { stringResource(R.string.unknown_artist) }
+    }
+}
+
 /** "Artist  •  Album", with the desktop's "Unknown Artist" fallback. */
 @Composable
 fun trackSubtitle(track: Track): String {

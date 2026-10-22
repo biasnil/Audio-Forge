@@ -521,4 +521,27 @@
         <item quantity="one">%d new episode.</item>
         <item quantity="other">%d new episodes.</item>
     </plurals>
+
+    <!-- Internet radio (Radio tab) -->
+    <string name="tab_radio">Radio</string>
+    <string name="radio_live">Live radio</string>
+    <string name="radio_live_badge">LIVE</string>
+    <string name="radio_search_hint">Station name</string>
+    <string name="radio_search_tag_hint">Tag, like jazz or news</string>
+    <string name="radio_search_tags">Tag</string>
+    <string name="radio_all_countries">All countries</string>
+    <string name="radio_country">Country</string>
+    <string name="radio_favorites">Favorites</string>
+    <string name="radio_recent">Recently played</string>
+    <string name="radio_top">Top stations</string>
+    <string name="radio_none">No stations found.</string>
+    <string name="radio_failed">Couldn\'t reach the station directory. Check your connection.</string>
+    <string name="radio_favorite">Add to favorites</string>
+    <string name="radio_unfavorite">Remove from favorites</string>
+    <string name="radio_vote">Vote for this station</string>
+    <string name="radio_voted">Thanks, your vote was counted.</string>
+    <string name="radio_vote_failed">Couldn\'t vote now. Radio Browser counts one vote per station every 10 minutes.</string>
+    <string name="radio_homepage">Open the station\'s website</string>
+    <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
+    <string name="stats_radio">Radio: %1$s</string>
 </resources>

@@ -271,6 +271,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     LibraryTab.Settings -> SettingsTab(onOpenPage)
                     LibraryTab.Wallpapers -> WallpapersTab(onOpenPage)
                     LibraryTab.Podcasts -> PodcastsTab(onOpenPage)
+                    LibraryTab.Radio -> RadioTab()
                 }
             }
         }

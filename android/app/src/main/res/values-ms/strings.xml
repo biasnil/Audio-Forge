@@ -507,4 +507,27 @@
     <plurals name="podcast_new_found">
         <item quantity="other">%d episod baharu.</item>
     </plurals>
+
+    <!-- Internet radio (Radio tab) -->
+    <string name="tab_radio">Radio</string>
+    <string name="radio_live">Radio langsung</string>
+    <string name="radio_live_badge">LANGSUNG</string>
+    <string name="radio_search_hint">Nama stesen</string>
+    <string name="radio_search_tag_hint">Tag, seperti jazz atau berita</string>
+    <string name="radio_search_tags">Tag</string>
+    <string name="radio_all_countries">Semua negara</string>
+    <string name="radio_country">Negara</string>
+    <string name="radio_favorites">Kegemaran</string>
+    <string name="radio_recent">Dimainkan baru-baru ini</string>
+    <string name="radio_top">Stesen popular</string>
+    <string name="radio_none">Tiada stesen ditemui.</string>
+    <string name="radio_failed">Tidak dapat menghubungi direktori stesen. Semak sambungan anda.</string>
+    <string name="radio_favorite">Tambah ke kegemaran</string>
+    <string name="radio_unfavorite">Buang daripada kegemaran</string>
+    <string name="radio_vote">Undi stesen ini</string>
+    <string name="radio_voted">Terima kasih, undian anda telah dikira.</string>
+    <string name="radio_vote_failed">Tidak dapat mengundi sekarang. Radio Browser mengira satu undian bagi setiap stesen setiap 10 minit.</string>
+    <string name="radio_homepage">Buka laman web stesen</string>
+    <string name="radio_directory_note">Stesen datang daripada Radio Browser (radio-browser.info), direktori yang diurus oleh komuniti. Tiada apa dimainkan sehingga anda mengetik stesen.</string>
+    <string name="stats_radio">Radio: %1$s</string>
 </resources>

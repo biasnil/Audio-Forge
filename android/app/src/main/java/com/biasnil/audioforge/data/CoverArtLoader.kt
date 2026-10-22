@@ -45,6 +45,9 @@ class CoverArtLoader(private val context: Context) {
         cache.get(key)?.let { return it }
         if (key in missing) return null
 
+        // A radio station's cover is its logo from the web; its stream is no file to read art from.
+        val station = track.station
+        if (station != null) return station.favicon?.let { RemoteImages.load(it, sizePx) }
         val bitmap = withContext(Dispatchers.IO) {
             decodeEmbedded(track.uri, sizePx) ?: track.folderCoverUri?.let { decodeFile(it, sizePx) }
         }

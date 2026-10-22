@@ -12,6 +12,8 @@ import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.PlayLogStore
 import com.biasnil.audioforge.data.PodcastRepository
+import com.biasnil.audioforge.data.RadioRepository
+import com.biasnil.audioforge.data.RadioStation
 import com.biasnil.audioforge.data.SongDataStore
 import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.data.WallpaperRepository
@@ -58,6 +60,8 @@ class AppContainer(context: Context) {
     val tagEditor = TagEditor(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
     val podcasts = PodcastRepository(context, library, appScope)
+    /** Internet radio (the Radio tab): stations, favorites, recently played. */
+    val radio = RadioRepository(context, appScope)
     val wallpapers = WallpaperRepository(context, store)
     /** The visualizer's custom GIFs / videos (Settings -> Visualizer). */
     val customMedia = CustomMediaRepository(context, store)
@@ -71,6 +75,12 @@ class AppContainer(context: Context) {
 
     /** The home-screen widgets (Settings -> Widgets), redrawn as playback changes. */
     val widgets = WidgetUpdater(context, playback, songData, lyrics, currentLyricLine, coverArt, appScope)
+
+    /** Plays [station] (it replaces the queue) and adds it to Recently played. */
+    fun playStation(station: RadioStation) {
+        playback.playStation(station)
+        radio.played(station)
+    }
 
     init {
         // Last session's queue, paused where it was. Saved songs are looked up

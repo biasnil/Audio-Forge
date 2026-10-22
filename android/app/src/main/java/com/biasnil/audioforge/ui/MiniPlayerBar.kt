@@ -68,16 +68,17 @@ fun MiniPlayerBar(state: PlaybackState, onOpenNowPlaying: () -> Unit, modifier: 
             ) {
                 CoverImage(track, decodeSize = 40.dp, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.width(12.dp))
+                val (title, subtitle) = nowPlayingText(track, state.liveTitle)
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = track.title,
+                        text = title,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = track.artist.ifEmpty { stringResource(R.string.unknown_artist) },
+                        text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

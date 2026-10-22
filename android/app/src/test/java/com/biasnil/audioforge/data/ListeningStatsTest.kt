@@ -92,6 +92,18 @@ class ListeningStatsTest {
         assertTrue(stats.songs.none { it.name == "Ep" })
     }
 
+    @Test fun radioSeparately() {
+        val stats = listeningStats(
+            listOf(play("A"), play("Jazz FM", kind = PlayKind.Radio, listened = 3_600_000)),
+            StatsPeriod.AllTime, zone, { null },
+        )
+        assertEquals(1, stats.plays)
+        assertEquals(1, stats.radioPlays)
+        assertEquals(3_600_000L, stats.radioMs)
+        assertTrue(stats.songs.none { it.name == "Jazz FM" })
+        assertEquals(PlayKind.Radio, parsePlayEntry(play("R", kind = PlayKind.Radio).toJsonLine())?.kind)
+    }
+
     @Test fun onlyThePeriod() {
         val entries = listOf(play("Oct", time = at(2026, 10)), play("Sep", time = at(2026, 9)), play("Last year", time = at(2025, 10)))
         assertEquals(listOf("Oct"), listeningStats(entries, StatsPeriod.Month(2026, 10), zone, { null }).songs.map { it.name })

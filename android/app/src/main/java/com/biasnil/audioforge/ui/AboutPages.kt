@@ -215,7 +215,7 @@ private fun reportProblem(context: Context, describeLine: String, copiedMessage:
 }
 
 /** Opens [url] in the browser. */
-private fun openLink(context: Context, url: String) {
+internal fun openLink(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: ActivityNotFoundException) {

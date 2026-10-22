@@ -12,10 +12,11 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 
-/** What was played: Listening stats count music and podcasts separately (radio will be a third kind). */
+/** What was played: Listening stats count music, podcasts and radio separately. */
 enum class PlayKind(val id: String) {
     Music("m"),
-    Podcast("p");
+    Podcast("p"),
+    Radio("r");
 
     companion object {
         fun fromId(id: String?): PlayKind = entries.firstOrNull { it.id == id } ?: Music

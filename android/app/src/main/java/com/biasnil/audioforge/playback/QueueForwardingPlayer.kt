@@ -35,13 +35,25 @@ class QueueForwardingPlayer(
         set(value) {
             if (field == value) return
             field = value
-            val metadata = mediaMetadata
-            val events = Player.Events(FlagSet.Builder().add(Player.EVENT_MEDIA_METADATA_CHANGED).build())
-            for (listener in listeners) {
-                listener.onMediaMetadataChanged(metadata)
-                listener.onEvents(this, events)
-            }
+            notifyMetadataChanged()
         }
+
+    /** Radio: the station's ICY title, shown as the title with the station as the artist. */
+    var liveTitle: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            notifyMetadataChanged()
+        }
+
+    private fun notifyMetadataChanged() {
+        val metadata = mediaMetadata
+        val events = Player.Events(FlagSet.Builder().add(Player.EVENT_MEDIA_METADATA_CHANGED).build())
+        for (listener in listeners) {
+            listener.onMediaMetadataChanged(metadata)
+            listener.onEvents(this, events)
+        }
+    }
 
     override fun addListener(listener: Player.Listener) {
         super.addListener(listener)
@@ -55,6 +67,7 @@ class QueueForwardingPlayer(
 
     override fun getMediaMetadata(): MediaMetadata {
         val base = super.getMediaMetadata()
+        liveTitle?.let { title -> return base.buildUpon().setTitle(title).setArtist(base.title).setSubtitle(base.title).build() }
         val line = lyricLine ?: return base
         return base.buildUpon().setArtist(line).setSubtitle(line).build()
     }

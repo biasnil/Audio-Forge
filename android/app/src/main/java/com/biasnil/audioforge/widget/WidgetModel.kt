@@ -89,6 +89,8 @@ data class WidgetSnapshot(
     val coverVersion: Int = 0,
     val upNext: List<UpNextSong> = emptyList(),
     val lyricLine: String? = null,
+    /** A radio station: [title] is the station, [artist] what it says is playing ("" if nothing). */
+    val isRadio: Boolean = false,
 ) {
     val hasTrack: Boolean get() = trackUri != null
 }
@@ -111,7 +113,8 @@ fun widgetSnapshot(
     return WidgetSnapshot(
         trackUri = track.uri,
         title = track.title,
-        artist = track.artist,
+        artist = if (track.isRadio) state.liveTitle.orEmpty() else track.artist,
+        isRadio = track.isRadio,
         isPlaying = state.isPlaying,
         shuffleOn = state.shuffleMode != ShuffleMode.Off,
         loved = loved,

@@ -100,6 +100,7 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val settings by container.store.settings.collectAsStateWithLifecycle()
     val stats by container.songData.stats.collectAsStateWithLifecycle()
     val lyrics by container.lyrics.state.collectAsStateWithLifecycle()
+    val radioFavorites by container.radio.favoriteIds.collectAsStateWithLifecycle()
     val track = state.current
     if (track == null) {
         LaunchedEffect(Unit) { onBack() }
@@ -166,9 +167,13 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                     .padding(horizontal = 28.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                // A station's heart is its place in the Radio tab's Favorites.
+                val station = track.station
                 TopBar(
-                    loved = stats[track.uri]?.favorite == true,
-                    onToggleLove = { container.songData.toggleFavorite(track.uri) },
+                    loved = if (station != null) station.uuid in radioFavorites else stats[track.uri]?.favorite == true,
+                    onToggleLove = {
+                        if (station != null) container.radio.toggleFavorite(station) else container.songData.toggleFavorite(track.uri)
+                    },
                     onBack = onBack,
                     onUpNext = { onOpenPage(Page.UpNext) },
                     onFullLyrics = if (lyricsMode) ({ onOpenPage(Page.FullLyrics) }) else null,
@@ -178,7 +183,8 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CoverImage(track, decodeSize = 56.dp, modifier = Modifier.size(56.dp))
                         Spacer(Modifier.width(12.dp))
-                        TitleBlock(track.title, track.artist, large = false, modifier = Modifier.weight(1f))
+                        val (title, subtitle) = nowPlayingText(track, state.liveTitle)
+                        TitleBlock(title, subtitle, large = false, modifier = Modifier.weight(1f))
                     }
                     LyricsContent(
                         lyrics = lyrics,
@@ -207,19 +213,21 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                                 modifier = Modifier
                                     .size(side)
                                     .shadow(24.dp, RoundedCornerShape(10.dp), spotColor = themeColor ?: Color.Black)
-                                    .combinedClickable(onClick = {}, onLongClick = { trackActions.showMenu(track) }),
+                                    .combinedClickable(onClick = {}, onLongClick = { if (!track.isRadio) trackActions.showMenu(track) }),
                             )
                         }
                     }
-                    TitleBlock(track.title, track.artist, large = true, modifier = Modifier.fillMaxWidth())
+                    val (title, subtitle) = nowPlayingText(track, state.liveTitle)
+                    TitleBlock(title, subtitle, large = true, modifier = Modifier.fillMaxWidth())
                 }
 
-                ProgressBar(state, position, onSeek = playback::seekTo)
-                if (state.isLongTrack) SkipButtons(onSkip = playback::skipBy)
+                if (track.isRadio) LiveBadge() else ProgressBar(state, position, onSeek = playback::seekTo)
+                if (state.isLongTrack && !track.isRadio) SkipButtons(onSkip = playback::skipBy)
                 Controls(state, playback::cycleShuffleMode, playback::previous, playback::togglePlayPause, playback::next, playback::cycleRepeatMode)
                 VolumeRow(state.volumePercent, playback::setVolume, playback::saveVolume)
                 Extras(
                     state = state,
+                    live = track.isRadio,
                     lyricsAvailable = lyricsAvailable,
                     lyricsLoading = lyrics == LyricsState.Loading,
                     lyricsMode = lyricsMode,
@@ -284,6 +292,23 @@ private fun TitleBlock(title: String, artist: String, large: Boolean, modifier: 
             style = if (large) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
+        )
+    }
+}
+
+/** Radio in place of the seek bar: a live stream has no position to show. */
+@Composable
+private fun LiveBadge() {
+    Box(Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(R.string.radio_live_badge),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFE53935))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
 }
@@ -448,6 +473,8 @@ private fun VolumeRow(volumePercent: Int, onVolume: (Int) -> Unit, onDone: () ->
 @Composable
 private fun Extras(
     state: PlaybackState,
+    /** Radio: no speed or A-B repeat (a live stream). */
+    live: Boolean,
     lyricsAvailable: Boolean,
     lyricsLoading: Boolean,
     lyricsMode: Boolean,
@@ -467,7 +494,7 @@ private fun Extras(
     ) {
         // Speed
         var speedMenu by remember { mutableStateOf(false) }
-        Box {
+        if (!live) Box {
             Text(
                 text = rateText(state.rate),
                 style = MaterialTheme.typography.labelLarge,
@@ -520,7 +547,7 @@ private fun Extras(
 
         // A-B repeat
         val ab = state.abRepeat
-        Text(
+        if (!live) Text(
             text = if (ab is AbRepeat.ASet) "A–" else "A–B",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,

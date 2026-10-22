@@ -43,7 +43,7 @@ fun yearOf(timeMs: Long, zone: ZoneId): StatsPeriod.Year = StatsPeriod.Year(Inst
 data class RankedItem(val name: String, val detail: String, val plays: Int, val listenedMs: Long)
 
 data class ListeningStats(
-    /** Music only; podcasts are [podcastMs] / [podcastPlays]. */
+    /** Music only; podcasts are [podcastMs] / [podcastPlays], radio [radioMs] / [radioPlays]. */
     val listenedMs: Long = 0,
     val plays: Int = 0,
     val songs: List<RankedItem> = emptyList(),
@@ -52,8 +52,11 @@ data class ListeningStats(
     val genres: List<RankedItem> = emptyList(),
     val podcastMs: Long = 0,
     val podcastPlays: Int = 0,
+    val radioMs: Long = 0,
+    /** Stations played (each start of a station). */
+    val radioPlays: Int = 0,
 ) {
-    val isEmpty: Boolean get() = plays == 0 && podcastPlays == 0
+    val isEmpty: Boolean get() = plays == 0 && podcastPlays == 0 && radioPlays == 0
 }
 
 /** How many songs, artists... each top list shows. */
@@ -75,6 +78,7 @@ fun listeningStats(
     val inPeriod = entries.filter { period.contains(it.startedAtMs, zone) }
     val music = inPeriod.filter { it.kind == PlayKind.Music }
     val podcasts = inPeriod.filter { it.kind == PlayKind.Podcast }
+    val radio = inPeriod.filter { it.kind == PlayKind.Radio }
     return ListeningStats(
         listenedMs = music.sumOf { it.listenedMs },
         plays = music.size,
@@ -84,6 +88,8 @@ fun listeningStats(
         genres = rankedGenres(music, top, genreOf),
         podcastMs = podcasts.sumOf { it.listenedMs },
         podcastPlays = podcasts.size,
+        radioMs = radio.sumOf { it.listenedMs },
+        radioPlays = radio.size,
     )
 }
 

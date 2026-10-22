@@ -24,6 +24,10 @@ Apple (itunes.apple.com): the words you type when you search for podcasts. Show 
 
 Podcast hosts: when you open a show, check for new episodes or download an episode, the show's feed, artwork and audio are fetched from the servers the show uses. Downloads are made by Android's download manager and saved in your phone's Podcasts folder.
 
+Radio Browser (radio-browser.info): what you search for in the Radio tab (a station name, tag or country), and which station you play, which it counts. Station logos are loaded from the stations' websites.
+
+Radio stations: when you play a station, its stream comes from the station's own server, which sees your IP address.
+
 These services see your phone's IP address, as any website you visit does. Their own privacy policies apply.
 
 Genre detection runs entirely on your phone. Nothing is uploaded.

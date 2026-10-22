@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Internet radio: many stations still stream over plain http, so the player
+    has to be allowed to open http:// streams. Android can't limit this to the
+    player, so the app keeps its own requests on https itself: lyrics, the
+    station directory (Radio Browser), podcast search, feeds and artwork all
+    use https (PodcastRepository.get tries http links as https). Only station
+    streams, and podcast audio fetched by Android's download manager, can be http.
+-->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!-- On purpose: see above. -->
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration" />
+</network-security-config>

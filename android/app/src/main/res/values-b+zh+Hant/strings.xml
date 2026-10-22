@@ -507,4 +507,27 @@
     <plurals name="podcast_new_found">
         <item quantity="other">%d 個新單集。</item>
     </plurals>
+
+    <!-- Internet radio (Radio tab) -->
+    <string name="tab_radio">電台</string>
+    <string name="radio_live">直播電台</string>
+    <string name="radio_live_badge">直播</string>
+    <string name="radio_search_hint">電台名稱</string>
+    <string name="radio_search_tag_hint">標籤，例如 jazz 或 news</string>
+    <string name="radio_search_tags">標籤</string>
+    <string name="radio_all_countries">所有國家/地區</string>
+    <string name="radio_country">國家/地區</string>
+    <string name="radio_favorites">收藏</string>
+    <string name="radio_recent">最近播放</string>
+    <string name="radio_top">熱門電台</string>
+    <string name="radio_none">找不到電台。</string>
+    <string name="radio_failed">無法連線至電台目錄。請檢查網路連線。</string>
+    <string name="radio_favorite">加入收藏</string>
+    <string name="radio_unfavorite">從收藏中移除</string>
+    <string name="radio_vote">為此電台投票</string>
+    <string name="radio_voted">謝謝，你的投票已計入。</string>
+    <string name="radio_vote_failed">暫時無法投票。Radio Browser 每 10 分鐘對每個電台只計一票。</string>
+    <string name="radio_homepage">開啟電台網站</string>
+    <string name="radio_directory_note">電台來自社群維護的目錄 Radio Browser（radio-browser.info）。在你點按電台之前不會播放任何內容。</string>
+    <string name="stats_radio">電台：%1$s</string>
 </resources>

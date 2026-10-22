@@ -120,6 +120,7 @@ class WidgetRenderer(private val context: Context) {
                 R.id.widget_artist,
                 when {
                     !snapshot.hasTrack -> text.getString(R.string.auto_nothing_playing)
+                    snapshot.isRadio && snapshot.artist.isEmpty() -> text.getString(R.string.radio_live)
                     snapshot.artist.isEmpty() -> text.getString(R.string.unknown_artist)
                     else -> snapshot.artist
                 },

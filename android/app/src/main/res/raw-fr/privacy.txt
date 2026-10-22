@@ -24,6 +24,10 @@ Apple (itunes.apple.com) : les mots que vous saisissez quand vous recherchez des
 
 Hébergeurs de podcasts : quand vous ouvrez une émission, recherchez de nouveaux épisodes ou téléchargez un épisode, le flux, la pochette et l'audio de l'émission sont récupérés sur les serveurs qu'elle utilise. Les téléchargements sont faits par le gestionnaire de téléchargement d'Android et enregistrés dans le dossier Podcasts de votre téléphone.
 
+Radio Browser (radio-browser.info) : ce que vous recherchez dans l'onglet Radio (nom de station, étiquette ou pays), et la station que vous écoutez, qu'il comptabilise. Les logos des stations sont chargés depuis leurs sites.
+
+Stations de radio : quand vous écoutez une station, le flux vient du serveur de la station, qui voit votre adresse IP.
+
 Ces services voient l'adresse IP de votre téléphone, comme tout site web que vous visitez. Leurs propres politiques de confidentialité s'appliquent.
 
 La détection des genres se fait entièrement sur votre téléphone. Rien n'est envoyé.

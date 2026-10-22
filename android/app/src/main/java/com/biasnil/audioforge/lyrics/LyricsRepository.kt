@@ -58,7 +58,8 @@ class LyricsRepository(
                 .distinctUntilChangedBy { state -> state.current?.let { Triple(it.uri, it.title, it.artist) } }
                 .collectLatest { playbackState ->
                     val track = playbackState.current
-                    if (track == null) {
+                    // Radio has no lyrics to look up (a live stream, many songs).
+                    if (track == null || track.isRadio) {
                         _state.value = LyricsState.None
                     } else {
                         _state.value = LyricsState.Loading

@@ -35,4 +35,14 @@ data class Track(
     val dateAddedMs: Long = 0,
     /** Android itself files this as a podcast (MediaStore IS_PODCAST): always in the Podcasts tab. */
     val systemPodcast: Boolean = false,
-)
+    /**
+     * An internet radio station (the Radio tab), [uri] being its stream: live,
+     * so no seeking, crossfade, gapless, lyrics, play counts or tag editing.
+     */
+    val station: RadioStation? = null,
+) {
+    val isRadio: Boolean get() = station != null
+}
+
+/** A station as something the player can play. */
+fun RadioStation.toTrack(): Track = Track(uri = streamUrl, title = name, fileName = name, station = this)
