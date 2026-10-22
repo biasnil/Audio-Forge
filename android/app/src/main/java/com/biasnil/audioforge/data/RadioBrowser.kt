@@ -100,15 +100,19 @@ fun parseStations(json: String): List<RadioStation> {
  * Countries with stations, from /json/countrycodes (whose "name" is the ISO
  * code). Filtering by code, not the free-text country name, is what the
  * desktop learned: "USA" vs "United States" splits a country's stations.
+ * The list has some codes in both cases ("BG" with 396 stations, "bg" with
+ * 1): those are one country, their counts added, so each code is listed once.
  */
 fun parseCountryCodes(json: String): List<RadioCountry> {
     val array = JSONArray(json)
-    return (0 until array.length()).mapNotNull { i ->
-        val obj = array.optJSONObject(i) ?: return@mapNotNull null
+    val counts = LinkedHashMap<String, Int>()
+    for (i in 0 until array.length()) {
+        val obj = array.optJSONObject(i) ?: continue
         val code = obj.optString("name").trim().uppercase(Locale.ROOT)
-        if (code.length != 2) return@mapNotNull null
-        RadioCountry(code, obj.optInt("stationcount"))
+        if (code.length != 2) continue
+        counts[code] = (counts[code] ?: 0) + obj.optInt("stationcount")
     }
+    return counts.map { (code, stations) -> RadioCountry(code, stations) }
 }
 
 /** "Malaysia", "Malaisie", "马来西亚": the country's name in [locale]; the code itself if it isn't an ISO country. */
@@ -174,7 +178,7 @@ fun radioListsFromJson(json: String): Pair<List<RadioStation>, List<RadioStation
     val root = JSONObject(json)
     fun list(key: String): List<RadioStation> {
         val array = root.optJSONArray(key) ?: return emptyList()
-        return (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(::radioStationFromJson) }
+        return (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(::radioStationFromJson) }.distinctBy { it.uuid }
     }
     return list("favorites") to list("recent")
 }

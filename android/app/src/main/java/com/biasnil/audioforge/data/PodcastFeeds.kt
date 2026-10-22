@@ -318,7 +318,7 @@ fun subscriptionsFromJson(json: String): List<PodcastSubscription> {
                     sizeBytes = e.optLong("size"),
                     artworkUrl = e.optString("art").ifEmpty { null },
                 )
-            },
+            }.distinctBy { it.guid },
         )
-    }
+    }.distinctBy { it.feedUrl }
 }

@@ -51,6 +51,12 @@ class RadioBrowserTest {
         assertEquals("ZZ", countryName("ZZ", Locale.ENGLISH))
     }
 
+    @Test fun countryCodesInBothCasesAreOneCountry() {
+        // As Radio Browser returns them (this once crashed the country list: two "BG" rows).
+        val json = """[{"name":"BG","stationcount":396},{"name":"bg","stationcount":1},{"name":"MY","stationcount":120}]"""
+        assertEquals(listOf(RadioCountry("BG", 397), RadioCountry("MY", 120)), parseCountryCodes(json))
+    }
+
     @Test fun recentIsMostRecentFirstWithoutRepeats() {
         val a = RadioStation("a", "A", "https://a")
         val b = RadioStation("b", "B", "https://b")
