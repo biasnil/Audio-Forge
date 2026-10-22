@@ -268,13 +268,13 @@ Studio pick one under **Build → Select Build Variant**.
 
 Releasing on GitHub: `./gradlew assembleGithubRelease`, tag the release
 `Androidv<versionName>`, exactly matching `versionName` in
-`android/app/build.gradle.kts` (for example `Androidv1.0.2`), and attach the
+`android/app/build.gradle.kts` (for example `Androidv1.4.1`), and attach the
 APK. The update check only looks at `Androidv*` releases, so desktop releases
 don't affect it.
 
-Releasing on Google Play: `./gradlew bundlePlayRelease` and upload the `.aab`;
-see [`android/PLAY_STORE.md`](android/PLAY_STORE.md). Raise `versionCode` for
-every release. To sign release builds, copy `android/keystore.properties.example`
+Releasing on Google Play: `./gradlew bundlePlayRelease` and upload the `.aab`.
+Raise `versionCode` for every release. What changed in each version is in
+[`android/CHANGELOG.md`](android/CHANGELOG.md). To sign release builds, copy `android/keystore.properties.example`
 to `android/keystore.properties` (gitignored) and fill it in.
 
 ## iOS app

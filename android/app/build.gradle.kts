@@ -18,10 +18,10 @@ android {
         // memory page size devices (check: zipalign -c -P 16 -v 4 on the APK).
         minSdk = 31
         targetSdk = 36
-        versionCode = 6
+        versionCode = 7
         // Each Android release is tagged "Androidv<versionName>" on GitHub, which
         // the in-app update check (Settings -> About -> Version) compares with this.
-        versionName = "1.0.2"
+        versionName = "1.4.1"
         ndk {
             // The ABIs LiteRT ships (no 32-bit x86, which no phone this app supports uses).
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
