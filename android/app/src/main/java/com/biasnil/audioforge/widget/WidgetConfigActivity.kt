@@ -32,6 +32,7 @@ import com.biasnil.audioforge.AudioForgeApplication
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
 import com.biasnil.audioforge.ui.theme.isDark
+import com.biasnil.audioforge.ui.theme.themeStyle
 
 /**
  * A widget's own settings (long-press it on the home screen, then its
@@ -61,7 +62,7 @@ class WidgetConfigActivity : ComponentActivity() {
         setContent {
             val settings by container.store.settings.collectAsStateWithLifecycle()
             var choice by remember { mutableStateOf(widgets.backgrounds[widgetId]) }
-            AudioForgeTheme(darkTheme = isDark(settings.appearance)) {
+            AudioForgeTheme(darkTheme = isDark(settings.appearance), style = settings.themeStyle) {
                 AlertDialog(
                     onDismissRequest = ::finish,
                     title = { Text(stringResource(R.string.widgets_background)) },

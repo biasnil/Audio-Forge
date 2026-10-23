@@ -596,7 +596,7 @@
     <string name="skip_silence_podcasts_explanation">跳过每一个停顿，让节目更紧凑。</string>
     <string name="skip_silence_songs">歌曲</string>
     <string name="skip_silence_songs_explanation">只跳过歌曲开始前和结尾处的静音，中间的安静段落会保留。</string>
-    <string name="settings_appearance_summary">浅色或深色、桌面小部件</string>
+    <string name="settings_appearance_summary">浅色或深色、颜色、桌面小部件</string>
     <string name="settings_playback_summary">ReplayGain、交叉淡入淡出、睡眠定时、续播</string>
     <string name="settings_smart_summary">调性与 BPM、曲风、智能随机</string>
     <string name="settings_visualizer_summary">正在播放页面的动画</string>
@@ -612,4 +612,12 @@
     <string name="tabbar_drag">拖动以移动</string>
     <string name="tabbar_add">加入标签栏</string>
     <string name="tabbar_remove">移到「更多」</string>
+    <string name="theme_pure_black">纯黑</string>
+    <string name="theme_pure_black_explanation">深色模式使用纯黑，在 OLED 屏幕上更省电。关闭时使用较柔和的深灰色。</string>
+    <string name="theme_colours">颜色</string>
+    <string name="theme_colours_app">AudioForge 蓝</string>
+    <string name="theme_colours_material_you">Material You</string>
+    <string name="theme_colours_material_you_explanation">取自你的壁纸的颜色</string>
+    <string name="theme_colours_custom">自选颜色（在下方选择）</string>
+    <string name="theme_colour_number">颜色 %1$d</string>
 </resources>

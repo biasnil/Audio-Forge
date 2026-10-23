@@ -285,6 +285,7 @@ private fun AppearanceSettings(onOpenPage: (Page) -> Unit) {
             }
         }
     }
+    ThemeSettings()
     SettingsLinkRow(stringResource(R.string.widgets_settings_row)) { onOpenPage(Page.Widgets) }
 }
 

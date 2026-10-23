@@ -622,7 +622,7 @@
     <string name="skip_silence_podcasts_explanation">Saute chaque pause, pour que les épisodes passent plus vite.</string>
     <string name="skip_silence_songs">Morceaux</string>
     <string name="skip_silence_songs_explanation">Saute seulement le silence avant le début d\'un morceau et à sa toute fin. Les passages calmes au milieu sont gardés.</string>
-    <string name="settings_appearance_summary">Clair ou sombre, widgets</string>
+    <string name="settings_appearance_summary">Clair ou sombre, couleurs, widgets</string>
     <string name="settings_playback_summary">ReplayGain, fondu enchaîné, minuterie, reprise</string>
     <string name="settings_smart_summary">Tonalité et BPM, genres, lecture aléatoire intelligente</string>
     <string name="settings_visualizer_summary">L\'animation de la lecture en cours</string>
@@ -638,4 +638,12 @@
     <string name="tabbar_drag">Faire glisser pour déplacer</string>
     <string name="tabbar_add">Ajouter à la barre</string>
     <string name="tabbar_remove">Déplacer dans Plus</string>
+    <string name="theme_pure_black">Noir pur</string>
+    <string name="theme_pure_black_explanation">Le mode sombre utilise un vrai noir, qui économise la batterie sur les écrans OLED. Désactivé : un gris foncé plus doux.</string>
+    <string name="theme_colours">Couleurs</string>
+    <string name="theme_colours_app">Bleu AudioForge</string>
+    <string name="theme_colours_material_you">Material You</string>
+    <string name="theme_colours_material_you_explanation">Couleurs de votre fond d\'écran</string>
+    <string name="theme_colours_custom">Votre couleur (choisissez ci-dessous)</string>
+    <string name="theme_colour_number">Couleur %1$d</string>
 </resources>

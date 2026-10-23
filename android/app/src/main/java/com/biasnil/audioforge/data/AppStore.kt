@@ -29,6 +29,9 @@ data class WallpaperEntry(val id: String, val videoUri: String, val trackUris: L
 /** Light/dark: following the phone (System), or fixed. */
 enum class Appearance { System, Light, Dark }
 
+/** Settings -> Appearance -> Colours: the app's blue, the wallpaper's (Material You), or a chosen accent. */
+enum class ColourStyle { AudioForge, MaterialYou, Custom }
+
 /** Effects page -> 3D Surround: headphone virtualization, sized like the space it imitates. */
 enum class SurroundPreset { Off, Room, Hall, Stadium }
 
@@ -38,6 +41,11 @@ enum class ReverbPreset { Off, SmallRoom, LargeRoom, Hall, Plate }
 /** Everything the app remembers between launches (the desktop's AudioForge.ini). */
 data class AppSettings(
     val appearance: Appearance = Appearance.System,
+    /** Dark mode on true black (OLED); off = a soft dark grey. On by default: the look until now. */
+    val pureBlack: Boolean = true,
+    val colourStyle: ColourStyle = ColourStyle.AudioForge,
+    /** ColourStyle.Custom's accent (ARGB), one of ui.theme.ACCENT_SWATCHES. */
+    val accentColor: Int = DEFAULT_ACCENT,
     val includePhoneLibrary: Boolean = true,
     /** Tree URIs of added folders (read permission is persisted for each). */
     val folders: List<String> = emptyList(),
@@ -140,6 +148,8 @@ data class AppSettings(
 
     companion object {
         const val EQ_BAND_COUNT = 10
+        /** The app's blue (iOS system blue). */
+        const val DEFAULT_ACCENT = 0xFF0A84FF.toInt()
         const val MAX_VOLUME_PERCENT = 200
         const val MAX_STEREO_WIDTH_PERCENT = 200
         const val MAX_KEY_SEMITONES = 12
@@ -178,6 +188,10 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                     ?: if (root.has("darkTheme")) {
                         if (root.optBoolean("darkTheme", true)) Appearance.Dark else Appearance.Light
                     } else Appearance.System,
+                pureBlack = root.optBoolean("pureBlack", true),
+                colourStyle = ColourStyle.entries.firstOrNull { it.name == root.optString("colourStyle") }
+                    ?: ColourStyle.AudioForge,
+                accentColor = root.optInt("accentColor", AppSettings.DEFAULT_ACCENT),
                 includePhoneLibrary = root.optBoolean("includePhoneLibrary", true),
                 tabBar = root.optJSONArray("tabBar")?.toStringList(),
                 folders = root.optJSONArray("folders").toStringList(),
@@ -278,6 +292,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
         val root = JSONObject()
             .put("version", 1)
             .put("appearance", settings.appearance.name)
+            .put("pureBlack", settings.pureBlack)
+            .put("colourStyle", settings.colourStyle.name)
+            .put("accentColor", settings.accentColor)
             .put("sleepFadeOut", settings.sleepFadeOut)
             .put("rememberLongTrackPosition", settings.rememberLongTrackPosition)
             .put("analysisCompleted", settings.analysisCompleted)

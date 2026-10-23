@@ -15,6 +15,10 @@ internal val DarkRaisedHigh = Color(0xFF2C2C2E)
 internal val DarkMutedText = Color(0xFF98989F)
 internal val DarkOutline = Color(0xFF38383A)
 
+// Dark mode with "Pure black" off: a soft grey window (Material's #121212).
+internal val SoftDarkRaised = Color(0xFF1E1E1E)
+internal val SoftDarkRaisedHigh = Color(0xFF2A2A2A)
+
 internal val LightWindow = Color(0xFFFFFFFF)
 internal val LightBase = Color(0xFFFFFFFF)
 internal val LightRaised = Color(0xFFF2F2F7)

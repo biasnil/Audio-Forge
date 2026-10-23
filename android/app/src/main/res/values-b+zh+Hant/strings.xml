@@ -596,7 +596,7 @@
     <string name="skip_silence_podcasts_explanation">略過每一個停頓，讓節目更緊湊。</string>
     <string name="skip_silence_songs">歌曲</string>
     <string name="skip_silence_songs_explanation">只略過歌曲開始前和結尾處的靜音，中間的安靜段落會保留。</string>
-    <string name="settings_appearance_summary">淺色或深色、桌面小工具</string>
+    <string name="settings_appearance_summary">淺色或深色、顏色、桌面小工具</string>
     <string name="settings_playback_summary">ReplayGain、交叉淡入淡出、睡眠定時、續播</string>
     <string name="settings_smart_summary">調性與 BPM、曲風、智慧隨機</string>
     <string name="settings_visualizer_summary">正在播放頁面的動畫</string>
@@ -612,4 +612,12 @@
     <string name="tabbar_drag">拖曳以移動</string>
     <string name="tabbar_add">加入分頁列</string>
     <string name="tabbar_remove">移到「更多」</string>
+    <string name="theme_pure_black">純黑</string>
+    <string name="theme_pure_black_explanation">深色模式使用純黑，在 OLED 螢幕上更省電。關閉時使用較柔和的深灰色。</string>
+    <string name="theme_colours">顏色</string>
+    <string name="theme_colours_app">AudioForge 藍</string>
+    <string name="theme_colours_material_you">Material You</string>
+    <string name="theme_colours_material_you_explanation">取自你的桌布的顏色</string>
+    <string name="theme_colours_custom">自選顏色（在下方選擇）</string>
+    <string name="theme_colour_number">顏色 %1$d</string>
 </resources>

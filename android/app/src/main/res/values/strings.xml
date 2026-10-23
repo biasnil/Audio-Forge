@@ -610,7 +610,7 @@
     <string name="skip_silence_podcasts_explanation">Skips every pause, so episodes go faster.</string>
     <string name="skip_silence_songs">Songs</string>
     <string name="skip_silence_songs_explanation">Skips only the silence before a song starts and at its very end. Quiet parts in the middle are kept.</string>
-    <string name="settings_appearance_summary">Light or dark, home-screen widgets</string>
+    <string name="settings_appearance_summary">Light or dark, colours, widgets</string>
     <string name="settings_playback_summary">ReplayGain, crossfade, sleep timer, resume</string>
     <string name="settings_smart_summary">Key and BPM, genres, smart shuffle</string>
     <string name="settings_visualizer_summary">The animation on Now Playing</string>
@@ -626,4 +626,12 @@
     <string name="tabbar_drag">Drag to move</string>
     <string name="tabbar_add">Add to the tab bar</string>
     <string name="tabbar_remove">Move to More</string>
+    <string name="theme_pure_black">Pure black</string>
+    <string name="theme_pure_black_explanation">Dark mode uses true black, which saves battery on OLED screens. Off: a softer dark grey.</string>
+    <string name="theme_colours">Colours</string>
+    <string name="theme_colours_app">AudioForge blue</string>
+    <string name="theme_colours_material_you">Material You</string>
+    <string name="theme_colours_material_you_explanation">Colours from your wallpaper</string>
+    <string name="theme_colours_custom">Your colour (pick one below)</string>
+    <string name="theme_colour_number">Colour %1$d</string>
 </resources>

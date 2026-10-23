@@ -17,6 +17,7 @@ import com.biasnil.audioforge.playback.PlaybackService
 import com.biasnil.audioforge.ui.AudioForgeApp
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
 import com.biasnil.audioforge.ui.theme.isDark
+import com.biasnil.audioforge.ui.theme.themeStyle
 import com.google.common.util.concurrent.ListenableFuture
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = barStyle(darkTheme), navigationBarStyle = barStyle(darkTheme))
             }
 
-            AudioForgeTheme(darkTheme = darkTheme) {
+            AudioForgeTheme(darkTheme = darkTheme, style = settings.themeStyle) {
                 AudioForgeApp(container)
             }
         }

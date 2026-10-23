@@ -596,7 +596,7 @@
     <string name="skip_silence_podcasts_explanation">Melangkau setiap jeda supaya episod lebih cepat.</string>
     <string name="skip_silence_songs">Lagu</string>
     <string name="skip_silence_songs_explanation">Melangkau hanya senyap sebelum lagu bermula dan di penghujungnya. Bahagian perlahan di tengah dikekalkan.</string>
-    <string name="settings_appearance_summary">Cerah atau gelap, widget skrin utama</string>
+    <string name="settings_appearance_summary">Cerah atau gelap, warna, widget</string>
     <string name="settings_playback_summary">ReplayGain, resapan silang, pemasa tidur, sambung semula</string>
     <string name="settings_smart_summary">Kunci dan BPM, genre, rombak pintar</string>
     <string name="settings_visualizer_summary">Animasi pada Sedang Dimainkan</string>
@@ -612,4 +612,12 @@
     <string name="tabbar_drag">Seret untuk alih</string>
     <string name="tabbar_add">Tambah ke bar tab</string>
     <string name="tabbar_remove">Alih ke Lagi</string>
+    <string name="theme_pure_black">Hitam tulen</string>
+    <string name="theme_pure_black_explanation">Mod gelap menggunakan hitam sebenar, yang menjimatkan bateri pada skrin OLED. Dimatikan: kelabu gelap yang lebih lembut.</string>
+    <string name="theme_colours">Warna</string>
+    <string name="theme_colours_app">Biru AudioForge</string>
+    <string name="theme_colours_material_you">Material You</string>
+    <string name="theme_colours_material_you_explanation">Warna daripada kertas dinding anda</string>
+    <string name="theme_colours_custom">Warna anda (pilih di bawah)</string>
+    <string name="theme_colour_number">Warna %1$d</string>
 </resources>

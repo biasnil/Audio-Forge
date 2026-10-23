@@ -76,6 +76,7 @@ import com.biasnil.audioforge.playback.ShuffleMode
 import com.biasnil.audioforge.playback.SleepTimer
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
 import com.biasnil.audioforge.ui.theme.isDark
+import com.biasnil.audioforge.ui.theme.themeStyle
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -110,7 +111,7 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val cover by rememberCoverArt(track, decodeSize = 300.dp)
     val themeColor = remember(cover) { cover?.themeColor() }
 
-    AudioForgeTheme(darkTheme = isDark(settings.appearance), accent = themeColor) {
+    AudioForgeTheme(darkTheme = isDark(settings.appearance), style = settings.themeStyle, accent = themeColor) {
         val position by rememberPlaybackPositionMs()
         var showLyrics by rememberSaveable { mutableStateOf(false) }
         var showVisualizer by rememberSaveable { mutableStateOf(false) }
