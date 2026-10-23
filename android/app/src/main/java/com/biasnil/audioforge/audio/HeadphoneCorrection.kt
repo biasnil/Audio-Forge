@@ -24,18 +24,54 @@ class CorrectionSettings {
 }
 
 /**
- * An AutoEq profile as a chain of biquads (RBJ audio-EQ-cookbook peaking
- * and shelving filters, with the shelves' Q as AutoEq means it), after its
- * preamp. Separate filter state per channel. No Android/Media3 types, so
- * it's unit testable; [AudioEffectsProcessor] feeds it samples.
+ * An AutoEq profile as a [ParametricChain], after its preamp. No
+ * Android/Media3 types, so it's unit testable; [AudioEffectsProcessor]
+ * feeds it samples.
  */
 class CorrectionDsp(private val settings: CorrectionSettings) {
 
-    private var sampleRate = 0
-    private var channels = 0
+    private val chain = ParametricChain()
     private var applied: HeadphoneProfile? = null
     private var appliedOnce = false
+    private var preamp = 1.0
 
+    /** True when a profile is chosen -- the processor skips the correction otherwise. */
+    var isActive = false
+        private set
+
+    fun configure(sampleRate: Int, channels: Int) {
+        chain.configure(sampleRate, channels)
+        appliedOnce = false
+        refresh()
+    }
+
+    /** Clears filter history (after a seek or a new track), not the settings. */
+    fun reset() = chain.reset()
+
+    /** Picks up a newly chosen profile; cheap when nothing changed. Call once per buffer. */
+    fun refresh() {
+        val profile = settings.profile
+        if ((appliedOnce && profile === applied) || !chain.isConfigured) return
+        applied = profile
+        appliedOnce = true
+        chain.setFilters(profile?.filters.orEmpty())
+        preamp = 10.0.pow((profile?.preampDb ?: 0.0) / 20.0)
+        isActive = profile != null
+    }
+
+    /** One sample of one channel through the preamp and every filter. */
+    fun process(sample: Double, channel: Int): Double = chain.process(sample * preamp, channel)
+}
+
+/**
+ * Peaking and shelving filters in series (RBJ audio-EQ-cookbook biquads,
+ * the shelves' Q as AutoEq means it), with separate state per channel.
+ * Used by the headphone correction and by bass boost / loudness.
+ */
+class ParametricChain {
+
+    private var sampleRate = 0
+    private var channels = 0
     private var count = 0
     private var b0 = DoubleArray(0)
     private var b1 = DoubleArray(0)
@@ -44,47 +80,41 @@ class CorrectionDsp(private val settings: CorrectionSettings) {
     private var a2 = DoubleArray(0)
     /** Per filter, per channel: x[n-1], x[n-2], y[n-1], y[n-2]. */
     private var state = DoubleArray(0)
-    private var preamp = 1.0
 
-    /** True when a profile is chosen -- the processor skips the correction otherwise. */
-    var isActive = false
-        private set
+    val isConfigured: Boolean get() = sampleRate > 0
 
     fun configure(sampleRate: Int, channels: Int) {
         this.sampleRate = sampleRate
         this.channels = channels
-        appliedOnce = false
-        refresh()
+        count = 0
+        state = DoubleArray(0)
     }
 
-    /** Clears filter history (after a seek or a new track), not the settings. */
+    /**
+     * Replaces the filters. The history is kept when the number of filters
+     * stays the same, so moving a slider doesn't click.
+     */
+    fun setFilters(filters: List<ParametricFilter>) {
+        // Filters at or above Nyquist can't be built (and are inaudible there anyway).
+        val usable = filters.filter { it.frequencyHz < sampleRate / 2.0 }
+        if (usable.size != count) {
+            count = usable.size
+            b0 = DoubleArray(count)
+            b1 = DoubleArray(count)
+            b2 = DoubleArray(count)
+            a1 = DoubleArray(count)
+            a2 = DoubleArray(count)
+            state = DoubleArray(count * channels * 4)
+        }
+        usable.forEachIndexed { i, filter -> design(i, filter) }
+    }
+
     fun reset() {
         state.fill(0.0)
     }
 
-    /** Picks up a newly chosen profile; cheap when nothing changed. Call once per buffer. */
-    fun refresh() {
-        val profile = settings.profile
-        if ((appliedOnce && profile === applied) || sampleRate <= 0) return
-        applied = profile
-        appliedOnce = true
-        // Filters at or above Nyquist can't be built (and are inaudible there anyway).
-        val filters = profile?.filters.orEmpty().filter { it.frequencyHz < sampleRate / 2.0 }
-        count = filters.size
-        b0 = DoubleArray(count)
-        b1 = DoubleArray(count)
-        b2 = DoubleArray(count)
-        a1 = DoubleArray(count)
-        a2 = DoubleArray(count)
-        state = DoubleArray(count * channels * 4)
-        filters.forEachIndexed { i, filter -> design(i, filter) }
-        preamp = 10.0.pow((profile?.preampDb ?: 0.0) / 20.0)
-        isActive = profile != null
-    }
-
-    /** One sample of one channel through the preamp and every filter. */
     fun process(sample: Double, channel: Int): Double {
-        var x = sample * preamp
+        var x = sample
         for (f in 0 until count) {
             val i = (f * channels + channel) * 4
             val y = b0[f] * x + b1[f] * state[i] + b2[f] * state[i + 1] - a1[f] * state[i + 2] - a2[f] * state[i + 3]

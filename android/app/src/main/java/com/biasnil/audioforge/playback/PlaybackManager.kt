@@ -1,6 +1,7 @@
 package com.biasnil.audioforge.playback
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
@@ -25,6 +26,8 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
 import com.biasnil.audioforge.audio.CorrectionSettings
+import com.biasnil.audioforge.audio.ToneParams
+import com.biasnil.audioforge.audio.ToneSettings
 import com.biasnil.audioforge.audio.VisualizerTap
 import com.biasnil.audioforge.audio.EqualizerSettings
 import com.biasnil.audioforge.audio.SpatialParams
@@ -149,12 +152,16 @@ class PlaybackManager(
     private val equalizer = EqualizerSettings()
     private val spatial = SpatialSettings()
     private val correction = CorrectionSettings()
+    private val tone = ToneSettings()
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
+    /** The phone's media volume (0..1) the loudness was last set for. */
+    private var loudnessVolume = -1f
     /** Changes when Android's own spatial audio is switched on or off. */
     private var audioAttributes = audioAttributesFor(store.settings.value)
 
     /** One player + its effects chain + what it's playing. */
     private inner class Slot {
-        val effects = AudioEffectsProcessor(equalizer, spatial, correction)
+        val effects = AudioEffectsProcessor(equalizer, spatial, correction, tone)
         val player: ExoPlayer = buildPlayer(appContext, effects, audioAttributes)
         var track: Track? = null
         var replayGainDb = 0f
@@ -623,6 +630,7 @@ class PlaybackManager(
 
     private fun tick() {
         val now = System.currentTimeMillis()
+        applyTone(store.settings.value)
         sleepEndsAtMs?.let { end ->
             if (now >= end) {
                 pause()
@@ -939,6 +947,9 @@ class PlaybackManager(
         val old = appliedSettings
         appliedSettings = settings
         correction.update(settings.headphoneCorrection)
+        loudnessVolume = -1f // the tone is set again below
+        applyTone(settings)
+        slots.forEach { it.effects.limiterEnabled = settings.limiterEnabled }
         equalizer.update(settings.eqEnabled, settings.eqBandGainsDb)
         spatial.update(
             SpatialParams(
@@ -973,6 +984,25 @@ class PlaybackManager(
     }
 
     /** The desktop's baseVolumeFor(): volume x ReplayGain (if on) x EQ post-gain (if the EQ is on). */
+    /**
+     * Bass boost, plus loudness for the phone's media volume -- read on
+     * every tick, since the volume buttons don't go through the app.
+     */
+    private fun applyTone(settings: AppSettings) {
+        val volume = if (settings.loudnessEnabled) {
+            val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max
+        } else 1f
+        if (volume == loudnessVolume && tone.params.bassBoostDb == settings.bassBoostDb) return
+        loudnessVolume = volume
+        tone.update(
+            ToneParams(
+                bassBoostDb = settings.bassBoostDb,
+                loudness = if (settings.loudnessEnabled) ToneParams.loudnessAt(volume) else 0f,
+            )
+        )
+    }
+
     private fun applyGain(slot: Slot) {
         val settings = store.settings.value
         var gain = volumePercent / 100f

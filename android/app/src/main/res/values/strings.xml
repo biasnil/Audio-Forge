@@ -545,7 +545,7 @@
     <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Effects</string>
-    <string name="effects_row_summary">Headphone correction, 3D Surround, stereo width, reverb</string>
+    <string name="effects_row_summary">Headphone correction, bass boost, limiter, 3D Surround, reverb</string>
     <string name="effects_surround">3D Surround</string>
     <string name="effects_surround_explanation">Makes headphones sound like the music is playing in a space around you.</string>
     <string name="effects_room">Room</string>
@@ -582,4 +582,10 @@
     <string name="device_bluetooth">Bluetooth device</string>
     <string name="device_usb">USB audio</string>
     <string name="device_other">Other output</string>
+    <string name="tone_section">Bass and volume</string>
+    <string name="tone_bass">Bass</string>
+    <string name="tone_loudness">Loudness</string>
+    <string name="tone_loudness_explanation">Adds bass and treble when your phone\'s volume is low, so music still sounds full. Nothing changes at full volume.</string>
+    <string name="tone_limiter">Limiter</string>
+    <string name="tone_limiter_explanation" formatted="false">Turns loud peaks down smoothly instead of crackling, for volume above 100%, bass boost and effects.</string>
 </resources>

@@ -531,7 +531,7 @@
     <string name="radio_directory_note">電台來自社群維護的目錄 Radio Browser（radio-browser.info）。在你點按電台之前不會播放任何內容。</string>
     <string name="stats_radio">電台：%1$s</string>
     <string name="effects">音效</string>
-    <string name="effects_row_summary">耳機校正、3D 環繞、立體聲寬度、殘響</string>
+    <string name="effects_row_summary">耳機校正、低音增強、限幅器、3D 環繞、殘響</string>
     <string name="effects_surround">3D 環繞</string>
     <string name="effects_surround_explanation">讓耳機聽起來像音樂在你周圍的空間中播放。</string>
     <string name="effects_room">房間</string>
@@ -568,4 +568,10 @@
     <string name="device_bluetooth">藍牙裝置</string>
     <string name="device_usb">USB 音訊</string>
     <string name="device_other">其他輸出</string>
+    <string name="tone_section">低音與音量</string>
+    <string name="tone_bass">低音</string>
+    <string name="tone_loudness">響度補償</string>
+    <string name="tone_loudness_explanation">手機音量較低時增加低音和高音，讓音樂依然飽滿。最大音量時不做改變。</string>
+    <string name="tone_limiter">限幅器</string>
+    <string name="tone_limiter_explanation" formatted="false">平滑壓低過響的峰值，避免爆音，適用於超過 100% 的音量、低音增強和音效。</string>
 </resources>

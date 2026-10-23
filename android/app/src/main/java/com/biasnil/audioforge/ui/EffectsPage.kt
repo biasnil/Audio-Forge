@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.audio.ToneParams
 import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.ReverbPreset
 import com.biasnil.audioforge.data.SurroundPreset
@@ -45,7 +46,7 @@ import kotlin.math.roundToInt
 
 /**
  * Equalizer -> Effects: AutoEq headphone correction (chosen on
- * [HeadphonePickerPage]), 3D Surround, stereo width, reverb, and (where the
+ * [HeadphonePickerPage]), bass boost, loudness, the limiter, 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
@@ -92,6 +93,41 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                     Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.tone_section))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.tone_bass), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
+                Slider(
+                    value = settings.bassBoostDb,
+                    onValueChange = { db -> store.update { it.copy(bassBoostDb = db.roundToInt().toFloat()) } },
+                    valueRange = 0f..ToneParams.MAX_BASS_BOOST_DB,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (settings.bassBoostDb == 0f) stringResource(R.string.mode_off) else "+${settings.bassBoostDb.roundToInt()} dB",
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(56.dp),
+                )
+            }
+            SwitchRow(
+                label = stringResource(R.string.tone_loudness),
+                explanation = stringResource(R.string.tone_loudness_explanation),
+                checked = settings.loudnessEnabled,
+                onChange = { on -> store.update { it.copy(loudnessEnabled = on) } },
+            )
+            SwitchRow(
+                label = stringResource(R.string.tone_limiter),
+                explanation = stringResource(R.string.tone_limiter_explanation),
+                checked = settings.limiterEnabled,
+                onChange = { on -> store.update { it.copy(limiterEnabled = on) } },
+            )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.effects_surround))
@@ -176,6 +212,8 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                 onClick = {
                     store.update {
                         it.copy(
+                            bassBoostDb = 0f,
+                            loudnessEnabled = false,
                             surroundPreset = SurroundPreset.Off,
                             surroundAmountPercent = 50,
                             stereoWidthPercent = 100,
@@ -202,6 +240,21 @@ private fun spatialAudioCheck(context: Context): (() -> Boolean)? {
     val spatializer = context.getSystemService(AudioManager::class.java)?.spatializer ?: return null
     if (spatializer.immersiveAudioLevel == Spatializer.SPATIALIZER_IMMERSIVE_LEVEL_NONE) return null
     return { spatializer.isEnabled }
+}
+
+/** A switch with its label, and a line of explanation under it. */
+@Composable
+private fun SwitchRow(label: String, explanation: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+    Explanation(explanation)
 }
 
 @Composable

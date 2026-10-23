@@ -557,7 +557,7 @@
     <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
     <string name="stats_radio">Radio : %1$s</string>
     <string name="effects">Effets</string>
-    <string name="effects_row_summary">Correction du casque, Surround 3D, largeur stéréo, réverbération</string>
+    <string name="effects_row_summary">Correction du casque, basses, limiteur, Surround 3D, réverbération</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Donne l\'impression, au casque, que la musique joue dans un espace autour de vous.</string>
     <string name="effects_room">Pièce</string>
@@ -594,4 +594,10 @@
     <string name="device_bluetooth">Appareil Bluetooth</string>
     <string name="device_usb">Audio USB</string>
     <string name="device_other">Autre sortie</string>
+    <string name="tone_section">Basses et volume</string>
+    <string name="tone_bass">Basses</string>
+    <string name="tone_loudness">Loudness</string>
+    <string name="tone_loudness_explanation">Ajoute des basses et des aigus quand le volume du téléphone est bas, pour que la musique reste pleine. Rien ne change au volume maximal.</string>
+    <string name="tone_limiter">Limiteur</string>
+    <string name="tone_limiter_explanation" formatted="false">Atténue les pics forts en douceur au lieu de grésiller, pour un volume au-delà de 100 %, les basses et les effets.</string>
 </resources>

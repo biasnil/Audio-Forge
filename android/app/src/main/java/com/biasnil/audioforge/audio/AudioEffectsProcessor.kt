@@ -11,11 +11,12 @@ import kotlin.math.roundToInt
 
 /**
  * Runs inside one player's audio pipeline: headphone correction
- * ([CorrectionDsp]), the 10-band EQ, then stereo width / 3D Surround /
- * reverb ([SpatialDsp]), then a gain -- volume x
- * ReplayGain x EQ post-gain, the desktop's baseVolumeFor() -- which can
- * exceed 1 for the volume boost. Output is hard-clipped to full scale,
- * same as the desktop (no limiter yet).
+ * ([CorrectionDsp]), the 10-band EQ, bass boost / loudness ([ToneDsp]),
+ * then stereo width / 3D Surround / reverb ([SpatialDsp]), then a gain --
+ * volume x ReplayGain x EQ post-gain, the desktop's baseVolumeFor() --
+ * which can exceed 1 for the volume boost, then the [Limiter]. Anything
+ * still over full scale (the limiter switched off) is hard-clipped, same
+ * as the desktop.
  *
  * Gain changes are ramped across a buffer so moving the volume slider
  * doesn't click.
@@ -25,11 +26,19 @@ class AudioEffectsProcessor(
     equalizer: EqualizerSettings,
     spatial: SpatialSettings,
     correction: CorrectionSettings,
+    tone: ToneSettings,
 ) : BaseAudioProcessor() {
 
     /** Set from the main thread; picked up on the next buffer. */
     @Volatile
     var gain = 1f
+
+    /** Set from the main thread; see [Limiter.enabled]. */
+    var limiterEnabled: Boolean
+        get() = limiter.enabled
+        set(value) {
+            limiter.enabled = value
+        }
 
     /** Where this player's output goes for the visualizer, while it's the one being heard. */
     @Volatile
@@ -38,12 +47,16 @@ class AudioEffectsProcessor(
 
     private val headphones = CorrectionDsp(correction)
     private val eq = EqualizerDsp(equalizer)
+    private val toneDsp = ToneDsp(tone)
     private val effects = SpatialDsp(spatial)
+    private val limiter = Limiter()
     private var appliedGain = 1f
     private var encoding = C.ENCODING_INVALID
     private var channels = 0
     /** One frame's samples, between reading and writing. */
     private var frameSamples = DoubleArray(0)
+
+    private val bytesPerSample: Int get() = if (encoding == C.ENCODING_PCM_16BIT) 2 else 4
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         val format = inputAudioFormat.encoding
@@ -55,7 +68,9 @@ class AudioEffectsProcessor(
         sampleRate = inputAudioFormat.sampleRate
         headphones.configure(inputAudioFormat.sampleRate, channels)
         eq.configure(inputAudioFormat.sampleRate, channels)
+        toneDsp.configure(inputAudioFormat.sampleRate, channels)
         effects.configure(inputAudioFormat.sampleRate, channels)
+        limiter.configure(inputAudioFormat.sampleRate, channels)
         frameSamples = DoubleArray(channels)
         return inputAudioFormat // same format out
     }
@@ -67,15 +82,17 @@ class AudioEffectsProcessor(
         inputBuffer.order(ByteOrder.nativeOrder())
         headphones.refresh()
         eq.refresh()
+        toneDsp.refresh()
         effects.refresh()
 
-        val bytesPerSample = if (encoding == C.ENCODING_PCM_16BIT) 2 else 4
+        val bytesPerSample = bytesPerSample
         val frames = size / (bytesPerSample * channels)
         val output = replaceOutputBuffer(frames * bytesPerSample * channels)
         val startGain = appliedGain
         val endGain = gain
         val useHeadphones = headphones.isActive
         val useEq = eq.isActive
+        val useTone = toneDsp.isActive
         val useEffects = effects.isActive
         val samples = frameSamples
         val tap = visualizer?.takeIf { it.enabled }
@@ -91,6 +108,7 @@ class AudioEffectsProcessor(
                 }
                 if (useHeadphones) sample = headphones.process(sample, channel)
                 if (useEq) sample = eq.process(sample, channel)
+                if (useTone) sample = toneDsp.process(sample, channel)
                 samples[channel] = sample
             }
             if (useEffects) { // only when there are 2+ channels
@@ -98,27 +116,50 @@ class AudioEffectsProcessor(
                 samples[0] = effects.outLeft
                 samples[1] = effects.outRight
             }
-            var mono = 0.0
-            for (channel in 0 until channels) {
-                val out = (samples[channel] * frameGain).coerceIn(-1.0, 1.0)
-                if (channel < 2) mono += out
-                if (bytesPerSample == 2) {
-                    output.putShort((out * 32767.0).roundToInt().toShort())
-                } else {
-                    output.putFloat(out.toFloat())
-                }
-            }
-            tap?.push(mono.toFloat())
+            for (channel in 0 until channels) samples[channel] *= frameGain
+            limiter.process(samples)
+            writeFrame(output, samples, tap)
         }
         appliedGain = endGain
         inputBuffer.position(inputBuffer.limit()) // any partial trailing frame is dropped
         output.flip()
     }
 
+    /** The limiter holds back its look-ahead; let it out at the end of the stream. */
+    override fun onQueueEndOfStream() {
+        if (channels == 0) return
+        val frames = limiter.lookaheadFrames
+        val output = replaceOutputBuffer(frames * bytesPerSample * channels)
+        val samples = frameSamples
+        repeat(frames) {
+            samples.fill(0.0)
+            limiter.process(samples)
+            writeFrame(output, samples, null)
+        }
+        output.flip()
+    }
+
+    /** Clips what's still over full scale, writes the frame, and feeds the visualizer. */
+    private fun writeFrame(output: ByteBuffer, samples: DoubleArray, tap: VisualizerTap?) {
+        var mono = 0.0
+        for (channel in 0 until channels) {
+            val out = samples[channel].coerceIn(-1.0, 1.0)
+            if (channel < 2) mono += out
+            if (bytesPerSample == 2) {
+                output.putShort((out * 32767.0).roundToInt().toShort())
+            } else {
+                output.putFloat(out.toFloat())
+            }
+        }
+        tap?.push(mono.toFloat())
+    }
+
     override fun onFlush() {
         headphones.reset()
         eq.reset() // seek / new track: don't ring with the old audio's filter history
+        toneDsp.reset()
         effects.reset()
+        limiter.reset()
         appliedGain = gain
     }
 

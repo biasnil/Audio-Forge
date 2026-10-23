@@ -60,6 +60,12 @@ data class AppSettings(
     /** By OutputDevice.key, in the order first seen. */
     val deviceSounds: Map<String, DeviceSound> = emptyMap(),
     // Effects page.
+    /** 0 = off, up to ToneParams.MAX_BASS_BOOST_DB. */
+    val bassBoostDb: Float = 0f,
+    /** More bass and treble the lower the phone's volume (the equal-loudness contours). */
+    val loudnessEnabled: Boolean = false,
+    /** Turns peaks down smoothly instead of clipping them (matters above 100% volume). */
+    val limiterEnabled: Boolean = true,
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
     val headphoneCorrection: HeadphoneProfile? = null,
     val surroundPreset: SurroundPreset = SurroundPreset.Off,
@@ -200,6 +206,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
                 eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
                 headphoneCorrection = root.optJSONObject("headphoneCorrection")?.let(::readHeadphoneProfile),
+                bassBoostDb = root.optDouble("bassBoostDb", 0.0).toFloat().coerceIn(0f, 12f),
+                loudnessEnabled = root.optBoolean("loudnessEnabled", false),
+                limiterEnabled = root.optBoolean("limiterEnabled", true),
                 deviceSoundEnabled = root.optBoolean("deviceSoundEnabled", false),
                 deviceSounds = root.optJSONArray("deviceSounds").toObjects().mapNotNull { obj ->
                     val kind = OutputKind.entries.firstOrNull { it.name == obj.optString("kind") } ?: return@mapNotNull null
@@ -276,6 +285,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
             .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
             .apply { settings.headphoneCorrection?.let { put("headphoneCorrection", writeHeadphoneProfile(it)) } }
+            .put("bassBoostDb", settings.bassBoostDb.toDouble())
+            .put("loudnessEnabled", settings.loudnessEnabled)
+            .put("limiterEnabled", settings.limiterEnabled)
             .put("deviceSoundEnabled", settings.deviceSoundEnabled)
             .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->
                 JSONObject()

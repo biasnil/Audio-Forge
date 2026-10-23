@@ -531,7 +531,7 @@
     <string name="radio_directory_note">Stesen datang daripada Radio Browser (radio-browser.info), direktori yang diurus oleh komuniti. Tiada apa dimainkan sehingga anda mengetik stesen.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Kesan</string>
-    <string name="effects_row_summary">Pembetulan fon kepala, Surround 3D, lebar stereo, gema</string>
+    <string name="effects_row_summary">Pembetulan fon kepala, bass, pengehad, Surround 3D, gema</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Membuatkan fon kepala berbunyi seolah-olah muzik dimainkan di ruang sekeliling anda.</string>
     <string name="effects_room">Bilik</string>
@@ -568,4 +568,10 @@
     <string name="device_bluetooth">Peranti Bluetooth</string>
     <string name="device_usb">Audio USB</string>
     <string name="device_other">Output lain</string>
+    <string name="tone_section">Bass dan kelantangan</string>
+    <string name="tone_bass">Bass</string>
+    <string name="tone_loudness">Kelantangan (Loudness)</string>
+    <string name="tone_loudness_explanation">Menambah bass dan trebel apabila kelantangan telefon rendah supaya muzik masih kedengaran penuh. Tiada perubahan pada kelantangan penuh.</string>
+    <string name="tone_limiter">Pengehad</string>
+    <string name="tone_limiter_explanation" formatted="false">Merendahkan puncak yang kuat dengan lancar dan bukannya berderak, untuk kelantangan melebihi 100%, bass dan kesan.</string>
 </resources>
