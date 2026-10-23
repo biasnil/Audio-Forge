@@ -3,7 +3,6 @@ package com.biasnil.audioforge.audio
 import com.biasnil.audioforge.data.ParametricFilter
 import kotlin.math.abs
 import kotlin.math.exp
-import kotlin.math.roundToInt
 
 /** Bass boost and loudness, as the shelves they add. */
 data class ToneParams(
@@ -77,78 +76,48 @@ class ToneDsp(private val settings: ToneSettings) {
 }
 
 /**
- * A look-ahead peak limiter: keeps every sample within [CEILING] by
- * turning the whole frame down smoothly just before a peak arrives
- * ([LOOKAHEAD_MS] ahead) and back up afterwards ([RELEASE_MS]), instead of
- * flattening the peak (the harsh crackle of hard clipping). The audio is
- * always delayed by the look-ahead, on or off, so switching it doesn't
- * jump. Frames go in and come out [lookaheadFrames] later via [process].
+ * A peak limiter: keeps every sample within [CEILING] by turning the whole
+ * frame down the moment a peak would go over, then back up smoothly
+ * ([RELEASE_MS]) -- instead of flattening the peak (the harsh crackle of
+ * hard clipping). No look-ahead, so it adds no delay: a look-ahead's
+ * held-back audio had to be flushed whenever the player changed speed or
+ * key, and that flush silenced the output.
  */
 class Limiter {
     private var channels = 0
-    var lookaheadFrames = 0
-        private set
-    private var delay = DoubleArray(0)
-    /** Each delayed frame's needed gain, for the window minimum. */
-    private var needed = DoubleArray(0)
-    private var position = 0
     private var gain = 1.0
-    private var attack = 0.0
     private var release = 0.0
 
-    /** Off = the audio is still delayed, but never turned down. */
+    /** Off = never turns anything down (what's over full scale is clipped later). */
     @Volatile
     var enabled = true
 
     fun configure(sampleRate: Int, channels: Int) {
         this.channels = channels
-        lookaheadFrames = (LOOKAHEAD_MS * sampleRate / 1000.0).roundToInt().coerceAtLeast(1)
-        delay = DoubleArray(lookaheadFrames * channels)
-        needed = DoubleArray(lookaheadFrames) { 1.0 }
-        position = 0
         gain = 1.0
-        // Falls to the new level within the look-ahead; recovers over the release.
-        attack = 1 - exp(-1.0 / (lookaheadFrames / 4.0))
         release = 1 - exp(-1.0 / (RELEASE_MS * sampleRate / 1000.0))
     }
 
     fun reset() {
-        delay.fill(0.0)
-        needed.fill(1.0)
-        position = 0
         gain = 1.0
     }
 
-    /** Puts [frame] in and replaces it with the frame from [lookaheadFrames] ago, limited. */
+    /** Limits [frame] in place. */
     fun process(frame: DoubleArray) {
+        if (!enabled) {
+            gain = 1.0
+            return
+        }
         var peak = 0.0
         for (c in 0 until channels) peak = maxOf(peak, abs(frame[c]))
-        val base = position * channels
-        // Swap the new frame in and the oldest one out.
-        for (c in 0 until channels) {
-            val old = delay[base + c]
-            delay[base + c] = frame[c]
-            frame[c] = old
-        }
-        needed[position] = if (enabled && peak > CEILING) CEILING / peak else 1.0
-        position = if (position + 1 == lookaheadFrames) 0 else position + 1
-
-        // The quietest gain any frame in the window needs, so the peak is
-        // already turned down by the time it comes out.
-        var target = 1.0
-        for (g in needed) if (g < target) target = g
-        gain += (target - gain) * (if (target < gain) attack else release)
-        // Smoothing can lag a sudden peak by a hair; never let one through.
-        var outPeak = 0.0
-        for (c in 0 until channels) outPeak = maxOf(outPeak, abs(frame[c]))
-        val applied = if (enabled && outPeak * gain > CEILING) CEILING / outPeak else gain
-        for (c in 0 until channels) frame[c] *= applied
+        val needed = if (peak > CEILING) CEILING / peak else 1.0
+        gain = if (needed < gain) needed else gain + (needed - gain) * release
+        if (gain < 1.0) for (c in 0 until channels) frame[c] *= gain
     }
 
     companion object {
         /** Just under full scale (-0.3 dBFS), so the DAC's own filters don't clip. */
         const val CEILING = 0.966
-        const val LOOKAHEAD_MS = 3.0
         const val RELEASE_MS = 120.0
     }
 }

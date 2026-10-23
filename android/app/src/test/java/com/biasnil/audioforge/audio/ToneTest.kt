@@ -17,22 +17,22 @@ class ToneTest {
         this.enabled = enabled
     }
 
-    /** Runs [input] (stereo frames) through and returns what comes out, look-ahead included. */
+    /** Runs [input] (stereo frames) through and returns what comes out. */
     private fun Limiter.run(input: List<Pair<Double, Double>>): List<Pair<Double, Double>> {
         val frame = DoubleArray(2)
-        return (input + List(lookaheadFrames) { 0.0 to 0.0 }).map { (l, r) ->
+        return input.map { (l, r) ->
             frame[0] = l
             frame[1] = r
             process(frame)
             frame[0] to frame[1]
-        }.drop(lookaheadFrames)
+        }
     }
 
     private fun sine(amplitude: Double, hz: Double, frames: Int) =
         List(frames) { n -> (amplitude * sin(2 * PI * hz * n / SAMPLE_RATE)).let { it to it } }
 
     @Test
-    fun quietAudioPassesUntouchedJustLater() {
+    fun quietAudioPassesUntouched() {
         val input = sine(0.5, 440.0, 2000)
         val output = limiter().run(input)
         input.zip(output).forEach { (a, b) -> assertEquals(a.first, b.first, 1e-12) }
@@ -48,12 +48,16 @@ class ToneTest {
     }
 
     @Test
-    fun aSinglePeakIsCaughtBeforeItArrives() {
-        val input = List(1000) { if (it == 500) 3.0 to -3.0 else 0.2 to 0.2 }
+    fun aSinglePeakIsCaughtThenReleasedSmoothly() {
+        val input = List(SAMPLE_RATE) { if (it == 500) 3.0 to -3.0 else 0.2 to 0.2 }
         val output = limiter().run(input)
-        assertTrue(output.all { abs(it.first) <= Limiter.CEILING + 1e-9 })
-        // The sample just before the peak is already turned down a little.
-        assertTrue(abs(output[499].first) < 0.2)
+        assertTrue(output.all { abs(it.first) <= Limiter.CEILING + 1e-9 && abs(it.second) <= Limiter.CEILING + 1e-9 })
+        assertEquals(0.2, output[499].first, 1e-12) // nothing before it
+        assertEquals(Limiter.CEILING, output[500].first, 1e-9)
+        assertTrue(output[501].first < 0.1) // still turned down just after...
+        assertEquals(0.2, output.last().first, 1e-3) // ...and back to normal later
+        // Rising back up, never jumping.
+        assertTrue((502 until 5000).all { output[it].first >= output[it - 1].first - 1e-12 })
     }
 
     @Test

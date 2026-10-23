@@ -135,20 +135,6 @@ class AudioEffectsProcessor(
         output.flip()
     }
 
-    /** The limiter holds back its look-ahead; let it out at the end of the stream. */
-    override fun onQueueEndOfStream() {
-        if (channels == 0) return
-        val frames = limiter.lookaheadFrames
-        val output = replaceOutputBuffer(frames * bytesPerSample * channels)
-        val samples = frameSamples
-        repeat(frames) {
-            samples.fill(0.0)
-            limiter.process(samples)
-            writeFrame(output, samples, null)
-        }
-        output.flip()
-    }
-
     /** Clips what's still over full scale, writes the frame, and feeds the visualizer. */
     private fun writeFrame(output: ByteBuffer, samples: DoubleArray, tap: VisualizerTap?) {
         var mono = 0.0
