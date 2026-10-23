@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,12 +19,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +39,8 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +53,7 @@ import com.biasnil.audioforge.lyrics.LyricsState
 import com.biasnil.audioforge.lyrics.SyncedLyricLine
 import com.biasnil.audioforge.lyrics.currentLyricIndex
 import java.util.Locale
+import kotlin.math.roundToLong
 
 /**
  * Scrolling, auto-following lyrics (the iOS LyricsView): the current line
@@ -185,6 +189,9 @@ fun FullLyricsPage(onBack: () -> Unit) {
     }
     val position by rememberPlaybackPositionMs()
     val offsetMs = stats[track.uri]?.lyricsOffsetMs ?: 0L
+    // While the slider is held: shown live, saved when it's let go.
+    var draggedOffsetMs by remember(track.uri) { mutableStateOf<Long?>(null) }
+    val shownOffsetMs = draggedOffsetMs ?: offsetMs
 
     Column(
         Modifier
@@ -208,7 +215,7 @@ fun FullLyricsPage(onBack: () -> Unit) {
         LyricsContent(
             lyrics = lyrics,
             positionMs = position,
-            offsetMs = offsetMs,
+            offsetMs = shownOffsetMs,
             onSeek = playback::seekTo,
             large = true,
             modifier = Modifier
@@ -217,33 +224,69 @@ fun FullLyricsPage(onBack: () -> Unit) {
                 .padding(horizontal = 20.dp),
         )
         if (lyrics is LyricsState.Synced) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = { container.songData.setLyricsOffset(track.uri, offsetMs - 500) }) {
-                    Text(stringResource(R.string.lyrics_earlier))
-                }
-                Text(
-                    text = if (offsetMs == 0L) stringResource(R.string.lyrics_in_sync)
-                    else String.format(Locale.ROOT, "%+.1f s", offsetMs / 1000.0),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.width(96.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-                TextButton(onClick = { container.songData.setLyricsOffset(track.uri, offsetMs + 500) }) {
-                    Text(stringResource(R.string.lyrics_later))
-                }
-                if (offsetMs != 0L) {
-                    Spacer(Modifier.size(8.dp))
-                    TextButton(onClick = { container.songData.setLyricsOffset(track.uri, 0) }) {
-                        Text(stringResource(R.string.lyrics_reset))
-                    }
-                }
-            }
+            LyricsOffsetControls(
+                offsetMs = shownOffsetMs,
+                onDrag = { draggedOffsetMs = it },
+                onSet = { ms ->
+                    draggedOffsetMs = null
+                    container.songData.setLyricsOffset(track.uri, ms)
+                },
+            )
         }
     }
 }
+
+/**
+ * Full lyrics -> sync: a slider from 10 s early to 10 s late in 0.05 s
+ * steps for fine-tuning, -/+ buttons for one step, and Reset.
+ */
+@Composable
+private fun LyricsOffsetControls(offsetMs: Long, onDrag: (Long) -> Unit, onSet: (Long) -> Unit) {
+    fun clamp(ms: Long) = ms.coerceIn(-LYRICS_OFFSET_RANGE_MS, LYRICS_OFFSET_RANGE_MS)
+    var dragging by remember { mutableStateOf<Long?>(null) }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = if (offsetMs == 0L) stringResource(R.string.lyrics_in_sync)
+            else String.format(Locale.ROOT, "%+.2f s", offsetMs / 1000.0),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val earlier = stringResource(R.string.lyrics_earlier)
+            TextButton(
+                onClick = { onSet(clamp(offsetMs - LYRICS_OFFSET_STEP_MS)) },
+                modifier = Modifier.semantics { contentDescription = earlier },
+            ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+            Slider(
+                value = offsetMs / 1000f,
+                onValueChange = { seconds ->
+                    val ms = clamp((seconds * 1000 / LYRICS_OFFSET_STEP_MS).roundToLong() * LYRICS_OFFSET_STEP_MS)
+                    dragging = ms
+                    onDrag(ms)
+                },
+                onValueChangeFinished = {
+                    dragging?.let(onSet)
+                    dragging = null
+                },
+                valueRange = -LYRICS_OFFSET_RANGE_MS / 1000f..LYRICS_OFFSET_RANGE_MS / 1000f,
+                modifier = Modifier.weight(1f),
+            )
+            val later = stringResource(R.string.lyrics_later)
+            TextButton(
+                onClick = { onSet(clamp(offsetMs + LYRICS_OFFSET_STEP_MS)) },
+                modifier = Modifier.semantics { contentDescription = later },
+            ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+        }
+        if (offsetMs != 0L) {
+            TextButton(onClick = { onSet(0) }) { Text(stringResource(R.string.lyrics_reset)) }
+        }
+    }
+}
+
+/** "+" offsets show the lines later; up to 10 s either way. */
+private const val LYRICS_OFFSET_RANGE_MS = 10_000L
+private const val LYRICS_OFFSET_STEP_MS = 50L
