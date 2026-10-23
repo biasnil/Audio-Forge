@@ -5,6 +5,9 @@ import com.biasnil.audioforge.audio.GenreAnalyzer
 import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
+import com.biasnil.audioforge.data.AudiobookStore
+import com.biasnil.audioforge.data.ChapterRepository
+import com.biasnil.audioforge.data.bookKey
 import com.biasnil.audioforge.data.CoverArtLoader
 import com.biasnil.audioforge.data.CustomMediaRepository
 import com.biasnil.audioforge.data.DuplicateDismissals
@@ -30,7 +33,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 
@@ -57,13 +62,20 @@ class AppContainer(context: Context) {
     /** Detected genres per song (Settings -> Detect Genres); separate from the GENRE tag. */
     val genres = GenreStore(context, appScope)
     val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
-    val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope, library::isPodcast)
+    // Audiobooks behave like podcast episodes in the player: they always resume and count as listened at the end.
+    val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope) { uri ->
+        library.isPodcast(uri) || library.isAudiobook(uri)
+    }
     /** Where music is playing now; swaps in that device's EQ when "A separate EQ for each device" is on. */
     val outputDevice = OutputDeviceMonitor(context, store, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
     val podcasts = PodcastRepository(context, library, appScope)
+    /** Audiobook bookmarks and each book's last-played file (the Audiobooks tab). */
+    val audiobookStore = AudiobookStore(context, appScope)
+    /** Chapters read from audiobook files. */
+    val chapters = ChapterRepository(context)
     /** Internet radio (the Radio tab): stations, favorites, recently played. */
     val radio = RadioRepository(context, appScope)
     /** AutoEq headphone correction profiles (Equalizer -> Effects). */
@@ -89,6 +101,12 @@ class AppContainer(context: Context) {
     }
 
     init {
+        // Remember which file of a book was playing, for the book's progress and for Play.
+        appScope.launch {
+            playback.state.map { it.current }.distinctUntilChangedBy { it?.uri }.collect { track ->
+                if (track != null && library.isAudiobook(track.uri)) audiobookStore.setLastPart(bookKey(track), track.uri)
+            }
+        }
         // Last session's queue, paused where it was. Saved songs are looked up
         // by URI, so this waits for the first library scan.
         appScope.launch {

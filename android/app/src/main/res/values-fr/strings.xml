@@ -638,4 +638,22 @@
     <string name="tabbar_drag">Faire glisser pour déplacer</string>
     <string name="tabbar_add">Ajouter à la barre</string>
     <string name="tabbar_remove">Déplacer dans Plus</string>
+    <string name="tab_audiobooks">Livres audio</string>
+    <string name="audiobooks_empty">Les livres audio apparaissent ici : fichiers .m4b et dossiers marqués Livre audio dans l\'onglet Dossiers. Ils reprennent toujours là où vous vous êtes arrêté.</string>
+    <string name="audiobook_progress">%1$d %% · %2$s restant</string>
+    <string name="audiobook_not_started">Pas commencé · %1$s</string>
+    <string name="audiobook_finished">Terminé</string>
+    <string name="audiobook_chapters">Chapitres</string>
+    <string name="audiobook_bookmarks">Signets</string>
+    <string name="audiobook_chapters_and_bookmarks">Chapitres et signets</string>
+    <string name="audiobook_chapter_number">Chapitre %1$d</string>
+    <string name="audiobook_part">Partie %1$d sur %2$d</string>
+    <string name="audiobook_chapter_previous">Chapitre précédent</string>
+    <string name="audiobook_chapter_next">Chapitre suivant</string>
+    <string name="audiobook_add_bookmark">Ajouter un signet</string>
+    <string name="audiobook_bookmark_note">Note (facultatif)</string>
+    <string name="audiobook_no_bookmarks">Aucun signet. Touchez le bouton signet dans la lecture en cours pour garder un passage.</string>
+    <string name="audiobook_delete_bookmark">Supprimer le signet</string>
+    <string name="folder_audiobook">Livre audio</string>
+    <string name="folders_audiobook_explanation">Marquez un dossier Livre audio pour déplacer ses fichiers dans l\'onglet Livres audio, avec chapitres, signets et reprise.</string>
 </resources>

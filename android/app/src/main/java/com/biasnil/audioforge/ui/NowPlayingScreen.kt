@@ -223,6 +223,7 @@ fun NowPlayingScreen(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
 
                 if (track.isRadio) LiveBadge() else ProgressBar(state, position, onSeek = playback::seekTo)
                 if (state.isLongTrack && !track.isRadio) SkipButtons(onSkip = playback::skipBy)
+                if (container.library.isAudiobook(track.uri)) BookBar(track, position, onOpenPage)
                 Controls(state, playback::cycleShuffleMode, playback::previous, playback::togglePlayPause, playback::next, playback::cycleRepeatMode)
                 VolumeRow(state.volumePercent, playback::setVolume, playback::saveVolume)
                 Extras(

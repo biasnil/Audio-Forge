@@ -612,4 +612,22 @@
     <string name="tabbar_drag">拖曳以移動</string>
     <string name="tabbar_add">加入分頁列</string>
     <string name="tabbar_remove">移到「更多」</string>
+    <string name="tab_audiobooks">有聲書</string>
+    <string name="audiobooks_empty">有聲書會顯示在這裡：.m4b 檔案，以及在「資料夾」分頁中標記為有聲書的資料夾。它們總是從上次停下的地方繼續。</string>
+    <string name="audiobook_progress">%1$d%% · 剩餘 %2$s</string>
+    <string name="audiobook_not_started">未開始 · %1$s</string>
+    <string name="audiobook_finished">已聽完</string>
+    <string name="audiobook_chapters">章節</string>
+    <string name="audiobook_bookmarks">書籤</string>
+    <string name="audiobook_chapters_and_bookmarks">章節和書籤</string>
+    <string name="audiobook_chapter_number">第 %1$d 章</string>
+    <string name="audiobook_part">第 %1$d 部分，共 %2$d 部分</string>
+    <string name="audiobook_chapter_previous">上一章</string>
+    <string name="audiobook_chapter_next">下一章</string>
+    <string name="audiobook_add_bookmark">新增書籤</string>
+    <string name="audiobook_bookmark_note">備註（選填）</string>
+    <string name="audiobook_no_bookmarks">還沒有書籤。在正在播放頁面點按書籤按鈕即可儲存位置。</string>
+    <string name="audiobook_delete_bookmark">刪除書籤</string>
+    <string name="folder_audiobook">有聲書</string>
+    <string name="folders_audiobook_explanation">將資料夾標記為有聲書，其中的檔案會移到「有聲書」分頁，支援章節、書籤和續播。</string>
 </resources>

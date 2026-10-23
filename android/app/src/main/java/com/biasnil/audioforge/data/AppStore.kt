@@ -133,6 +133,8 @@ data class AppSettings(
      * Their songs only show in the Podcasts tab and are never analyzed.
      */
     val podcastFolders: Set<String> = emptySet(),
+    /** Folders whose songs are audiobooks (added folders by tree URI, phone folders by folder key); see Audiobooks.kt. */
+    val audiobookFolders: Set<String> = emptySet(),
 ) {
     val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
     val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
@@ -216,6 +218,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                     )
                 },
                 podcastFolders = root.optJSONArray("podcastFolders").toStringList().toSet(),
+                audiobookFolders = root.optJSONArray("audiobookFolders").toStringList().toSet(),
                 volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
                 replayGainEnabled = root.optBoolean("replayGainEnabled", true),
                 crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
@@ -300,6 +303,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                     .put("global", entry.global)
             }))
             .put("podcastFolders", JSONArray(settings.podcastFolders.toList()))
+            .put("audiobookFolders", JSONArray(settings.audiobookFolders.toList()))
             .put("includePhoneLibrary", settings.includePhoneLibrary)
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))

@@ -117,7 +117,7 @@ class FolderSource(private val context: Context) {
     private companion object {
         const val TAG = "FolderSource"
 
-        val AUDIO_EXTENSIONS = setOf("mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav")
+        val AUDIO_EXTENSIONS = setOf("mp3", "flac", "m4a", "m4b", "aac", "ogg", "oga", "opus", "wav")
 
         // Playlists report audio/* MIME types but aren't playable audio.
         val PLAYLIST_MIME_TYPES = setOf("audio/x-mpegurl", "audio/mpegurl", "audio/x-scpls")

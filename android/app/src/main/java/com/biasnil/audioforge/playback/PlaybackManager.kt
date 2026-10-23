@@ -275,14 +275,16 @@ class PlaybackManager(
 
     /**
      * Replaces the queue and starts [startIndex] -- the desktop's
-     * setQueueAndPlay(). [from] names the list for Up next ("Next From ...").
+     * setQueueAndPlay(). [from] names the list for Up next ("Next From ...");
+     * [startMs] starts it there (an audiobook bookmark).
      */
-    fun playQueue(tracks: List<Track>, startIndex: Int, from: String? = null) {
+    fun playQueue(tracks: List<Track>, startIndex: Int, from: String? = null, startMs: Long = 0L) {
         if (tracks.isEmpty()) return
         abortHandOff()
         contextName = from
         queue.setQueue(tracks, startIndex)
-        queue.currentItem?.let(::load)
+        // 0 = where the song was left, for those that resume (see resumePositionFor).
+        queue.currentItem?.let { load(it, startMs, play = true) }
     }
 
     /** Plays an internet radio station: it replaces the queue. */

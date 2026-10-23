@@ -612,4 +612,22 @@
     <string name="tabbar_drag">Seret untuk alih</string>
     <string name="tabbar_add">Tambah ke bar tab</string>
     <string name="tabbar_remove">Alih ke Lagi</string>
+    <string name="tab_audiobooks">Buku audio</string>
+    <string name="audiobooks_empty">Buku audio dipaparkan di sini: fail .m4b dan folder yang anda tandakan Buku audio dalam tab Folder. Ia sentiasa bersambung di tempat anda berhenti.</string>
+    <string name="audiobook_progress">%1$d%% · %2$s lagi</string>
+    <string name="audiobook_not_started">Belum bermula · %1$s</string>
+    <string name="audiobook_finished">Selesai</string>
+    <string name="audiobook_chapters">Bab</string>
+    <string name="audiobook_bookmarks">Penanda</string>
+    <string name="audiobook_chapters_and_bookmarks">Bab dan penanda</string>
+    <string name="audiobook_chapter_number">Bab %1$d</string>
+    <string name="audiobook_part">Bahagian %1$d daripada %2$d</string>
+    <string name="audiobook_chapter_previous">Bab sebelumnya</string>
+    <string name="audiobook_chapter_next">Bab seterusnya</string>
+    <string name="audiobook_add_bookmark">Tambah penanda</string>
+    <string name="audiobook_bookmark_note">Nota (pilihan)</string>
+    <string name="audiobook_no_bookmarks">Belum ada penanda. Ketik butang penanda pada Sedang Dimainkan untuk menyimpan tempat.</string>
+    <string name="audiobook_delete_bookmark">Padam penanda</string>
+    <string name="folder_audiobook">Buku audio</string>
+    <string name="folders_audiobook_explanation">Tandakan folder sebagai Buku audio untuk memindahkan failnya ke tab Buku audio, dengan bab, penanda dan sambung semula.</string>
 </resources>

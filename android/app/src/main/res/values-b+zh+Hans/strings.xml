@@ -612,4 +612,22 @@
     <string name="tabbar_drag">拖动以移动</string>
     <string name="tabbar_add">加入标签栏</string>
     <string name="tabbar_remove">移到「更多」</string>
+    <string name="tab_audiobooks">有声书</string>
+    <string name="audiobooks_empty">有声书会显示在这里：.m4b 文件，以及在「文件夹」标签中标记为有声书的文件夹。它们总是从上次停下的地方继续。</string>
+    <string name="audiobook_progress">%1$d%% · 剩余 %2$s</string>
+    <string name="audiobook_not_started">未开始 · %1$s</string>
+    <string name="audiobook_finished">已听完</string>
+    <string name="audiobook_chapters">章节</string>
+    <string name="audiobook_bookmarks">书签</string>
+    <string name="audiobook_chapters_and_bookmarks">章节和书签</string>
+    <string name="audiobook_chapter_number">第 %1$d 章</string>
+    <string name="audiobook_part">第 %1$d 部分，共 %2$d 部分</string>
+    <string name="audiobook_chapter_previous">上一章</string>
+    <string name="audiobook_chapter_next">下一章</string>
+    <string name="audiobook_add_bookmark">添加书签</string>
+    <string name="audiobook_bookmark_note">备注（可选）</string>
+    <string name="audiobook_no_bookmarks">还没有书签。在正在播放页面点击书签按钮即可保存位置。</string>
+    <string name="audiobook_delete_bookmark">删除书签</string>
+    <string name="folder_audiobook">有声书</string>
+    <string name="folders_audiobook_explanation">将文件夹标记为有声书，其中的文件会移到「有声书」标签，支持章节、书签和续播。</string>
 </resources>

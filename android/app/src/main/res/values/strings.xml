@@ -626,4 +626,22 @@
     <string name="tabbar_drag">Drag to move</string>
     <string name="tabbar_add">Add to the tab bar</string>
     <string name="tabbar_remove">Move to More</string>
+    <string name="tab_audiobooks">Audiobooks</string>
+    <string name="audiobooks_empty">Audiobooks show here: .m4b files, and folders you mark Audiobook in the Folders tab. They always continue where you stopped.</string>
+    <string name="audiobook_progress">%1$d%% · %2$s left</string>
+    <string name="audiobook_not_started">Not started · %1$s</string>
+    <string name="audiobook_finished">Finished</string>
+    <string name="audiobook_chapters">Chapters</string>
+    <string name="audiobook_bookmarks">Bookmarks</string>
+    <string name="audiobook_chapters_and_bookmarks">Chapters and bookmarks</string>
+    <string name="audiobook_chapter_number">Chapter %1$d</string>
+    <string name="audiobook_part">Part %1$d of %2$d</string>
+    <string name="audiobook_chapter_previous">Previous chapter</string>
+    <string name="audiobook_chapter_next">Next chapter</string>
+    <string name="audiobook_add_bookmark">Add bookmark</string>
+    <string name="audiobook_bookmark_note">Note (optional)</string>
+    <string name="audiobook_no_bookmarks">No bookmarks yet. Tap the bookmark button on Now Playing to save a place.</string>
+    <string name="audiobook_delete_bookmark">Delete bookmark</string>
+    <string name="folder_audiobook">Audiobook</string>
+    <string name="folders_audiobook_explanation">Mark a folder Audiobook to move its files to the Audiobooks tab, with chapters, bookmarks and resume.</string>
 </resources>
