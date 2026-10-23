@@ -530,4 +530,24 @@
     <string name="radio_homepage">Buka laman web stesen</string>
     <string name="radio_directory_note">Stesen datang daripada Radio Browser (radio-browser.info), direktori yang diurus oleh komuniti. Tiada apa dimainkan sehingga anda mengetik stesen.</string>
     <string name="stats_radio">Radio: %1$s</string>
+    <string name="effects">Kesan</string>
+    <string name="effects_row_summary">Surround 3D, lebar stereo, gema</string>
+    <string name="effects_surround">Surround 3D</string>
+    <string name="effects_surround_explanation">Membuatkan fon kepala berbunyi seolah-olah muzik dimainkan di ruang sekeliling anda.</string>
+    <string name="effects_room">Bilik</string>
+    <string name="effects_hall">Dewan</string>
+    <string name="effects_stadium">Stadium</string>
+    <string name="effects_amount">Kekuatan</string>
+    <string name="effects_width">Lebar stereo</string>
+    <string name="effects_width_short">Lebar</string>
+    <string name="effects_width_explanation" formatted="false">0% ialah mono, 100% ialah asal, 200% sangat lebar.</string>
+    <string name="effects_reverb">Gema</string>
+    <string name="effects_small_room">Bilik kecil</string>
+    <string name="effects_large_room">Bilik besar</string>
+    <string name="effects_plate">Plat</string>
+    <string name="effects_mix">Campuran</string>
+    <string name="effects_android_spatial">Audio ruang Android</string>
+    <string name="effects_android_spatial_explanation">Menggunakan audio ruang telefon anda sendiri, dengan penjejakan kepala pada fon kepala yang menyokongnya. Menghidupkannya akan mematikan Surround 3D.</string>
+    <string name="effects_android_spatial_off_in_system">Audio ruang dimatikan dalam tetapan telefon anda. Hidupkannya di sana dahulu (biasanya dalam tetapan Bunyi, atau tetapan Bluetooth fon kepala anda).</string>
+    <string name="effects_reset">Set semula kesan</string>
 </resources>

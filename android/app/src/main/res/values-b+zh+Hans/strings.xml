@@ -530,4 +530,24 @@
     <string name="radio_homepage">打开电台网站</string>
     <string name="radio_directory_note">电台来自社区维护的目录 Radio Browser（radio-browser.info）。在你点按电台之前不会播放任何内容。</string>
     <string name="stats_radio">电台：%1$s</string>
+    <string name="effects">音效</string>
+    <string name="effects_row_summary">3D 环绕、立体声宽度、混响</string>
+    <string name="effects_surround">3D 环绕</string>
+    <string name="effects_surround_explanation">让耳机听起来像音乐在你周围的空间中播放。</string>
+    <string name="effects_room">房间</string>
+    <string name="effects_hall">大厅</string>
+    <string name="effects_stadium">体育场</string>
+    <string name="effects_amount">强度</string>
+    <string name="effects_width">立体声宽度</string>
+    <string name="effects_width_short">宽度</string>
+    <string name="effects_width_explanation" formatted="false">0% 为单声道，100% 为原始，200% 为超宽。</string>
+    <string name="effects_reverb">混响</string>
+    <string name="effects_small_room">小房间</string>
+    <string name="effects_large_room">大房间</string>
+    <string name="effects_plate">板式</string>
+    <string name="effects_mix">混合</string>
+    <string name="effects_android_spatial">Android 空间音频</string>
+    <string name="effects_android_spatial_explanation">使用手机自带的空间音频，支持的耳机可使用头部追踪。开启后会关闭 3D 环绕。</string>
+    <string name="effects_android_spatial_off_in_system">手机设置中的空间音频已关闭。请先在那里开启（通常在“声音”设置或耳机的蓝牙设置中）。</string>
+    <string name="effects_reset">重置音效</string>
 </resources>

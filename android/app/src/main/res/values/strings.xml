@@ -544,4 +544,24 @@
     <string name="radio_homepage">Open the station\'s website</string>
     <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
     <string name="stats_radio">Radio: %1$s</string>
+    <string name="effects">Effects</string>
+    <string name="effects_row_summary">3D Surround, stereo width, reverb</string>
+    <string name="effects_surround">3D Surround</string>
+    <string name="effects_surround_explanation">Makes headphones sound like the music is playing in a space around you.</string>
+    <string name="effects_room">Room</string>
+    <string name="effects_hall">Hall</string>
+    <string name="effects_stadium">Stadium</string>
+    <string name="effects_amount">Amount</string>
+    <string name="effects_width">Stereo width</string>
+    <string name="effects_width_short">Width</string>
+    <string name="effects_width_explanation" formatted="false">0% is mono, 100% is the original, 200% is extra wide.</string>
+    <string name="effects_reverb">Reverb</string>
+    <string name="effects_small_room">Small room</string>
+    <string name="effects_large_room">Large room</string>
+    <string name="effects_plate">Plate</string>
+    <string name="effects_mix">Mix</string>
+    <string name="effects_android_spatial">Android spatial audio</string>
+    <string name="effects_android_spatial_explanation">Uses your phone\'s own spatial audio, with head tracking on headphones that support it. Turning it on turns 3D Surround off.</string>
+    <string name="effects_android_spatial_off_in_system">Spatial audio is off in your phone\'s settings. Turn it on there first (usually in Sound settings, or in your headphones\' Bluetooth settings).</string>
+    <string name="effects_reset">Reset effects</string>
 </resources>

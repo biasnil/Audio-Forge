@@ -556,4 +556,24 @@
     <string name="radio_homepage">Ouvrir le site de la station</string>
     <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
     <string name="stats_radio">Radio : %1$s</string>
+    <string name="effects">Effets</string>
+    <string name="effects_row_summary">Surround 3D, largeur stéréo, réverbération</string>
+    <string name="effects_surround">Surround 3D</string>
+    <string name="effects_surround_explanation">Donne l\'impression, au casque, que la musique joue dans un espace autour de vous.</string>
+    <string name="effects_room">Pièce</string>
+    <string name="effects_hall">Salle</string>
+    <string name="effects_stadium">Stade</string>
+    <string name="effects_amount">Intensité</string>
+    <string name="effects_width">Largeur stéréo</string>
+    <string name="effects_width_short">Largeur</string>
+    <string name="effects_width_explanation" formatted="false">0 % = mono, 100 % = original, 200 % = très large.</string>
+    <string name="effects_reverb">Réverbération</string>
+    <string name="effects_small_room">Petite pièce</string>
+    <string name="effects_large_room">Grande pièce</string>
+    <string name="effects_plate">Plaque</string>
+    <string name="effects_mix">Mélange</string>
+    <string name="effects_android_spatial">Audio spatial d\'Android</string>
+    <string name="effects_android_spatial_explanation">Utilise l\'audio spatial de votre téléphone, avec le suivi de la tête sur les casques compatibles. L\'activer désactive le Surround 3D.</string>
+    <string name="effects_android_spatial_off_in_system">L\'audio spatial est désactivé dans les paramètres du téléphone. Activez-le d\'abord (en général dans Son, ou dans les paramètres Bluetooth de votre casque).</string>
+    <string name="effects_reset">Réinitialiser les effets</string>
 </resources>

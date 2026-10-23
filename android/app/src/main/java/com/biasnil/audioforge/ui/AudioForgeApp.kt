@@ -157,6 +157,7 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
         Page.Widgets -> WidgetsPage(onBack = onBack)
         Page.ListeningStats -> ListeningStatsPage(onBack = onBack)
+        Page.Effects -> EffectsPage(onBack = onBack)
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
     }
@@ -267,7 +268,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     )
                     LibraryTab.Folders -> FoldersTab(onRequestAudioPermission)
                     LibraryTab.Playlists -> PlaylistsTab(onOpenPage)
-                    LibraryTab.Equalizer -> EqualizerTab()
+                    LibraryTab.Equalizer -> EqualizerTab(onOpenPage)
                     LibraryTab.Settings -> SettingsTab(onOpenPage)
                     LibraryTab.Wallpapers -> WallpapersTab(onOpenPage)
                     LibraryTab.Podcasts -> PodcastsTab(onOpenPage)

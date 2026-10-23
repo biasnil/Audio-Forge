@@ -10,16 +10,17 @@ import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
 /**
- * Runs inside one player's audio pipeline: the 10-band EQ, then a gain --
- * volume x ReplayGain x EQ post-gain, the desktop's baseVolumeFor() -- which
- * can exceed 1 for the volume boost. Output is hard-clipped to full scale,
+ * Runs inside one player's audio pipeline: the 10-band EQ, then stereo
+ * width / 3D Surround / reverb ([SpatialDsp]), then a gain -- volume x
+ * ReplayGain x EQ post-gain, the desktop's baseVolumeFor() -- which can
+ * exceed 1 for the volume boost. Output is hard-clipped to full scale,
  * same as the desktop (no limiter yet).
  *
  * Gain changes are ramped across a buffer so moving the volume slider
  * doesn't click.
  */
 @OptIn(UnstableApi::class)
-class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor() {
+class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettings) : BaseAudioProcessor() {
 
     /** Set from the main thread; picked up on the next buffer. */
     @Volatile
@@ -31,9 +32,12 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
     private var sampleRate = 44_100
 
     private val eq = EqualizerDsp(equalizer)
+    private val effects = SpatialDsp(spatial)
     private var appliedGain = 1f
     private var encoding = C.ENCODING_INVALID
     private var channels = 0
+    /** One frame's samples, between reading and writing. */
+    private var frameSamples = DoubleArray(0)
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         val format = inputAudioFormat.encoding
@@ -44,6 +48,8 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
         channels = inputAudioFormat.channelCount
         sampleRate = inputAudioFormat.sampleRate
         eq.configure(inputAudioFormat.sampleRate, channels)
+        effects.configure(inputAudioFormat.sampleRate, channels)
+        frameSamples = DoubleArray(channels)
         return inputAudioFormat // same format out
     }
 
@@ -53,6 +59,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
         // Decoded PCM is in the platform's byte order.
         inputBuffer.order(ByteOrder.nativeOrder())
         eq.refresh()
+        effects.refresh()
 
         val bytesPerSample = if (encoding == C.ENCODING_PCM_16BIT) 2 else 4
         val frames = size / (bytesPerSample * channels)
@@ -60,12 +67,13 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
         val startGain = appliedGain
         val endGain = gain
         val useEq = eq.isActive
+        val useEffects = effects.isActive
+        val samples = frameSamples
         val tap = visualizer?.takeIf { it.enabled }
         tap?.sampleRate = sampleRate
 
         for (frame in 0 until frames) {
             val frameGain = if (frames > 1) startGain + (endGain - startGain) * frame / (frames - 1) else endGain
-            var mono = 0.0
             for (channel in 0 until channels) {
                 var sample = if (bytesPerSample == 2) {
                     inputBuffer.getShort() / 32768.0
@@ -73,7 +81,16 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
                     inputBuffer.getFloat().toDouble()
                 }
                 if (useEq) sample = eq.process(sample, channel)
-                val out = (sample * frameGain).coerceIn(-1.0, 1.0)
+                samples[channel] = sample
+            }
+            if (useEffects) { // only when there are 2+ channels
+                effects.process(samples[0], samples[1])
+                samples[0] = effects.outLeft
+                samples[1] = effects.outRight
+            }
+            var mono = 0.0
+            for (channel in 0 until channels) {
+                val out = (samples[channel] * frameGain).coerceIn(-1.0, 1.0)
                 if (channel < 2) mono += out
                 if (bytesPerSample == 2) {
                     output.putShort((out * 32767.0).roundToInt().toShort())
@@ -90,6 +107,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings) : BaseAudioProcessor()
 
     override fun onFlush() {
         eq.reset() // seek / new track: don't ring with the old audio's filter history
+        effects.reset()
         appliedGain = gain
     }
 

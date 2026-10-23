@@ -29,6 +29,12 @@ data class WallpaperEntry(val id: String, val videoUri: String, val trackUris: L
 /** Light/dark: following the phone (System), or fixed. */
 enum class Appearance { System, Light, Dark }
 
+/** Effects page -> 3D Surround: headphone virtualization, sized like the space it imitates. */
+enum class SurroundPreset { Off, Room, Hall, Stadium }
+
+/** Effects page -> Reverb, separate from (and stacking with) the surround. */
+enum class ReverbPreset { Off, SmallRoom, LargeRoom, Hall, Plate }
+
 /** Everything the app remembers between launches (the desktop's AudioForge.ini). */
 data class AppSettings(
     val appearance: Appearance = Appearance.System,
@@ -49,6 +55,17 @@ data class AppSettings(
     /** One per band, see EqualizerSettings.FREQUENCIES_HZ. */
     val eqBandGainsDb: List<Float> = List(EQ_BAND_COUNT) { 0f },
     val eqPostGainDb: Float = 0f,
+    // Effects page.
+    val surroundPreset: SurroundPreset = SurroundPreset.Off,
+    /** 0-100: how much of the virtual room is mixed in. */
+    val surroundAmountPercent: Int = 50,
+    /** 0-200: 0 = mono, 100 = unchanged. */
+    val stereoWidthPercent: Int = 100,
+    val reverbPreset: ReverbPreset = ReverbPreset.Off,
+    /** 0-100: dry/wet balance. */
+    val reverbMixPercent: Int = 30,
+    /** Lets Android's own spatial audio process the music (only shown where supported); off while 3D Surround is on. */
+    val androidSpatialAudio: Boolean = true,
     /** Encrypted with a key in the Android Keystore -- see SecretBox. */
     val musixmatchKeyEncrypted: String = "",
     val videoWallpaperEnabled: Boolean = true,
@@ -96,6 +113,7 @@ data class AppSettings(
     companion object {
         const val EQ_BAND_COUNT = 10
         const val MAX_VOLUME_PERCENT = 200
+        const val MAX_STEREO_WIDTH_PERCENT = 200
         val CROSSFADE_SECONDS_RANGE = 2..15
     }
 }
@@ -175,6 +193,14 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 eqEnabled = root.optBoolean("eqEnabled", false),
                 eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
                 eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
+                surroundPreset = SurroundPreset.entries.firstOrNull { it.name == root.optString("surroundPreset") }
+                    ?: SurroundPreset.Off,
+                surroundAmountPercent = root.optInt("surroundAmountPercent", 50).coerceIn(0, 100),
+                stereoWidthPercent = root.optInt("stereoWidthPercent", 100).coerceIn(0, AppSettings.MAX_STEREO_WIDTH_PERCENT),
+                reverbPreset = ReverbPreset.entries.firstOrNull { it.name == root.optString("reverbPreset") }
+                    ?: ReverbPreset.Off,
+                reverbMixPercent = root.optInt("reverbMixPercent", 30).coerceIn(0, 100),
+                androidSpatialAudio = root.optBoolean("androidSpatialAudio", true),
                 musixmatchKeyEncrypted = root.optString("musixmatchKeyEncrypted", ""),
                 videoWallpaperEnabled = root.optBoolean("videoWallpaperEnabled", true),
                 videoWallpaperOpacityPercent = root.optInt("videoWallpaperOpacityPercent", 100).coerceIn(0, 100),
@@ -231,6 +257,12 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("eqEnabled", settings.eqEnabled)
             .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
             .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
+            .put("surroundPreset", settings.surroundPreset.name)
+            .put("surroundAmountPercent", settings.surroundAmountPercent)
+            .put("stereoWidthPercent", settings.stereoWidthPercent)
+            .put("reverbPreset", settings.reverbPreset.name)
+            .put("reverbMixPercent", settings.reverbMixPercent)
+            .put("androidSpatialAudio", settings.androidSpatialAudio)
             .put("musixmatchKeyEncrypted", settings.musixmatchKeyEncrypted)
             .put("videoWallpaperEnabled", settings.videoWallpaperEnabled)
             .put("videoWallpaperOpacityPercent", settings.videoWallpaperOpacityPercent)

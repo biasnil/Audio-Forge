@@ -26,6 +26,8 @@ import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
 import com.biasnil.audioforge.audio.VisualizerTap
 import com.biasnil.audioforge.audio.EqualizerSettings
+import com.biasnil.audioforge.audio.SpatialParams
+import com.biasnil.audioforge.audio.SpatialSettings
 import com.biasnil.audioforge.audio.dbToLinear
 import com.biasnil.audioforge.audio.parseReplayGainDb
 import com.biasnil.audioforge.data.AppSettings
@@ -39,6 +41,7 @@ import com.biasnil.audioforge.data.RadioStation
 import com.biasnil.audioforge.data.toTrack
 import com.biasnil.audioforge.data.SongAnalysis
 import com.biasnil.audioforge.data.SongDataStore
+import com.biasnil.audioforge.data.SurroundPreset
 import com.biasnil.audioforge.data.harmonicOrder
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.CoroutineScope
@@ -143,11 +146,14 @@ class PlaybackManager(
 ) {
     private val appContext: Context = context.applicationContext
     private val equalizer = EqualizerSettings()
+    private val spatial = SpatialSettings()
+    /** Changes when Android's own spatial audio is switched on or off. */
+    private var audioAttributes = audioAttributesFor(store.settings.value)
 
     /** One player + its effects chain + what it's playing. */
     private inner class Slot {
-        val effects = AudioEffectsProcessor(equalizer)
-        val player: ExoPlayer = buildPlayer(appContext, effects)
+        val effects = AudioEffectsProcessor(equalizer, spatial)
+        val player: ExoPlayer = buildPlayer(appContext, effects, audioAttributes)
         var track: Track? = null
         var replayGainDb = 0f
         var analysis: SongAnalysis? = null
@@ -931,6 +937,21 @@ class PlaybackManager(
         val old = appliedSettings
         appliedSettings = settings
         equalizer.update(settings.eqEnabled, settings.eqBandGainsDb)
+        spatial.update(
+            SpatialParams(
+                surround = settings.surroundPreset,
+                surroundAmount = settings.surroundAmountPercent / 100f,
+                width = settings.stereoWidthPercent / 100f,
+                reverb = settings.reverbPreset,
+                reverbMix = settings.reverbMixPercent / 100f,
+            )
+        )
+        val attributes = audioAttributesFor(settings)
+        if (attributes != audioAttributes) {
+            audioAttributes = attributes
+            // Only the active player holds audio focus (see the crossfade hand-off).
+            slots.forEach { it.player.setAudioAttributes(attributes, it === active) }
+        }
         slots.forEach(::applyGain)
         if (!settings.crossfadeEnabled && crossfading) abortHandOff()
         if (old != null && (old.smartEnabled != settings.smartEnabled)) {
@@ -1097,10 +1118,21 @@ class PlaybackManager(
     }
 }
 
-/** Music playback, for audio focus and routing. */
-private val audioAttributes: AudioAttributes = AudioAttributes.Builder()
+/**
+ * Music playback, for audio focus and routing. Android's own spatial audio
+ * may process it unless it's switched off -- or our 3D Surround is on, so
+ * the two never stack.
+ */
+private fun audioAttributesFor(settings: AppSettings): AudioAttributes = AudioAttributes.Builder()
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+    .setSpatializationBehavior(
+        if (settings.androidSpatialAudio && settings.surroundPreset == SurroundPreset.Off) {
+            C.SPATIALIZATION_BEHAVIOR_AUTO
+        } else {
+            C.SPATIALIZATION_BEHAVIOR_NEVER
+        }
+    )
     .build()
 
 /** The length of what [Player] is playing, or null while it isn't known yet. */
@@ -1109,7 +1141,7 @@ private val Player.knownDurationMs: Long?
 
 /** An ExoPlayer whose audio goes through [effects] before reaching the speaker. */
 @OptIn(UnstableApi::class)
-private fun buildPlayer(context: Context, effects: AudioEffectsProcessor): ExoPlayer {
+private fun buildPlayer(context: Context, effects: AudioEffectsProcessor, audioAttributes: AudioAttributes): ExoPlayer {
     val renderersFactory = object : DefaultRenderersFactory(context) {
         override fun buildAudioSink(
             context: Context,

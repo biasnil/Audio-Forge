@@ -1,10 +1,12 @@
 package com.biasnil.audioforge.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -39,10 +42,10 @@ import kotlin.math.roundToInt
  * The desktop's Equalizer tab: 10 bands, presets, post-gain, reset. Bands
  * are horizontal sliders here (easier to use on a phone than 10 thin
  * vertical ones). Changes apply to the music immediately, including
- * during a crossfade.
+ * during a crossfade. The row at the top opens the Effects page.
  */
 @Composable
-fun EqualizerTab() {
+fun EqualizerTab(onOpenPage: (Page) -> Unit) {
     val store = LocalAppContainer.current.store
     val settings by store.settings.collectAsStateWithLifecycle()
     val enabled = settings.eqEnabled
@@ -52,6 +55,26 @@ fun EqualizerTab() {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenPage(Page.Effects) }
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.effects))
+                Text(
+                    text = stringResource(R.string.effects_row_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        HorizontalDivider()
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
