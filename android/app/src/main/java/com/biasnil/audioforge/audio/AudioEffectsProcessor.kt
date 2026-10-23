@@ -7,6 +7,7 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -42,6 +43,14 @@ class AudioEffectsProcessor(
      */
     @Volatile
     var bypass = false
+
+    /**
+     * Whether this song has made a sound yet (anything above about -50
+     * dBFS); cleared by PlaybackManager for each new song. Songs' "skip
+     * silence" only applies before it, and near the end.
+     */
+    @Volatile
+    var heardSound = false
 
     /** Set from the main thread; see [Limiter.enabled]. */
     var limiterEnabled: Boolean
@@ -116,6 +125,7 @@ class AudioEffectsProcessor(
         val balance = channelSettings.balance
         val useChannels = mono || balance != 0f
         val samples = frameSamples
+        var heard = heardSound
         val tap = visualizer?.takeIf { it.enabled }
         tap?.sampleRate = sampleRate
 
@@ -127,6 +137,7 @@ class AudioEffectsProcessor(
                 } else {
                     inputBuffer.getFloat().toDouble()
                 }
+                if (!heard && abs(sample) > AUDIBLE) heard = true
                 if (useHeadphones) sample = headphones.process(sample, channel)
                 if (useEq) sample = eq.process(sample, channel)
                 if (useTone) sample = toneDsp.process(sample, channel)
@@ -148,6 +159,7 @@ class AudioEffectsProcessor(
             writeFrame(output, samples, tap)
         }
         appliedGain = endGain
+        if (heard) heardSound = true
         inputBuffer.position(inputBuffer.limit()) // any partial trailing frame is dropped
         output.flip()
     }
@@ -181,5 +193,10 @@ class AudioEffectsProcessor(
         encoding = C.ENCODING_INVALID
         channels = 0
         appliedGain = gain
+    }
+
+    private companion object {
+        /** About -50 dBFS: quieter than this doesn't count as the song having started. */
+        const val AUDIBLE = 0.003
     }
 }

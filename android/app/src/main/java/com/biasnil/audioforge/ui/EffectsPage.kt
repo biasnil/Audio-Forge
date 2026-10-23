@@ -51,7 +51,7 @@ import kotlin.math.roundToInt
 /**
  * Equalizer -> Effects: AutoEq headphone correction (chosen on
  * [HeadphonePickerPage]), bass boost, loudness, the limiter, karaoke, mono /
- * balance / skip silence, bit-perfect USB output (Android 14+), 3D Surround, stereo width, reverb, and (where the
+ * balance, skip silence (podcasts / songs), bit-perfect USB output (Android 14+), 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
@@ -251,11 +251,20 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                     modifier = Modifier.width(64.dp),
                 )
             }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.listening_skip_silence))
             SwitchRow(
-                label = stringResource(R.string.listening_skip_silence),
-                explanation = stringResource(R.string.listening_skip_silence_explanation),
-                checked = settings.skipSilence,
-                onChange = { on -> store.update { it.copy(skipSilence = on) } },
+                label = stringResource(R.string.skip_silence_podcasts),
+                explanation = stringResource(R.string.skip_silence_podcasts_explanation),
+                checked = settings.skipSilencePodcasts,
+                onChange = { on -> store.update { it.copy(skipSilencePodcasts = on) } },
+            )
+            SwitchRow(
+                label = stringResource(R.string.skip_silence_songs),
+                explanation = stringResource(R.string.skip_silence_songs_explanation),
+                checked = settings.skipSilenceSongs,
+                onChange = { on -> store.update { it.copy(skipSilenceSongs = on) } },
             )
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

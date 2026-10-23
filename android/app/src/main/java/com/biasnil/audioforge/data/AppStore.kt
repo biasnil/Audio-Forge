@@ -74,8 +74,10 @@ data class AppSettings(
     val monoAudio: Boolean = false,
     /** -100 (left only) .. 0 .. 100 (right only). */
     val balancePercent: Int = 0,
-    /** ExoPlayer skips quiet passages (gaps in podcasts, long silent intros/outros). */
-    val skipSilence: Boolean = false,
+    /** Podcasts: every pause is skipped. */
+    val skipSilencePodcasts: Boolean = false,
+    /** Songs: only the silence before the first sound and in the last seconds (never mid-song). */
+    val skipSilenceSongs: Boolean = false,
     /** Android 14+: send music to a USB DAC untouched (see BitPerfectOutput). */
     val bitPerfectUsb: Boolean = false,
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
@@ -225,7 +227,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 karaokeVocalRemovalPercent = root.optInt("karaokeVocalRemovalPercent", 0).coerceIn(0, 100),
                 monoAudio = root.optBoolean("monoAudio", false),
                 balancePercent = root.optInt("balancePercent", 0).coerceIn(-100, 100),
-                skipSilence = root.optBoolean("skipSilence", false),
+                skipSilencePodcasts = root.optBoolean("skipSilencePodcasts", false),
+                skipSilenceSongs = root.optBoolean("skipSilenceSongs", false),
                 bitPerfectUsb = root.optBoolean("bitPerfectUsb", false),
                 karaokeKeySemitones = root.optInt("karaokeKeySemitones", 0)
                     .coerceIn(-AppSettings.MAX_KEY_SEMITONES, AppSettings.MAX_KEY_SEMITONES),
@@ -312,7 +315,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("karaokeKeySemitones", settings.karaokeKeySemitones)
             .put("monoAudio", settings.monoAudio)
             .put("balancePercent", settings.balancePercent)
-            .put("skipSilence", settings.skipSilence)
+            .put("skipSilencePodcasts", settings.skipSilencePodcasts)
+            .put("skipSilenceSongs", settings.skipSilenceSongs)
             .put("bitPerfectUsb", settings.bitPerfectUsb)
             .put("deviceSoundEnabled", settings.deviceSoundEnabled)
             .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->

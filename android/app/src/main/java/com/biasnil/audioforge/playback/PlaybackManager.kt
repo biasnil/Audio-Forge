@@ -16,11 +16,13 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
@@ -177,6 +179,8 @@ class PlaybackManager(
         /** Smart transitions: where the audio really starts and ends (silence skipped); else 0 / MAX. */
         var beginMs = 0L
         var endMs = Long.MAX_VALUE
+        /** Whether the player's silence skipping is on now (see [applySkipSilence]). */
+        var skipSilence = false
         /** Beat-matched crossfade: this slot's tempo adjustment, eased back to 1 afterwards. */
         var rateFactor = 1f
 
@@ -586,7 +590,9 @@ class PlaybackManager(
         slot.replayGainDb = 0f // until this file's tags are read, see onTracksChanged
         slot.analysis = analysisStore.analysisFor(track)
         slot.rateFactor = 1f
+        slot.effects.heardSound = false
         applyRate(slot)
+        applySkipSilence(slot)
         applyTrim(slot)
         applyGain(slot)
     }
@@ -649,6 +655,7 @@ class PlaybackManager(
     private fun tick() {
         val now = System.currentTimeMillis()
         applyTone(store.settings.value)
+        slots.forEach(::applySkipSilence)
         // The song's format is only known once its audio starts; check whenever it changes.
         if (store.settings.value.bitPerfectUsb) {
             val format = active.player.audioFormat
@@ -973,7 +980,6 @@ class PlaybackManager(
         correction.update(settings.headphoneCorrection)
         karaoke.update(settings.karaokeVocalRemovalPercent / 100f)
         channelSettings.update(settings.monoAudio, settings.balancePercent / 100f)
-        slots.forEach { it.player.skipSilenceEnabled = settings.skipSilence }
         val newPitch = pitchFactor(settings.karaokeKeySemitones)
         if (newPitch != pitch) {
             pitch = newPitch
@@ -1014,6 +1020,29 @@ class PlaybackManager(
             } else null
             if (old != null) editQueue { queue.reshuffle() }
         }
+    }
+
+    /**
+     * Skip silence: podcasts skip every pause; songs only the silence before
+     * their first sound and in their last [SONG_END_SILENCE_MS] (a pause
+     * mid-song is part of the music). Radio never. Checked on every tick.
+     */
+    private fun applySkipSilence(slot: Slot) {
+        val settings = store.settings.value
+        val track = slot.track
+        val skip = when {
+            track == null || track.isRadio -> false
+            isPodcast(track.uri) -> settings.skipSilencePodcasts
+            !settings.skipSilenceSongs -> false
+            !slot.effects.heardSound -> true
+            else -> {
+                val length = slot.player.knownDurationMs ?: return
+                length - slot.player.currentPosition < SONG_END_SILENCE_MS
+            }
+        }
+        if (skip == slot.skipSilence) return
+        slot.skipSilence = skip
+        slot.player.skipSilenceEnabled = skip
     }
 
     /**
@@ -1203,6 +1232,8 @@ class PlaybackManager(
         /** A beat-matched start is at least this far ahead, so the next song's player is ready. */
         private const val BEAT_START_LEAD_MS = 600.0
         private const val MAX_SKIPPED_IN_A_ROW = 10
+        /** Songs' skip silence covers this much of the end (a long silent outro, not a pause). */
+        private const val SONG_END_SILENCE_MS = 10_000L
     }
 }
 
@@ -1223,6 +1254,9 @@ private fun audioAttributesFor(settings: AppSettings): AudioAttributes = AudioAt
     )
     .build()
 
+/** 16-bit level below which a sample counts as silent for skip silence (about -42 dBFS). */
+private const val SILENCE_THRESHOLD_LEVEL: Short = 256
+
 /** The length of what [Player] is playing, or null while it isn't known yet. */
 private val Player.knownDurationMs: Long?
     get() = duration.takeIf { it != C.TIME_UNSET && it > 0 }
@@ -1237,7 +1271,21 @@ private fun buildPlayer(context: Context, effects: AudioEffectsProcessor, audioA
             enableAudioTrackPlaybackParams: Boolean,
         ): AudioSink =
             DefaultAudioSink.Builder(context)
-                .setAudioProcessors(arrayOf<AudioProcessor>(effects))
+                .setAudioProcessorChain(
+                    DefaultAudioSink.DefaultAudioProcessorChain(
+                        arrayOf<AudioProcessor>(effects),
+                        // Quieter than the default (-30 dBFS) counts as silence only below
+                        // -42 dBFS, so a song's soft fade-out isn't skipped as silence.
+                        SilenceSkippingAudioProcessor(
+                            SilenceSkippingAudioProcessor.DEFAULT_MINIMUM_SILENCE_DURATION_US,
+                            SilenceSkippingAudioProcessor.DEFAULT_SILENCE_RETENTION_RATIO,
+                            SilenceSkippingAudioProcessor.DEFAULT_MAX_SILENCE_TO_KEEP_DURATION_US,
+                            SilenceSkippingAudioProcessor.DEFAULT_MIN_VOLUME_TO_KEEP_PERCENTAGE,
+                            SILENCE_THRESHOLD_LEVEL,
+                        ),
+                        SonicAudioProcessor(),
+                    )
+                )
                 .build()
     }
     return ExoPlayer.Builder(context, renderersFactory)
