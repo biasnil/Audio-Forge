@@ -76,6 +76,8 @@ data class AppSettings(
     val balancePercent: Int = 0,
     /** ExoPlayer skips quiet passages (gaps in podcasts, long silent intros/outros). */
     val skipSilence: Boolean = false,
+    /** Android 14+: send music to a USB DAC untouched (see BitPerfectOutput). */
+    val bitPerfectUsb: Boolean = false,
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
     val headphoneCorrection: HeadphoneProfile? = null,
     val surroundPreset: SurroundPreset = SurroundPreset.Off,
@@ -224,6 +226,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 monoAudio = root.optBoolean("monoAudio", false),
                 balancePercent = root.optInt("balancePercent", 0).coerceIn(-100, 100),
                 skipSilence = root.optBoolean("skipSilence", false),
+                bitPerfectUsb = root.optBoolean("bitPerfectUsb", false),
                 karaokeKeySemitones = root.optInt("karaokeKeySemitones", 0)
                     .coerceIn(-AppSettings.MAX_KEY_SEMITONES, AppSettings.MAX_KEY_SEMITONES),
                 deviceSoundEnabled = root.optBoolean("deviceSoundEnabled", false),
@@ -310,6 +313,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("monoAudio", settings.monoAudio)
             .put("balancePercent", settings.balancePercent)
             .put("skipSilence", settings.skipSilence)
+            .put("bitPerfectUsb", settings.bitPerfectUsb)
             .put("deviceSoundEnabled", settings.deviceSoundEnabled)
             .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->
                 JSONObject()

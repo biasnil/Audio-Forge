@@ -588,4 +588,11 @@
     <string name="listening_balance_centre">Tengah</string>
     <string name="listening_skip_silence">Langkau senyap</string>
     <string name="listening_skip_silence_explanation">Melompat bahagian senyap, seperti jeda dalam podcast atau pengakhiran senyap yang panjang.</string>
+    <string name="usb_dac">DAC USB</string>
+    <string name="usb_bit_perfect">Output bit-perfect</string>
+    <string name="usb_bit_perfect_explanation">Menghantar muzik ke DAC USB anda tepat seperti asal (kualiti CD, 16-bit), tanpa pencampuran atau pensampelan semula. Semasa aktif, EQ, kesan, ReplayGain, kelantangan apl dan resapan silang dilangkau. Butang kelantangan telefon mungkin tidak berfungsi: kecilkan kelantangan DAC anda dahulu.</string>
+    <string name="usb_bit_perfect_no_device">Sambungkan DAC USB yang menyokong output bit-perfect.</string>
+    <string name="usb_bit_perfect_blocked">Tetapkan kelajuan kepada 1× dan kunci karaoke kepada 0 untuk menggunakannya.</string>
+    <string name="usb_bit_perfect_unsupported">DAC anda tidak dapat memainkan format lagu ini (%1$s kHz) secara bit-perfect, jadi ia dimainkan seperti biasa.</string>
+    <string name="usb_bit_perfect_active">Bit-perfect: %1$s kHz, 16-bit, tidak diubah.</string>
 </resources>

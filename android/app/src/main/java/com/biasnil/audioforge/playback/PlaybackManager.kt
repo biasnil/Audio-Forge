@@ -225,6 +225,13 @@ class PlaybackManager(
     /** Spectrum of what's being heard, for the Now Playing visualizer. */
     val visualizer = VisualizerTap()
 
+    private val bitPerfect = BitPerfectOutput(appContext) { updateBitPerfect() }
+    private val _bitPerfectState = MutableStateFlow<BitPerfectState>(BitPerfectState.Off)
+    /** Effects -> USB DAC: whether the music goes out bit-perfect now, and if not, why. */
+    val bitPerfectState: StateFlow<BitPerfectState> = _bitPerfectState.asStateFlow()
+    /** The sample rate / channels bit-perfect output was last decided for. */
+    private var bitPerfectFormat: Pair<Int, Int>? = null
+
     private val _state = MutableStateFlow(PlaybackState(volumePercent = volumePercent))
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
@@ -345,6 +352,7 @@ class PlaybackManager(
     fun setRate(newRate: Float) {
         rate = newRate.coerceIn(0.25f, 4f)
         slots.forEach(::applyRate)
+        updateBitPerfect()
         publish()
     }
 
@@ -641,6 +649,11 @@ class PlaybackManager(
     private fun tick() {
         val now = System.currentTimeMillis()
         applyTone(store.settings.value)
+        // The song's format is only known once its audio starts; check whenever it changes.
+        if (store.settings.value.bitPerfectUsb) {
+            val format = active.player.audioFormat
+            if (format != null && format.sampleRate to format.channelCount != bitPerfectFormat) updateBitPerfect()
+        }
         sleepEndsAtMs?.let { end ->
             if (now >= end) {
                 pause()
@@ -720,7 +733,8 @@ class PlaybackManager(
         val next = queue.pendingNextItem ?: return
         val current = active.track ?: return
 
-        var useCrossfade = settings.crossfadeEnabled && length > fade * 2
+        // Bit-perfect output can't mix two songs: they play gapless instead.
+        var useCrossfade = settings.crossfadeEnabled && _bitPerfectState.value !is BitPerfectState.Active && length > fade * 2
         // Smart: consecutive songs of the same album stay gapless (live albums, DJ mixes). The
         // artist must match too: untagged songs get their folder's name as album ("Music").
         if (useCrossfade && settings.smartEnabled && current.album.isNotBlank() &&
@@ -985,6 +999,7 @@ class PlaybackManager(
             slots.forEach { it.player.setAudioAttributes(attributes, it === active) }
         }
         slots.forEach(::applyGain)
+        updateBitPerfect()
         if (!settings.crossfadeEnabled && crossfading) abortHandOff()
         if (old != null && (old.smartEnabled != settings.smartEnabled)) {
             // Trim points only change for songs loaded from now on; the current one keeps its own.
@@ -999,6 +1014,28 @@ class PlaybackManager(
             } else null
             if (old != null) editQueue { queue.reshuffle() }
         }
+    }
+
+    /**
+     * Bit-perfect USB output: asked for whenever it's on, a USB DAC offers
+     * it for the song's format, and nothing would change the sound anyway
+     * (speed 1x, key 0); the effects are then bypassed on both players.
+     */
+    private fun updateBitPerfect() {
+        val settings = store.settings.value
+        val format = active.player.audioFormat
+        bitPerfectFormat = format?.let { it.sampleRate to it.channelCount }
+        val state = when {
+            !settings.bitPerfectUsb -> BitPerfectState.Off
+            !bitPerfect.hasDevice() -> BitPerfectState.NoDevice
+            rate != 1f || pitch != 1f -> BitPerfectState.Blocked
+            format == null || format.sampleRate <= 0 -> _bitPerfectState.value // not playing yet: keep it as it is
+            bitPerfect.request(format.sampleRate, format.channelCount) -> BitPerfectState.Active(format.sampleRate, format.channelCount)
+            else -> BitPerfectState.Unsupported(format.sampleRate, format.channelCount)
+        }
+        if (state !is BitPerfectState.Active) bitPerfect.release()
+        _bitPerfectState.value = state
+        slots.forEach { it.effects.bypass = state is BitPerfectState.Active }
     }
 
     /** The desktop's baseVolumeFor(): volume x ReplayGain (if on) x EQ post-gain (if the EQ is on). */

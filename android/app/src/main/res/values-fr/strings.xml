@@ -614,4 +614,11 @@
     <string name="listening_balance_centre">Centre</string>
     <string name="listening_skip_silence">Ignorer les silences</string>
     <string name="listening_skip_silence_explanation">Saute les passages silencieux, comme les pauses des podcasts ou les longues fins silencieuses.</string>
+    <string name="usb_dac">DAC USB</string>
+    <string name="usb_bit_perfect">Sortie bit-perfect</string>
+    <string name="usb_bit_perfect_explanation">Envoie la musique à votre DAC USB telle quelle (qualité CD, 16 bits), sans mixage ni rééchantillonnage. Tant qu\'elle est active, l\'égaliseur, les effets, ReplayGain, le volume de l\'app et le fondu enchaîné sont ignorés. Les boutons de volume du téléphone peuvent ne plus fonctionner : baissez d\'abord le volume de votre DAC.</string>
+    <string name="usb_bit_perfect_no_device">Branchez un DAC USB compatible avec la sortie bit-perfect.</string>
+    <string name="usb_bit_perfect_blocked">Réglez la vitesse sur 1× et la tonalité du karaoké sur 0 pour l\'utiliser.</string>
+    <string name="usb_bit_perfect_unsupported">Votre DAC ne peut pas lire ce format (%1$s kHz) en bit-perfect : lecture normale.</string>
+    <string name="usb_bit_perfect_active">Bit-perfect : %1$s kHz, 16 bits, intact.</string>
 </resources>

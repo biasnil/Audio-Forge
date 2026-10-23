@@ -588,4 +588,11 @@
     <string name="listening_balance_centre">置中</string>
     <string name="listening_skip_silence">略過靜音</string>
     <string name="listening_skip_silence_explanation">略過安靜的部分，例如 Podcast 中的停頓或很長的無聲結尾。</string>
+    <string name="usb_dac">USB 解碼器</string>
+    <string name="usb_bit_perfect">位元完美輸出</string>
+    <string name="usb_bit_perfect_explanation">將音樂原樣傳送到 USB 解碼器（CD 音質，16 位元），不經混音或重新取樣。啟用期間，等化器、音效、ReplayGain、應用程式內音量和交叉淡入淡出都會被略過。手機音量鍵可能失效：請先調低解碼器的音量。</string>
+    <string name="usb_bit_perfect_no_device">請插入支援位元完美輸出的 USB 解碼器。</string>
+    <string name="usb_bit_perfect_blocked">請將速度設為 1×、卡拉 OK 音調設為 0 後使用。</string>
+    <string name="usb_bit_perfect_unsupported">你的解碼器無法以位元完美方式播放此歌曲的格式（%1$s kHz），因此照常播放。</string>
+    <string name="usb_bit_perfect_active">位元完美：%1$s kHz，16 位元，原樣輸出。</string>
 </resources>

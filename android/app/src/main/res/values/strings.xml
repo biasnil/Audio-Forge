@@ -602,4 +602,11 @@
     <string name="listening_balance_centre">Centre</string>
     <string name="listening_skip_silence">Skip silence</string>
     <string name="listening_skip_silence_explanation">Jumps over quiet parts, like pauses in podcasts or long silent endings.</string>
+    <string name="usb_dac">USB DAC</string>
+    <string name="usb_bit_perfect">Bit-perfect output</string>
+    <string name="usb_bit_perfect_explanation">Sends music to your USB DAC exactly as it is (CD quality, 16-bit), with no mixing or resampling. While it\'s active, the EQ, effects, ReplayGain, the app\'s volume and crossfade are skipped. Your phone\'s volume buttons may stop working: turn your DAC\'s volume down first.</string>
+    <string name="usb_bit_perfect_no_device">Plug in a USB DAC that supports bit-perfect output.</string>
+    <string name="usb_bit_perfect_blocked">Set the speed to 1× and the karaoke key to 0 to use it.</string>
+    <string name="usb_bit_perfect_unsupported">Your DAC can\'t play this song\'s format (%1$s kHz) bit-perfect, so it plays as usual.</string>
+    <string name="usb_bit_perfect_active">Bit-perfect: %1$s kHz, 16-bit, untouched.</string>
 </resources>

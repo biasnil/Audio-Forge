@@ -588,4 +588,11 @@
     <string name="listening_balance_centre">居中</string>
     <string name="listening_skip_silence">跳过静音</string>
     <string name="listening_skip_silence_explanation">跳过安静的部分，例如播客中的停顿或很长的无声结尾。</string>
+    <string name="usb_dac">USB 解码器</string>
+    <string name="usb_bit_perfect">比特完美输出</string>
+    <string name="usb_bit_perfect_explanation">将音乐原样发送到 USB 解码器（CD 音质，16 位），不经混音或重采样。启用期间，均衡器、音效、ReplayGain、应用内音量和交叉淡入淡出都会被跳过。手机音量键可能失效：请先调低解码器的音量。</string>
+    <string name="usb_bit_perfect_no_device">请插入支持比特完美输出的 USB 解码器。</string>
+    <string name="usb_bit_perfect_blocked">请将速度设为 1×、卡拉 OK 音调设为 0 后使用。</string>
+    <string name="usb_bit_perfect_unsupported">你的解码器无法以比特完美方式播放此歌曲的格式（%1$s kHz），因此按常规播放。</string>
+    <string name="usb_bit_perfect_active">比特完美：%1$s kHz，16 位，原样输出。</string>
 </resources>

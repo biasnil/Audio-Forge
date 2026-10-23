@@ -44,20 +44,22 @@ import com.biasnil.audioforge.audio.ToneParams
 import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.ReverbPreset
 import com.biasnil.audioforge.data.SurroundPreset
+import com.biasnil.audioforge.playback.BitPerfectState
 import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
  * Equalizer -> Effects: AutoEq headphone correction (chosen on
  * [HeadphonePickerPage]), bass boost, loudness, the limiter, karaoke, mono /
- * balance / skip silence, 3D Surround, stereo width, reverb, and (where the
+ * balance / skip silence, bit-perfect USB output (Android 14+), 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
  */
 @Composable
 fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
-    val store = LocalAppContainer.current.store
+    val container = LocalAppContainer.current
+    val store = container.store
     val settings by store.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val spatialOnInPhone = remember { spatialAudioCheck(context) }
@@ -256,6 +258,27 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                 onChange = { on -> store.update { it.copy(skipSilence = on) } },
             )
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                SectionHeader(stringResource(R.string.usb_dac))
+                SwitchRow(
+                    label = stringResource(R.string.usb_bit_perfect),
+                    explanation = stringResource(R.string.usb_bit_perfect_explanation),
+                    checked = settings.bitPerfectUsb,
+                    onChange = { on -> store.update { it.copy(bitPerfectUsb = on) } },
+                )
+                val bitPerfect by container.playback.bitPerfectState.collectAsStateWithLifecycle()
+                bitPerfectStatus(bitPerfect)?.let { status ->
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (bitPerfect is BitPerfectState.Active) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+            }
+
             if (spatialOnInPhone != null) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Row(
@@ -389,6 +412,19 @@ private fun PercentRow(label: String, percent: Int, max: Int, enabled: Boolean, 
             textAlign = TextAlign.End,
             modifier = Modifier.width(48.dp),
         )
+    }
+}
+
+/** The line under the bit-perfect switch, or null while it's off. */
+@Composable
+private fun bitPerfectStatus(state: BitPerfectState): String? {
+    fun khz(rate: Int) = String.format(Locale.ROOT, "%.1f", rate / 1000.0)
+    return when (state) {
+        BitPerfectState.Off -> null
+        BitPerfectState.NoDevice -> stringResource(R.string.usb_bit_perfect_no_device)
+        BitPerfectState.Blocked -> stringResource(R.string.usb_bit_perfect_blocked)
+        is BitPerfectState.Unsupported -> stringResource(R.string.usb_bit_perfect_unsupported, khz(state.sampleRate))
+        is BitPerfectState.Active -> stringResource(R.string.usb_bit_perfect_active, khz(state.sampleRate))
     }
 }
 

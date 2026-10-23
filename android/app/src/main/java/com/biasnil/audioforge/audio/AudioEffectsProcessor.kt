@@ -36,6 +36,13 @@ class AudioEffectsProcessor(
     @Volatile
     var gain = 1f
 
+    /**
+     * Bit-perfect USB output: the audio passes through untouched (no
+     * effects, no gain). Set from the main thread.
+     */
+    @Volatile
+    var bypass = false
+
     /** Set from the main thread; see [Limiter.enabled]. */
     var limiterEnabled: Boolean
         get() = limiter.enabled
@@ -83,6 +90,10 @@ class AudioEffectsProcessor(
     override fun queueInput(inputBuffer: ByteBuffer) {
         val size = inputBuffer.remaining()
         if (size == 0) return
+        if (bypass) {
+            replaceOutputBuffer(size).put(inputBuffer).flip()
+            return
+        }
         // Decoded PCM is in the platform's byte order.
         inputBuffer.order(ByteOrder.nativeOrder())
         headphones.refresh()
