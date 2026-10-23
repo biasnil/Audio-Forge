@@ -597,4 +597,13 @@
     <string name="skip_silence_podcasts_explanation">略過每一個停頓，讓節目更緊湊。</string>
     <string name="skip_silence_songs">歌曲</string>
     <string name="skip_silence_songs_explanation">只略過歌曲開始前和結尾處的靜音，中間的安靜段落會保留。</string>
+    <string name="settings_appearance_summary">淺色或深色、桌面小工具</string>
+    <string name="settings_playback_summary">ReplayGain、交叉淡入淡出、睡眠定時、續播</string>
+    <string name="settings_smart_summary">調性與 BPM、曲風、智慧隨機</string>
+    <string name="settings_visualizer_summary">正在播放頁面的動畫</string>
+    <string name="settings_wallpaper_summary">正在播放頁面的背景影片</string>
+    <string name="settings_lyrics_summary">鎖定畫面歌詞、Musixmatch 金鑰</string>
+    <string name="settings_library_summary">重新整理、重複項目、收聽統計</string>
+    <string name="settings_tabs_summary">選擇顯示哪些分頁</string>
+    <string name="settings_about_summary">版本、更新、隱私、授權</string>
 </resources>

@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -205,6 +206,8 @@ fun groupedShape(index: Int, count: Int, radius: Dp = 12.dp): Shape = RoundedCor
 fun TabHeader(
     title: String,
     onBack: (() -> Unit)? = null,
+    /** Shown before the title (Settings' gear). */
+    icon: ImageVector? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -217,6 +220,16 @@ fun TabHeader(
             IconButton(onClick = onBack) {
                 Icon(AppIcons.Back, contentDescription = stringResource(R.string.back))
             }
+        }
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(start = if (onBack != null) 4.dp else 0.dp, end = 10.dp)
+                    .size(30.dp),
+            )
         }
         Text(
             text = title,

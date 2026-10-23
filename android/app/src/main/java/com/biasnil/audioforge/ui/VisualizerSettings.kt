@@ -61,7 +61,6 @@ fun VisualizerSettings(onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val settings by container.store.settings.collectAsStateWithLifecycle()
 
-    SectionHeader(stringResource(R.string.settings_visualizer))
     Text(
         text = stringResource(R.string.visualizer_explanation),
         style = MaterialTheme.typography.bodySmall,

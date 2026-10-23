@@ -157,6 +157,7 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
         Page.Widgets -> WidgetsPage(onBack = onBack)
         Page.ListeningStats -> ListeningStatsPage(onBack = onBack)
+        is Page.SettingsSectionPage -> SettingsSectionPage(page.key, onBack = onBack, onOpenPage = onOpenPage)
         Page.HeadphonePicker -> HeadphonePickerPage(onBack = onBack)
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
@@ -223,6 +224,8 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                 title = if (selectingSongs) stringResource(R.string.selected_count, songsState.selection.size)
                 else stringResource(tab.title),
                 onBack = if (selectedKey == MORE_KEY) ({ moreTabName = null }) else null,
+                // A gear next to the title, so Settings is clearly Settings.
+                icon = if (tab == LibraryTab.Settings) tab.icon else null,
             ) {
                 if (scanning) {
                     CircularProgressIndicator(

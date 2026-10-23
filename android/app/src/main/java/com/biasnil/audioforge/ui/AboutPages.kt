@@ -73,7 +73,6 @@ fun AboutSection(onOpenPage: (Page) -> Unit) {
     // The automatic check (at most once a day), when Settings opens.
     LaunchedEffect(Unit) { container.updates.checkIfDue() }
 
-    SectionHeader(stringResource(R.string.settings_about))
     Column(
         Modifier
             .padding(horizontal = 16.dp)

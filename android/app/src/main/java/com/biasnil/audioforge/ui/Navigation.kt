@@ -36,6 +36,8 @@ sealed interface Page {
     data class PodcastShow(val name: String) : Page
     data object Widgets : Page
     data object ListeningStats : Page
+    /** Settings -> one category (SettingsSection.key). */
+    data class SettingsSectionPage(val key: String) : Page
     /** Effects tab -> Headphone correction: the AutoEq model list. */
     data object HeadphonePicker : Page
     data object PodcastSearch : Page
@@ -64,6 +66,7 @@ sealed interface Page {
         is PodcastShow -> "show:$name"
         Widgets -> "widgets"
         ListeningStats -> "stats"
+        is SettingsSectionPage -> "settings:$key"
         HeadphonePicker -> "headphones"
         PodcastSearch -> "psearch"
         is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
@@ -94,6 +97,7 @@ sealed interface Page {
             value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             value == "widgets" -> Widgets
             value == "stats" -> ListeningStats
+            value.startsWith("settings:") -> SettingsSectionPage(value.removePrefix("settings:"))
             value == "headphones" -> HeadphonePicker
             value == "psearch" -> PodcastSearch
             value.startsWith("pfeed:") -> value.removePrefix("pfeed:").let {

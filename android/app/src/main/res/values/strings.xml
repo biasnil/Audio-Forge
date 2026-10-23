@@ -611,4 +611,13 @@
     <string name="skip_silence_podcasts_explanation">Skips every pause, so episodes go faster.</string>
     <string name="skip_silence_songs">Songs</string>
     <string name="skip_silence_songs_explanation">Skips only the silence before a song starts and at its very end. Quiet parts in the middle are kept.</string>
+    <string name="settings_appearance_summary">Light or dark, home-screen widgets</string>
+    <string name="settings_playback_summary">ReplayGain, crossfade, sleep timer, resume</string>
+    <string name="settings_smart_summary">Key and BPM, genres, smart shuffle</string>
+    <string name="settings_visualizer_summary">The animation on Now Playing</string>
+    <string name="settings_wallpaper_summary">Videos behind Now Playing</string>
+    <string name="settings_lyrics_summary">Lyrics on the lock screen, Musixmatch key</string>
+    <string name="settings_library_summary">Refresh, duplicates, listening stats</string>
+    <string name="settings_tabs_summary">Choose which tabs show</string>
+    <string name="settings_about_summary">Version, updates, privacy, licences</string>
 </resources>

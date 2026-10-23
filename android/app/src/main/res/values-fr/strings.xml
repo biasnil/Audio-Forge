@@ -623,4 +623,13 @@
     <string name="skip_silence_podcasts_explanation">Saute chaque pause, pour que les épisodes passent plus vite.</string>
     <string name="skip_silence_songs">Morceaux</string>
     <string name="skip_silence_songs_explanation">Saute seulement le silence avant le début d\'un morceau et à sa toute fin. Les passages calmes au milieu sont gardés.</string>
+    <string name="settings_appearance_summary">Clair ou sombre, widgets</string>
+    <string name="settings_playback_summary">ReplayGain, fondu enchaîné, minuterie, reprise</string>
+    <string name="settings_smart_summary">Tonalité et BPM, genres, lecture aléatoire intelligente</string>
+    <string name="settings_visualizer_summary">L\'animation de la lecture en cours</string>
+    <string name="settings_wallpaper_summary">Vidéos derrière la lecture en cours</string>
+    <string name="settings_lyrics_summary">Paroles sur l\'écran de verrouillage, clé Musixmatch</string>
+    <string name="settings_library_summary">Actualiser, doublons, statistiques</string>
+    <string name="settings_tabs_summary">Choisir les onglets affichés</string>
+    <string name="settings_about_summary">Version, mises à jour, confidentialité, licences</string>
 </resources>

@@ -369,7 +369,7 @@ private fun SwitchRow(label: String, explanation: String, checked: Boolean, onCh
 private fun Explanation(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
+        style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )

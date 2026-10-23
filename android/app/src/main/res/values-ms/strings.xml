@@ -597,4 +597,13 @@
     <string name="skip_silence_podcasts_explanation">Melangkau setiap jeda supaya episod lebih cepat.</string>
     <string name="skip_silence_songs">Lagu</string>
     <string name="skip_silence_songs_explanation">Melangkau hanya senyap sebelum lagu bermula dan di penghujungnya. Bahagian perlahan di tengah dikekalkan.</string>
+    <string name="settings_appearance_summary">Cerah atau gelap, widget skrin utama</string>
+    <string name="settings_playback_summary">ReplayGain, resapan silang, pemasa tidur, sambung semula</string>
+    <string name="settings_smart_summary">Kunci dan BPM, genre, rombak pintar</string>
+    <string name="settings_visualizer_summary">Animasi pada Sedang Dimainkan</string>
+    <string name="settings_wallpaper_summary">Video di belakang Sedang Dimainkan</string>
+    <string name="settings_lyrics_summary">Lirik pada skrin kunci, kunci Musixmatch</string>
+    <string name="settings_library_summary">Muat semula, pendua, statistik</string>
+    <string name="settings_tabs_summary">Pilih tab yang dipaparkan</string>
+    <string name="settings_about_summary">Versi, kemas kini, privasi, lesen</string>
 </resources>
