@@ -531,7 +531,6 @@
     <string name="radio_directory_note">电台来自社区维护的目录 Radio Browser（radio-browser.info）。在你点按电台之前不会播放任何内容。</string>
     <string name="stats_radio">电台：%1$s</string>
     <string name="effects">音效</string>
-    <string name="effects_row_summary">耳机校正、低音增强、限幅器、3D 环绕、混响、卡拉 OK</string>
     <string name="effects_surround">3D 环绕</string>
     <string name="effects_surround_explanation">让耳机听起来像音乐在你周围的空间中播放。</string>
     <string name="effects_room">房间</string>

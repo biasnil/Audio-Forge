@@ -531,7 +531,6 @@
     <string name="radio_directory_note">Stesen datang daripada Radio Browser (radio-browser.info), direktori yang diurus oleh komuniti. Tiada apa dimainkan sehingga anda mengetik stesen.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Kesan</string>
-    <string name="effects_row_summary">Pembetulan fon kepala, bass, pengehad, Surround 3D, gema, karaoke</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Membuatkan fon kepala berbunyi seolah-olah muzik dimainkan di ruang sekeliling anda.</string>
     <string name="effects_room">Bilik</string>

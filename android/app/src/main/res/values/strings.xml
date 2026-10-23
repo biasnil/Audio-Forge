@@ -545,7 +545,6 @@
     <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Effects</string>
-    <string name="effects_row_summary">Headphone correction, bass boost, limiter, 3D Surround, reverb, karaoke</string>
     <string name="effects_surround">3D Surround</string>
     <string name="effects_surround_explanation">Makes headphones sound like the music is playing in a space around you.</string>
     <string name="effects_room">Room</string>

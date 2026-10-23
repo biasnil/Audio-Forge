@@ -557,7 +557,6 @@
     <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
     <string name="stats_radio">Radio : %1$s</string>
     <string name="effects">Effets</string>
-    <string name="effects_row_summary">Correction du casque, basses, limiteur, Surround 3D, réverbération, karaoké</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Donne l\'impression, au casque, que la musique joue dans un espace autour de vous.</string>
     <string name="effects_room">Pièce</string>
