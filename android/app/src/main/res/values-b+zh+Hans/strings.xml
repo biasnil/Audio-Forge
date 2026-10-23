@@ -531,7 +531,7 @@
     <string name="radio_directory_note">电台来自社区维护的目录 Radio Browser（radio-browser.info）。在你点按电台之前不会播放任何内容。</string>
     <string name="stats_radio">电台：%1$s</string>
     <string name="effects">音效</string>
-    <string name="effects_row_summary">耳机校正、低音增强、限幅器、3D 环绕、混响</string>
+    <string name="effects_row_summary">耳机校正、低音增强、限幅器、3D 环绕、混响、卡拉 OK</string>
     <string name="effects_surround">3D 环绕</string>
     <string name="effects_surround_explanation">让耳机听起来像音乐在你周围的空间中播放。</string>
     <string name="effects_room">房间</string>
@@ -574,4 +574,9 @@
     <string name="tone_loudness_explanation">手机音量较低时增加低音和高音，让音乐依然饱满。最大音量时不做改变。</string>
     <string name="tone_limiter">限幅器</string>
     <string name="tone_limiter_explanation" formatted="false">平滑压低过响的峰值，避免爆音，适用于超过 100% 的音量、低音增强和音效。</string>
+    <string name="karaoke">卡拉 OK</string>
+    <string name="karaoke_explanation">去除歌手的人声，方便你跟唱。最适合人声位于中间的录音室歌曲；可能会残留少量人声或其回声。</string>
+    <string name="karaoke_voice">去除</string>
+    <string name="karaoke_key">音调</string>
+    <string name="karaoke_key_explanation">以半音为单位升高或降低音乐，不改变速度。</string>
 </resources>

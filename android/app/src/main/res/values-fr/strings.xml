@@ -557,7 +557,7 @@
     <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
     <string name="stats_radio">Radio : %1$s</string>
     <string name="effects">Effets</string>
-    <string name="effects_row_summary">Correction du casque, basses, limiteur, Surround 3D, réverbération</string>
+    <string name="effects_row_summary">Correction du casque, basses, limiteur, Surround 3D, réverbération, karaoké</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Donne l\'impression, au casque, que la musique joue dans un espace autour de vous.</string>
     <string name="effects_room">Pièce</string>
@@ -600,4 +600,9 @@
     <string name="tone_loudness_explanation">Ajoute des basses et des aigus quand le volume du téléphone est bas, pour que la musique reste pleine. Rien ne change au volume maximal.</string>
     <string name="tone_limiter">Limiteur</string>
     <string name="tone_limiter_explanation" formatted="false">Atténue les pics forts en douceur au lieu de grésiller, pour un volume au-delà de 100 %, les basses et les effets.</string>
+    <string name="karaoke">Karaoké</string>
+    <string name="karaoke_explanation">Retire la voix du chanteur pour que vous puissiez chanter. Fonctionne mieux sur les morceaux studio avec la voix au centre ; un peu de voix ou d\'écho peut rester.</string>
+    <string name="karaoke_voice">Retirer</string>
+    <string name="karaoke_key">Tonalité</string>
+    <string name="karaoke_key_explanation">Monte ou descend la musique par demi-tons, sans changer sa vitesse.</string>
 </resources>

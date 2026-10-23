@@ -545,7 +545,7 @@
     <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Effects</string>
-    <string name="effects_row_summary">Headphone correction, bass boost, limiter, 3D Surround, reverb</string>
+    <string name="effects_row_summary">Headphone correction, bass boost, limiter, 3D Surround, reverb, karaoke</string>
     <string name="effects_surround">3D Surround</string>
     <string name="effects_surround_explanation">Makes headphones sound like the music is playing in a space around you.</string>
     <string name="effects_room">Room</string>
@@ -588,4 +588,9 @@
     <string name="tone_loudness_explanation">Adds bass and treble when your phone\'s volume is low, so music still sounds full. Nothing changes at full volume.</string>
     <string name="tone_limiter">Limiter</string>
     <string name="tone_limiter_explanation" formatted="false">Turns loud peaks down smoothly instead of crackling, for volume above 100%, bass boost and effects.</string>
+    <string name="karaoke">Karaoke</string>
+    <string name="karaoke_explanation">Takes the singer\'s voice out so you can sing along. Works best on studio songs with the voice in the middle; a little of it, or its echo, may remain.</string>
+    <string name="karaoke_voice">Remove</string>
+    <string name="karaoke_key">Key</string>
+    <string name="karaoke_key_explanation">Moves the music up or down in semitones, without changing its speed.</string>
 </resources>

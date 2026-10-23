@@ -12,7 +12,7 @@ import kotlin.math.roundToInt
 /**
  * Runs inside one player's audio pipeline: headphone correction
  * ([CorrectionDsp]), the 10-band EQ, bass boost / loudness ([ToneDsp]),
- * then stereo width / 3D Surround / reverb ([SpatialDsp]), then a gain --
+ * karaoke vocal removal ([KaraokeDsp]), then stereo width / 3D Surround / reverb ([SpatialDsp]), then a gain --
  * volume x ReplayGain x EQ post-gain, the desktop's baseVolumeFor() --
  * which can exceed 1 for the volume boost, then the [Limiter]. Anything
  * still over full scale (the limiter switched off) is hard-clipped, same
@@ -27,6 +27,7 @@ class AudioEffectsProcessor(
     spatial: SpatialSettings,
     correction: CorrectionSettings,
     tone: ToneSettings,
+    karaoke: KaraokeSettings,
 ) : BaseAudioProcessor() {
 
     /** Set from the main thread; picked up on the next buffer. */
@@ -48,6 +49,7 @@ class AudioEffectsProcessor(
     private val headphones = CorrectionDsp(correction)
     private val eq = EqualizerDsp(equalizer)
     private val toneDsp = ToneDsp(tone)
+    private val vocals = KaraokeDsp(karaoke)
     private val effects = SpatialDsp(spatial)
     private val limiter = Limiter()
     private var appliedGain = 1f
@@ -69,6 +71,7 @@ class AudioEffectsProcessor(
         headphones.configure(inputAudioFormat.sampleRate, channels)
         eq.configure(inputAudioFormat.sampleRate, channels)
         toneDsp.configure(inputAudioFormat.sampleRate, channels)
+        vocals.configure(inputAudioFormat.sampleRate, channels)
         effects.configure(inputAudioFormat.sampleRate, channels)
         limiter.configure(inputAudioFormat.sampleRate, channels)
         frameSamples = DoubleArray(channels)
@@ -83,6 +86,7 @@ class AudioEffectsProcessor(
         headphones.refresh()
         eq.refresh()
         toneDsp.refresh()
+        vocals.refresh()
         effects.refresh()
 
         val bytesPerSample = bytesPerSample
@@ -93,6 +97,7 @@ class AudioEffectsProcessor(
         val useHeadphones = headphones.isActive
         val useEq = eq.isActive
         val useTone = toneDsp.isActive
+        val useVocals = vocals.isActive
         val useEffects = effects.isActive
         val samples = frameSamples
         val tap = visualizer?.takeIf { it.enabled }
@@ -110,6 +115,11 @@ class AudioEffectsProcessor(
                 if (useEq) sample = eq.process(sample, channel)
                 if (useTone) sample = toneDsp.process(sample, channel)
                 samples[channel] = sample
+            }
+            if (useVocals) { // only when there are 2+ channels
+                vocals.process(samples[0], samples[1])
+                samples[0] = vocals.outLeft
+                samples[1] = vocals.outRight
             }
             if (useEffects) { // only when there are 2+ channels
                 effects.process(samples[0], samples[1])
@@ -158,6 +168,7 @@ class AudioEffectsProcessor(
         headphones.reset()
         eq.reset() // seek / new track: don't ring with the old audio's filter history
         toneDsp.reset()
+        vocals.reset()
         effects.reset()
         limiter.reset()
         appliedGain = gain

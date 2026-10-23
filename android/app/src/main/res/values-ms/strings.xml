@@ -531,7 +531,7 @@
     <string name="radio_directory_note">Stesen datang daripada Radio Browser (radio-browser.info), direktori yang diurus oleh komuniti. Tiada apa dimainkan sehingga anda mengetik stesen.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Kesan</string>
-    <string name="effects_row_summary">Pembetulan fon kepala, bass, pengehad, Surround 3D, gema</string>
+    <string name="effects_row_summary">Pembetulan fon kepala, bass, pengehad, Surround 3D, gema, karaoke</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Membuatkan fon kepala berbunyi seolah-olah muzik dimainkan di ruang sekeliling anda.</string>
     <string name="effects_room">Bilik</string>
@@ -574,4 +574,9 @@
     <string name="tone_loudness_explanation">Menambah bass dan trebel apabila kelantangan telefon rendah supaya muzik masih kedengaran penuh. Tiada perubahan pada kelantangan penuh.</string>
     <string name="tone_limiter">Pengehad</string>
     <string name="tone_limiter_explanation" formatted="false">Merendahkan puncak yang kuat dengan lancar dan bukannya berderak, untuk kelantangan melebihi 100%, bass dan kesan.</string>
+    <string name="karaoke">Karaoke</string>
+    <string name="karaoke_explanation">Membuang suara penyanyi supaya anda boleh menyanyi bersama. Paling sesuai untuk lagu studio dengan suara di tengah; sedikit suara atau gemanya mungkin masih kedengaran.</string>
+    <string name="karaoke_voice">Buang</string>
+    <string name="karaoke_key">Kunci</string>
+    <string name="karaoke_key_explanation">Menaikkan atau menurunkan muzik mengikut semiton, tanpa mengubah kelajuannya.</string>
 </resources>

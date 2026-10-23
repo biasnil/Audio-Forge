@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -26,6 +27,8 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
 import com.biasnil.audioforge.audio.CorrectionSettings
+import com.biasnil.audioforge.audio.KaraokeSettings
+import com.biasnil.audioforge.audio.pitchFactor
 import com.biasnil.audioforge.audio.ToneParams
 import com.biasnil.audioforge.audio.ToneSettings
 import com.biasnil.audioforge.audio.VisualizerTap
@@ -153,6 +156,9 @@ class PlaybackManager(
     private val spatial = SpatialSettings()
     private val correction = CorrectionSettings()
     private val tone = ToneSettings()
+    private val karaoke = KaraokeSettings()
+    /** Karaoke key change, as the players' pitch factor (1 = the song's own key). */
+    private var pitch = 1f
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     /** The phone's media volume (0..1) the loudness was last set for. */
     private var loudnessVolume = -1f
@@ -161,7 +167,7 @@ class PlaybackManager(
 
     /** One player + its effects chain + what it's playing. */
     private inner class Slot {
-        val effects = AudioEffectsProcessor(equalizer, spatial, correction, tone)
+        val effects = AudioEffectsProcessor(equalizer, spatial, correction, tone, karaoke)
         val player: ExoPlayer = buildPlayer(appContext, effects, audioAttributes)
         var track: Track? = null
         var replayGainDb = 0f
@@ -589,7 +595,9 @@ class PlaybackManager(
         }
     }
 
-    private fun applyRate(slot: Slot) = slot.player.setPlaybackSpeed(rate * slot.rateFactor)
+    private fun applyRate(slot: Slot) {
+        slot.player.playbackParameters = PlaybackParameters(rate * slot.rateFactor, pitch)
+    }
 
     private fun effectiveRate(slot: Slot): Float = rate * slot.rateFactor
 
@@ -947,6 +955,12 @@ class PlaybackManager(
         val old = appliedSettings
         appliedSettings = settings
         correction.update(settings.headphoneCorrection)
+        karaoke.update(settings.karaokeVocalRemovalPercent / 100f)
+        val newPitch = pitchFactor(settings.karaokeKeySemitones)
+        if (newPitch != pitch) {
+            pitch = newPitch
+            slots.forEach(::applyRate)
+        }
         loudnessVolume = -1f // the tone is set again below
         applyTone(settings)
         slots.forEach { it.effects.limiterEnabled = settings.limiterEnabled }

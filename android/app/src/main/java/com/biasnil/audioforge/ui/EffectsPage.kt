@@ -42,11 +42,12 @@ import com.biasnil.audioforge.audio.ToneParams
 import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.ReverbPreset
 import com.biasnil.audioforge.data.SurroundPreset
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
  * Equalizer -> Effects: AutoEq headphone correction (chosen on
- * [HeadphonePickerPage]), bass boost, loudness, the limiter, 3D Surround, stereo width, reverb, and (where the
+ * [HeadphonePickerPage]), bass boost, loudness, the limiter, karaoke, 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
@@ -180,6 +181,39 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                 onChange = { value -> store.update { it.copy(reverbMixPercent = value) } },
             )
 
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.karaoke))
+            Explanation(stringResource(R.string.karaoke_explanation))
+            PercentRow(
+                label = stringResource(R.string.karaoke_voice),
+                percent = settings.karaokeVocalRemovalPercent,
+                max = 100,
+                enabled = true,
+                onChange = { value -> store.update { it.copy(karaokeVocalRemovalPercent = value) } },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.karaoke_key), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
+                Slider(
+                    value = settings.karaokeKeySemitones.toFloat(),
+                    onValueChange = { value -> store.update { it.copy(karaokeKeySemitones = value.roundToInt()) } },
+                    valueRange = -AppSettings.MAX_KEY_SEMITONES.toFloat()..AppSettings.MAX_KEY_SEMITONES.toFloat(),
+                    steps = AppSettings.MAX_KEY_SEMITONES * 2 - 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (settings.karaokeKeySemitones == 0) "0" else "%+d".format(Locale.ROOT, settings.karaokeKeySemitones),
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(48.dp),
+                )
+            }
+            Explanation(stringResource(R.string.karaoke_key_explanation))
+
             if (spatialOnInPhone != null) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Row(
@@ -219,6 +253,8 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
                             stereoWidthPercent = 100,
                             reverbPreset = ReverbPreset.Off,
                             reverbMixPercent = 30,
+                            karaokeVocalRemovalPercent = 0,
+                            karaokeKeySemitones = 0,
                         )
                     }
                 },

@@ -66,6 +66,10 @@ data class AppSettings(
     val loudnessEnabled: Boolean = false,
     /** Turns peaks down smoothly instead of clipping them (matters above 100% volume). */
     val limiterEnabled: Boolean = true,
+    /** Karaoke: 0-100, how much of the voice in the middle is taken out; 0 = off. */
+    val karaokeVocalRemovalPercent: Int = 0,
+    /** Karaoke: the key change in semitones, without changing the speed. */
+    val karaokeKeySemitones: Int = 0,
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
     val headphoneCorrection: HeadphoneProfile? = null,
     val surroundPreset: SurroundPreset = SurroundPreset.Off,
@@ -126,6 +130,7 @@ data class AppSettings(
         const val EQ_BAND_COUNT = 10
         const val MAX_VOLUME_PERCENT = 200
         const val MAX_STEREO_WIDTH_PERCENT = 200
+        const val MAX_KEY_SEMITONES = 12
         val CROSSFADE_SECONDS_RANGE = 2..15
     }
 }
@@ -209,6 +214,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 bassBoostDb = root.optDouble("bassBoostDb", 0.0).toFloat().coerceIn(0f, 12f),
                 loudnessEnabled = root.optBoolean("loudnessEnabled", false),
                 limiterEnabled = root.optBoolean("limiterEnabled", true),
+                karaokeVocalRemovalPercent = root.optInt("karaokeVocalRemovalPercent", 0).coerceIn(0, 100),
+                karaokeKeySemitones = root.optInt("karaokeKeySemitones", 0)
+                    .coerceIn(-AppSettings.MAX_KEY_SEMITONES, AppSettings.MAX_KEY_SEMITONES),
                 deviceSoundEnabled = root.optBoolean("deviceSoundEnabled", false),
                 deviceSounds = root.optJSONArray("deviceSounds").toObjects().mapNotNull { obj ->
                     val kind = OutputKind.entries.firstOrNull { it.name == obj.optString("kind") } ?: return@mapNotNull null
@@ -288,6 +296,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("bassBoostDb", settings.bassBoostDb.toDouble())
             .put("loudnessEnabled", settings.loudnessEnabled)
             .put("limiterEnabled", settings.limiterEnabled)
+            .put("karaokeVocalRemovalPercent", settings.karaokeVocalRemovalPercent)
+            .put("karaokeKeySemitones", settings.karaokeKeySemitones)
             .put("deviceSoundEnabled", settings.deviceSoundEnabled)
             .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->
                 JSONObject()
