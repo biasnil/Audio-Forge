@@ -70,6 +70,12 @@ data class AppSettings(
     val karaokeVocalRemovalPercent: Int = 0,
     /** Karaoke: the key change in semitones, without changing the speed. */
     val karaokeKeySemitones: Int = 0,
+    /** Both ears get the same mix. */
+    val monoAudio: Boolean = false,
+    /** -100 (left only) .. 0 .. 100 (right only). */
+    val balancePercent: Int = 0,
+    /** ExoPlayer skips quiet passages (gaps in podcasts, long silent intros/outros). */
+    val skipSilence: Boolean = false,
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
     val headphoneCorrection: HeadphoneProfile? = null,
     val surroundPreset: SurroundPreset = SurroundPreset.Off,
@@ -215,6 +221,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 loudnessEnabled = root.optBoolean("loudnessEnabled", false),
                 limiterEnabled = root.optBoolean("limiterEnabled", true),
                 karaokeVocalRemovalPercent = root.optInt("karaokeVocalRemovalPercent", 0).coerceIn(0, 100),
+                monoAudio = root.optBoolean("monoAudio", false),
+                balancePercent = root.optInt("balancePercent", 0).coerceIn(-100, 100),
+                skipSilence = root.optBoolean("skipSilence", false),
                 karaokeKeySemitones = root.optInt("karaokeKeySemitones", 0)
                     .coerceIn(-AppSettings.MAX_KEY_SEMITONES, AppSettings.MAX_KEY_SEMITONES),
                 deviceSoundEnabled = root.optBoolean("deviceSoundEnabled", false),
@@ -298,6 +307,9 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("limiterEnabled", settings.limiterEnabled)
             .put("karaokeVocalRemovalPercent", settings.karaokeVocalRemovalPercent)
             .put("karaokeKeySemitones", settings.karaokeKeySemitones)
+            .put("monoAudio", settings.monoAudio)
+            .put("balancePercent", settings.balancePercent)
+            .put("skipSilence", settings.skipSilence)
             .put("deviceSoundEnabled", settings.deviceSoundEnabled)
             .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->
                 JSONObject()

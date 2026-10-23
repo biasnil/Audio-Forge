@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,7 +49,8 @@ import kotlin.math.roundToInt
 
 /**
  * Equalizer -> Effects: AutoEq headphone correction (chosen on
- * [HeadphonePickerPage]), bass boost, loudness, the limiter, karaoke, 3D Surround, stereo width, reverb, and (where the
+ * [HeadphonePickerPage]), bass boost, loudness, the limiter, karaoke, mono /
+ * balance / skip silence, 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
@@ -214,6 +217,45 @@ fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
             }
             Explanation(stringResource(R.string.karaoke_key_explanation))
 
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.listening))
+            SwitchRow(
+                label = stringResource(R.string.listening_mono),
+                explanation = stringResource(R.string.listening_mono_explanation),
+                checked = settings.monoAudio,
+                onChange = { on -> store.update { it.copy(monoAudio = on) } },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.listening_balance), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
+                Slider(
+                    value = settings.balancePercent.toFloat(),
+                    onValueChange = { value -> store.update { it.copy(balancePercent = (value / 5).roundToInt() * 5) } },
+                    valueRange = -100f..100f,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = when {
+                        settings.balancePercent < 0 -> stringResource(R.string.listening_balance_left, -settings.balancePercent)
+                        settings.balancePercent > 0 -> stringResource(R.string.listening_balance_right, settings.balancePercent)
+                        else -> stringResource(R.string.listening_balance_centre)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(64.dp),
+                )
+            }
+            SwitchRow(
+                label = stringResource(R.string.listening_skip_silence),
+                explanation = stringResource(R.string.listening_skip_silence_explanation),
+                checked = settings.skipSilence,
+                onChange = { on -> store.update { it.copy(skipSilence = on) } },
+            )
+
             if (spatialOnInPhone != null) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Row(
@@ -284,11 +326,12 @@ private fun SwitchRow(label: String, explanation: String, checked: Boolean, onCh
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
             .padding(start = 16.dp, end = 16.dp, top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = null)
     }
     Explanation(explanation)
 }

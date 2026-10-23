@@ -605,4 +605,13 @@
     <string name="karaoke_voice">Retirer</string>
     <string name="karaoke_key">Tonalité</string>
     <string name="karaoke_key_explanation">Monte ou descend la musique par demi-tons, sans changer sa vitesse.</string>
+    <string name="listening">Écoute</string>
+    <string name="listening_mono">Mono</string>
+    <string name="listening_mono_explanation">Les deux oreilles entendent tout le morceau. Utile avec un seul écouteur, ou si vous entendez d\'une seule oreille.</string>
+    <string name="listening_balance">Balance</string>
+    <string name="listening_balance_left">G %1$d%%</string>
+    <string name="listening_balance_right">D %1$d%%</string>
+    <string name="listening_balance_centre">Centre</string>
+    <string name="listening_skip_silence">Ignorer les silences</string>
+    <string name="listening_skip_silence_explanation">Saute les passages silencieux, comme les pauses des podcasts ou les longues fins silencieuses.</string>
 </resources>

@@ -579,4 +579,13 @@
     <string name="karaoke_voice">去除</string>
     <string name="karaoke_key">音调</string>
     <string name="karaoke_key_explanation">以半音为单位升高或降低音乐，不改变速度。</string>
+    <string name="listening">收听</string>
+    <string name="listening_mono">单声道</string>
+    <string name="listening_mono_explanation">两只耳朵都能听到完整的歌曲。适合只戴一只耳机或单耳听力的情况。</string>
+    <string name="listening_balance">平衡</string>
+    <string name="listening_balance_left">左 %1$d%%</string>
+    <string name="listening_balance_right">右 %1$d%%</string>
+    <string name="listening_balance_centre">居中</string>
+    <string name="listening_skip_silence">跳过静音</string>
+    <string name="listening_skip_silence_explanation">跳过安静的部分，例如播客中的停顿或很长的无声结尾。</string>
 </resources>

@@ -579,4 +579,13 @@
     <string name="karaoke_voice">Buang</string>
     <string name="karaoke_key">Kunci</string>
     <string name="karaoke_key_explanation">Menaikkan atau menurunkan muzik mengikut semiton, tanpa mengubah kelajuannya.</string>
+    <string name="listening">Pendengaran</string>
+    <string name="listening_mono">Mono</string>
+    <string name="listening_mono_explanation">Kedua-dua telinga mendengar keseluruhan lagu. Berguna dengan satu fon telinga, atau pendengaran sebelah telinga.</string>
+    <string name="listening_balance">Imbangan</string>
+    <string name="listening_balance_left">K %1$d%%</string>
+    <string name="listening_balance_right">Ka %1$d%%</string>
+    <string name="listening_balance_centre">Tengah</string>
+    <string name="listening_skip_silence">Langkau senyap</string>
+    <string name="listening_skip_silence_explanation">Melompat bahagian senyap, seperti jeda dalam podcast atau pengakhiran senyap yang panjang.</string>
 </resources>

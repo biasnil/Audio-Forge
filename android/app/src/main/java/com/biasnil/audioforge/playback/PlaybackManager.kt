@@ -26,6 +26,7 @@ import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
+import com.biasnil.audioforge.audio.ChannelSettings
 import com.biasnil.audioforge.audio.CorrectionSettings
 import com.biasnil.audioforge.audio.KaraokeSettings
 import com.biasnil.audioforge.audio.pitchFactor
@@ -157,6 +158,7 @@ class PlaybackManager(
     private val correction = CorrectionSettings()
     private val tone = ToneSettings()
     private val karaoke = KaraokeSettings()
+    private val channelSettings = ChannelSettings()
     /** Karaoke key change, as the players' pitch factor (1 = the song's own key). */
     private var pitch = 1f
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
@@ -167,7 +169,7 @@ class PlaybackManager(
 
     /** One player + its effects chain + what it's playing. */
     private inner class Slot {
-        val effects = AudioEffectsProcessor(equalizer, spatial, correction, tone, karaoke)
+        val effects = AudioEffectsProcessor(equalizer, spatial, correction, tone, karaoke, channelSettings)
         val player: ExoPlayer = buildPlayer(appContext, effects, audioAttributes)
         var track: Track? = null
         var replayGainDb = 0f
@@ -956,6 +958,8 @@ class PlaybackManager(
         appliedSettings = settings
         correction.update(settings.headphoneCorrection)
         karaoke.update(settings.karaokeVocalRemovalPercent / 100f)
+        channelSettings.update(settings.monoAudio, settings.balancePercent / 100f)
+        slots.forEach { it.player.skipSilenceEnabled = settings.skipSilence }
         val newPitch = pitchFactor(settings.karaokeKeySemitones)
         if (newPitch != pitch) {
             pitch = newPitch

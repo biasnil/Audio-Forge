@@ -12,7 +12,8 @@ import kotlin.math.roundToInt
 /**
  * Runs inside one player's audio pipeline: headphone correction
  * ([CorrectionDsp]), the 10-band EQ, bass boost / loudness ([ToneDsp]),
- * karaoke vocal removal ([KaraokeDsp]), then stereo width / 3D Surround / reverb ([SpatialDsp]), then a gain --
+ * karaoke vocal removal ([KaraokeDsp]), stereo width / 3D Surround /
+ * reverb ([SpatialDsp]), mono / balance ([applyChannels]), then a gain --
  * volume x ReplayGain x EQ post-gain, the desktop's baseVolumeFor() --
  * which can exceed 1 for the volume boost, then the [Limiter]. Anything
  * still over full scale (the limiter switched off) is hard-clipped, same
@@ -28,6 +29,7 @@ class AudioEffectsProcessor(
     correction: CorrectionSettings,
     tone: ToneSettings,
     karaoke: KaraokeSettings,
+    private val channelSettings: ChannelSettings,
 ) : BaseAudioProcessor() {
 
     /** Set from the main thread; picked up on the next buffer. */
@@ -99,6 +101,9 @@ class AudioEffectsProcessor(
         val useTone = toneDsp.isActive
         val useVocals = vocals.isActive
         val useEffects = effects.isActive
+        val mono = channelSettings.mono
+        val balance = channelSettings.balance
+        val useChannels = mono || balance != 0f
         val samples = frameSamples
         val tap = visualizer?.takeIf { it.enabled }
         tap?.sampleRate = sampleRate
@@ -126,6 +131,7 @@ class AudioEffectsProcessor(
                 samples[0] = effects.outLeft
                 samples[1] = effects.outRight
             }
+            if (useChannels) applyChannels(samples, mono, balance)
             for (channel in 0 until channels) samples[channel] *= frameGain
             limiter.process(samples)
             writeFrame(output, samples, tap)
