@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.AppContainer
 import com.biasnil.audioforge.R
+import com.biasnil.audioforge.data.splitTabBar
 import com.biasnil.audioforge.data.TrackSort
 import com.biasnil.audioforge.data.artistGroups
 import com.biasnil.audioforge.data.audioPermission
@@ -165,9 +166,9 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
 }
 
 /**
- * The library: the iOS app's tab bar (five tabs fit; with more visible the
- * fifth is "More", listing the rest), the mini player above it, and each
- * tab under its large title.
+ * The library: the iOS app's tab bar -- the four tabs chosen in Settings ->
+ * Tab bar, then "More" listing the rest -- the mini player above it, and
+ * each tab under its large title.
  */
 @Composable
 private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: () -> Unit) {
@@ -177,16 +178,17 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
     val scanning by container.library.scanning.collectAsStateWithLifecycle()
     val playback by container.playback.state.collectAsStateWithLifecycle()
 
-    val visibleTabs = LibraryTab.entries.filter { !it.hideable || it.name !in settings.hiddenTabs }
-    val barTabs = if (visibleTabs.size > 5) visibleTabs.take(4) else visibleTabs
-    val moreTabs = if (visibleTabs.size > 5) visibleTabs.drop(4) else emptyList()
+    val (barTabs, moreTabs) = remember(settings.tabBar, settings.hiddenTabs) {
+        val (bar, more) = splitTabBar(LibraryTab.entries.map { it.name }, settings.tabBar, hiddenTabNames(settings.hiddenTabs))
+        bar.map(LibraryTab::valueOf) to more.map(LibraryTab::valueOf)
+    }
 
     // Songs first, like the iOS app.
     var selectedKey by rememberSaveable { mutableStateOf(LibraryTab.Songs.name) }
     /** The tab opened from the More list, if any. */
     var moreTabName by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedKeys = barTabs.map { it.name } + if (moreTabs.isNotEmpty()) listOf(MORE_KEY) else emptyList()
-    if (selectedKey !in selectedKeys) selectedKey = LibraryTab.Songs.name
+    if (selectedKey !in selectedKeys) selectedKey = selectedKeys.first()
     val moreTab = moreTabs.firstOrNull { it.name == moreTabName }
     BackHandler(enabled = selectedKey == MORE_KEY && moreTab != null) { moreTabName = null }
 

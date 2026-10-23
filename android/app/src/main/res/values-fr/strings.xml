@@ -67,7 +67,6 @@
     <string name="settings_stats">Pistes : %1$d\nAlbums : %2$d\nArtistes : %3$d\nGenres : %4$d</string>
     <string name="settings_appearance">Apparence</string>
     <string name="settings_dark_theme">Thème sombre</string>
-    <string name="settings_visible_tabs">Onglets visibles</string>
 
     <!-- Playback -->
     <string name="back">Retour</string>
@@ -630,6 +629,13 @@
     <string name="settings_wallpaper_summary">Vidéos derrière la lecture en cours</string>
     <string name="settings_lyrics_summary">Paroles sur l\'écran de verrouillage, clé Musixmatch</string>
     <string name="settings_library_summary">Actualiser, doublons, statistiques</string>
-    <string name="settings_tabs_summary">Choisir les onglets affichés</string>
+    <string name="settings_tabs_summary">Choisir ce qui est dans la barre d\'onglets et dans Plus</string>
     <string name="settings_about_summary">Version, mises à jour, confidentialité, licences</string>
+    <string name="tabbar_section">Barre d\'onglets</string>
+    <string name="tabbar_explanation">Faites glisser un onglet au-dessus de la ligne pour le mettre dans la barre (jusqu\'à %1$d). Le reste est dans Plus.</string>
+    <string name="tabbar_in_bar">Dans la barre (jusqu\'à %1$d)</string>
+    <string name="tabbar_in_more">Dans Plus</string>
+    <string name="tabbar_drag">Faire glisser pour déplacer</string>
+    <string name="tabbar_add">Ajouter à la barre</string>
+    <string name="tabbar_remove">Déplacer dans Plus</string>
 </resources>

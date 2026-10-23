@@ -73,7 +73,7 @@ enum class SettingsSection(val key: String, @StringRes val title: Int, val icon:
     Wallpaper("wallpaper", R.string.settings_wallpaper, AppIcons.Movie),
     Lyrics("lyrics", R.string.settings_lyrics, AppIcons.Lyrics),
     Library("library", R.string.settings_library, AppIcons.LibraryMusic),
-    Tabs("tabs", R.string.settings_visible_tabs, AppIcons.Tab),
+    Tabs("tabs", R.string.tabbar_section, AppIcons.Tab),
     About("about", R.string.settings_about, AppIcons.Info),
 }
 
@@ -129,6 +129,11 @@ private fun sectionSummary(section: SettingsSection, songs: Int): String = when 
 fun SettingsSectionPage(key: String, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val section = SettingsSection.entries.firstOrNull { it.key == key } ?: SettingsSection.Appearance
     Scaffold(topBar = { DetailTopBar(stringResource(section.title), onBack) }) { innerPadding ->
+        // The tab bar editor is a drag list of its own (it scrolls itself).
+        if (section == SettingsSection.Tabs) {
+            TabBarSettings(Modifier.padding(innerPadding))
+            return@Scaffold
+        }
         Column(
             Modifier
                 .padding(innerPadding)
@@ -144,7 +149,7 @@ fun SettingsSectionPage(key: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                 SettingsSection.Wallpaper -> WallpaperSettings()
                 SettingsSection.Lyrics -> LyricsSettings()
                 SettingsSection.Library -> LibrarySettings(onOpenPage)
-                SettingsSection.Tabs -> TabsSettings()
+                SettingsSection.Tabs -> Unit // above
                 SettingsSection.About -> AboutSection(onOpenPage)
             }
         }
@@ -281,33 +286,6 @@ private fun AppearanceSettings(onOpenPage: (Page) -> Unit) {
         }
     }
     SettingsLinkRow(stringResource(R.string.widgets_settings_row)) { onOpenPage(Page.Widgets) }
-}
-
-/** Which tabs show in the tab bar / More list (Songs and Settings always do). */
-@Composable
-private fun TabsSettings() {
-    val store = LocalAppContainer.current.store
-    val settings by store.settings.collectAsStateWithLifecycle()
-    LibraryTab.entries.filter { it.hideable }.forEach { tab ->
-        val visible = tab.name !in settings.hiddenTabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    store.update {
-                        it.copy(hiddenTabs = if (visible) it.hiddenTabs + tab.name else it.hiddenTabs - tab.name)
-                    }
-                }
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(tab.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(16.dp))
-            Text(stringResource(tab.title), modifier = Modifier.weight(1f))
-            Checkbox(checked = visible, onCheckedChange = null)
-        }
-    }
 }
 
 /**

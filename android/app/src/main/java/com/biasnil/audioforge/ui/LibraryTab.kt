@@ -23,3 +23,7 @@ enum class LibraryTab(@StringRes val title: Int, val icon: ImageVector, val hide
     Wallpapers(R.string.tab_wallpapers, AppIcons.Movie),
     Settings(R.string.tab_settings, AppIcons.Settings, hideable = false),
 }
+
+/** The hidden tabs that can be hidden (Songs and Settings always show somewhere). */
+fun hiddenTabNames(hiddenTabs: Set<String>): Set<String> =
+    LibraryTab.entries.filter { it.hideable && it.name in hiddenTabs }.map { it.name }.toSet()

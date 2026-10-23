@@ -66,7 +66,6 @@
     <string name="settings_stats">Tracks: %1$d\nAlbums: %2$d\nArtists: %3$d\nGenres: %4$d</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_dark_theme">Dark theme</string>
-    <string name="settings_visible_tabs">Visible tabs</string>
 
     <!-- Playback -->
     <string name="back">Back</string>
@@ -618,6 +617,13 @@
     <string name="settings_wallpaper_summary">Videos behind Now Playing</string>
     <string name="settings_lyrics_summary">Lyrics on the lock screen, Musixmatch key</string>
     <string name="settings_library_summary">Refresh, duplicates, listening stats</string>
-    <string name="settings_tabs_summary">Choose which tabs show</string>
+    <string name="settings_tabs_summary">Choose what\'s in the tab bar and in More</string>
     <string name="settings_about_summary">Version, updates, privacy, licences</string>
+    <string name="tabbar_section">Tab bar</string>
+    <string name="tabbar_explanation">Drag a tab above the line to put it in the tab bar (up to %1$d). Everything else is in More.</string>
+    <string name="tabbar_in_bar">In the tab bar (up to %1$d)</string>
+    <string name="tabbar_in_more">In More</string>
+    <string name="tabbar_drag">Drag to move</string>
+    <string name="tabbar_add">Add to the tab bar</string>
+    <string name="tabbar_remove">Move to More</string>
 </resources>

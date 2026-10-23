@@ -65,7 +65,6 @@
     <string name="settings_stats">曲目：%1$d\n专辑：%2$d\n艺人：%3$d\n流派：%4$d</string>
     <string name="settings_appearance">外观</string>
     <string name="settings_dark_theme">深色主题</string>
-    <string name="settings_visible_tabs">显示的标签页</string>
 
     <!-- Playback -->
     <string name="back">返回</string>
@@ -604,6 +603,13 @@
     <string name="settings_wallpaper_summary">正在播放页面的背景视频</string>
     <string name="settings_lyrics_summary">锁屏歌词、Musixmatch 密钥</string>
     <string name="settings_library_summary">刷新、重复项、收听统计</string>
-    <string name="settings_tabs_summary">选择显示哪些标签页</string>
+    <string name="settings_tabs_summary">选择底部标签栏和「更多」中的内容</string>
     <string name="settings_about_summary">版本、更新、隐私、许可</string>
+    <string name="tabbar_section">标签栏</string>
+    <string name="tabbar_explanation">把标签拖到分隔线上方即可放入标签栏（最多 %1$d 个），其余都在「更多」里。</string>
+    <string name="tabbar_in_bar">在标签栏中（最多 %1$d 个）</string>
+    <string name="tabbar_in_more">在「更多」中</string>
+    <string name="tabbar_drag">拖动以移动</string>
+    <string name="tabbar_add">加入标签栏</string>
+    <string name="tabbar_remove">移到「更多」</string>
 </resources>

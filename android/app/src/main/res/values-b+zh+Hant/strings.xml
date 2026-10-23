@@ -65,7 +65,6 @@
     <string name="settings_stats">曲目：%1$d\n專輯：%2$d\n演出者：%3$d\n類型：%4$d</string>
     <string name="settings_appearance">外觀</string>
     <string name="settings_dark_theme">深色主題</string>
-    <string name="settings_visible_tabs">顯示的分頁</string>
 
     <!-- Playback -->
     <string name="back">返回</string>
@@ -604,6 +603,13 @@
     <string name="settings_wallpaper_summary">正在播放頁面的背景影片</string>
     <string name="settings_lyrics_summary">鎖定畫面歌詞、Musixmatch 金鑰</string>
     <string name="settings_library_summary">重新整理、重複項目、收聽統計</string>
-    <string name="settings_tabs_summary">選擇顯示哪些分頁</string>
+    <string name="settings_tabs_summary">選擇底部分頁列和「更多」中的內容</string>
     <string name="settings_about_summary">版本、更新、隱私、授權</string>
+    <string name="tabbar_section">分頁列</string>
+    <string name="tabbar_explanation">把分頁拖到分隔線上方即可放入分頁列（最多 %1$d 個），其餘都在「更多」裡。</string>
+    <string name="tabbar_in_bar">在分頁列中（最多 %1$d 個）</string>
+    <string name="tabbar_in_more">在「更多」中</string>
+    <string name="tabbar_drag">拖曳以移動</string>
+    <string name="tabbar_add">加入分頁列</string>
+    <string name="tabbar_remove">移到「更多」</string>
 </resources>

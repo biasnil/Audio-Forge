@@ -46,6 +46,8 @@ data class AppSettings(
     val smartPlaylists: List<SmartPlaylist> = emptyList(),
     /** Names of hidden LibraryTab entries. */
     val hiddenTabs: Set<String> = emptySet(),
+    /** The tabs in the tab bar, in order (see TabBar.kt); null = not chosen yet, the first visible ones. */
+    val tabBar: List<String>? = null,
     /** 0-200: above 100 is the desktop's volume boost. */
     val volumePercent: Int = 100,
     val replayGainEnabled: Boolean = true,
@@ -177,6 +179,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                         if (root.optBoolean("darkTheme", true)) Appearance.Dark else Appearance.Light
                     } else Appearance.System,
                 includePhoneLibrary = root.optBoolean("includePhoneLibrary", true),
+                tabBar = root.optJSONArray("tabBar")?.toStringList(),
                 folders = root.optJSONArray("folders").toStringList(),
                 playlists = root.optJSONArray("playlists").toObjects().map { obj ->
                     Playlist(
@@ -301,6 +304,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))
             .put("hiddenTabs", JSONArray(settings.hiddenTabs.toList()))
+            .apply { settings.tabBar?.let { put("tabBar", JSONArray(it)) } }
             .put("replayGainEnabled", settings.replayGainEnabled)
             .put("crossfadeEnabled", settings.crossfadeEnabled)
             .put("crossfadeSeconds", settings.crossfadeSeconds)

@@ -65,7 +65,6 @@
     <string name="settings_stats">Trek: %1$d\nAlbum: %2$d\nArtis: %3$d\nGenre: %4$d</string>
     <string name="settings_appearance">Penampilan</string>
     <string name="settings_dark_theme">Tema gelap</string>
-    <string name="settings_visible_tabs">Tab yang ditunjukkan</string>
 
     <!-- Playback -->
     <string name="back">Kembali</string>
@@ -604,6 +603,13 @@
     <string name="settings_wallpaper_summary">Video di belakang Sedang Dimainkan</string>
     <string name="settings_lyrics_summary">Lirik pada skrin kunci, kunci Musixmatch</string>
     <string name="settings_library_summary">Muat semula, pendua, statistik</string>
-    <string name="settings_tabs_summary">Pilih tab yang dipaparkan</string>
+    <string name="settings_tabs_summary">Pilih apa yang ada dalam bar tab dan dalam Lagi</string>
     <string name="settings_about_summary">Versi, kemas kini, privasi, lesen</string>
+    <string name="tabbar_section">Bar tab</string>
+    <string name="tabbar_explanation">Seret tab ke atas garisan untuk meletakkannya dalam bar tab (sehingga %1$d). Yang lain ada dalam Lagi.</string>
+    <string name="tabbar_in_bar">Dalam bar tab (sehingga %1$d)</string>
+    <string name="tabbar_in_more">Dalam Lagi</string>
+    <string name="tabbar_drag">Seret untuk alih</string>
+    <string name="tabbar_add">Tambah ke bar tab</string>
+    <string name="tabbar_remove">Alih ke Lagi</string>
 </resources>
