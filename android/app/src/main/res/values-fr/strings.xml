@@ -557,7 +557,7 @@
     <string name="radio_directory_note">Les stations viennent de Radio Browser (radio-browser.info), un annuaire géré par sa communauté. Rien ne joue tant que vous n\'avez pas touché une station.</string>
     <string name="stats_radio">Radio : %1$s</string>
     <string name="effects">Effets</string>
-    <string name="effects_row_summary">Surround 3D, largeur stéréo, réverbération</string>
+    <string name="effects_row_summary">Correction du casque, Surround 3D, largeur stéréo, réverbération</string>
     <string name="effects_surround">Surround 3D</string>
     <string name="effects_surround_explanation">Donne l\'impression, au casque, que la musique joue dans un espace autour de vous.</string>
     <string name="effects_room">Pièce</string>
@@ -576,4 +576,11 @@
     <string name="effects_android_spatial_explanation">Utilise l\'audio spatial de votre téléphone, avec le suivi de la tête sur les casques compatibles. L\'activer désactive le Surround 3D.</string>
     <string name="effects_android_spatial_off_in_system">L\'audio spatial est désactivé dans les paramètres du téléphone. Activez-le d\'abord (en général dans Son, ou dans les paramètres Bluetooth de votre casque).</string>
     <string name="effects_reset">Réinitialiser les effets</string>
+    <string name="headphones_correction">Correction du casque</string>
+    <string name="headphones_correction_explanation">Équilibre le son de votre casque grâce aux mesures du projet AutoEq. Fonctionne hors ligne. Votre propre égaliseur s\'applique toujours en plus.</string>
+    <string name="headphones_choose">Choisir votre casque</string>
+    <string name="headphones_search_hint">Rechercher, ex. Sony WH-1000XM4</string>
+    <string name="headphones_none_found">Aucun casque trouvé. Essayez moins de mots, par exemple juste la marque.</string>
+    <string name="headphones_more_results">Affichage des 200 premiers. Tapez plus du nom pour affiner.</string>
+    <string name="headphones_turn_off">Désactiver</string>
 </resources>

@@ -531,7 +531,7 @@
     <string name="radio_directory_note">电台来自社区维护的目录 Radio Browser（radio-browser.info）。在你点按电台之前不会播放任何内容。</string>
     <string name="stats_radio">电台：%1$s</string>
     <string name="effects">音效</string>
-    <string name="effects_row_summary">3D 环绕、立体声宽度、混响</string>
+    <string name="effects_row_summary">耳机校正、3D 环绕、立体声宽度、混响</string>
     <string name="effects_surround">3D 环绕</string>
     <string name="effects_surround_explanation">让耳机听起来像音乐在你周围的空间中播放。</string>
     <string name="effects_room">房间</string>
@@ -550,4 +550,11 @@
     <string name="effects_android_spatial_explanation">使用手机自带的空间音频，支持的耳机可使用头部追踪。开启后会关闭 3D 环绕。</string>
     <string name="effects_android_spatial_off_in_system">手机设置中的空间音频已关闭。请先在那里开启（通常在“声音”设置或耳机的蓝牙设置中）。</string>
     <string name="effects_reset">重置音效</string>
+    <string name="headphones_correction">耳机校正</string>
+    <string name="headphones_correction_explanation">使用 AutoEq 项目的测量数据，让耳机声音更均衡。离线可用。你自己的均衡器仍会叠加生效。</string>
+    <string name="headphones_choose">选择你的耳机</string>
+    <string name="headphones_search_hint">搜索，例如 Sony WH-1000XM4</string>
+    <string name="headphones_none_found">没有匹配的耳机。试试少输几个词，比如只输品牌。</string>
+    <string name="headphones_more_results">仅显示前 200 个。输入更完整的名称以缩小范围。</string>
+    <string name="headphones_turn_off">关闭</string>
 </resources>

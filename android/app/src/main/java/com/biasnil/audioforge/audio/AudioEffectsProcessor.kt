@@ -10,8 +10,9 @@ import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
 /**
- * Runs inside one player's audio pipeline: the 10-band EQ, then stereo
- * width / 3D Surround / reverb ([SpatialDsp]), then a gain -- volume x
+ * Runs inside one player's audio pipeline: headphone correction
+ * ([CorrectionDsp]), the 10-band EQ, then stereo width / 3D Surround /
+ * reverb ([SpatialDsp]), then a gain -- volume x
  * ReplayGain x EQ post-gain, the desktop's baseVolumeFor() -- which can
  * exceed 1 for the volume boost. Output is hard-clipped to full scale,
  * same as the desktop (no limiter yet).
@@ -20,7 +21,11 @@ import kotlin.math.roundToInt
  * doesn't click.
  */
 @OptIn(UnstableApi::class)
-class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettings) : BaseAudioProcessor() {
+class AudioEffectsProcessor(
+    equalizer: EqualizerSettings,
+    spatial: SpatialSettings,
+    correction: CorrectionSettings,
+) : BaseAudioProcessor() {
 
     /** Set from the main thread; picked up on the next buffer. */
     @Volatile
@@ -31,6 +36,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
     var visualizer: VisualizerTap? = null
     private var sampleRate = 44_100
 
+    private val headphones = CorrectionDsp(correction)
     private val eq = EqualizerDsp(equalizer)
     private val effects = SpatialDsp(spatial)
     private var appliedGain = 1f
@@ -47,6 +53,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
         encoding = format
         channels = inputAudioFormat.channelCount
         sampleRate = inputAudioFormat.sampleRate
+        headphones.configure(inputAudioFormat.sampleRate, channels)
         eq.configure(inputAudioFormat.sampleRate, channels)
         effects.configure(inputAudioFormat.sampleRate, channels)
         frameSamples = DoubleArray(channels)
@@ -58,6 +65,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
         if (size == 0) return
         // Decoded PCM is in the platform's byte order.
         inputBuffer.order(ByteOrder.nativeOrder())
+        headphones.refresh()
         eq.refresh()
         effects.refresh()
 
@@ -66,6 +74,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
         val output = replaceOutputBuffer(frames * bytesPerSample * channels)
         val startGain = appliedGain
         val endGain = gain
+        val useHeadphones = headphones.isActive
         val useEq = eq.isActive
         val useEffects = effects.isActive
         val samples = frameSamples
@@ -80,6 +89,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
                 } else {
                     inputBuffer.getFloat().toDouble()
                 }
+                if (useHeadphones) sample = headphones.process(sample, channel)
                 if (useEq) sample = eq.process(sample, channel)
                 samples[channel] = sample
             }
@@ -106,6 +116,7 @@ class AudioEffectsProcessor(equalizer: EqualizerSettings, spatial: SpatialSettin
     }
 
     override fun onFlush() {
+        headphones.reset()
         eq.reset() // seek / new track: don't ring with the old audio's filter history
         effects.reset()
         appliedGain = gain

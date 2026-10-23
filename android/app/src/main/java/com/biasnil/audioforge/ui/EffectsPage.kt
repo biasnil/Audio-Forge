@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.Spatializer
 import android.os.Build
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -11,18 +12,21 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,13 +44,14 @@ import com.biasnil.audioforge.data.SurroundPreset
 import kotlin.math.roundToInt
 
 /**
- * Equalizer -> Effects: 3D Surround, stereo width, reverb, and (where the
+ * Equalizer -> Effects: AutoEq headphone correction (chosen on
+ * [HeadphonePickerPage]), 3D Surround, stereo width, reverb, and (where the
  * phone supports it) a switch for Android's own spatial audio. Our surround
  * and Android's never run together: choosing one turns the other off.
  * Changes apply to the music immediately, including during a crossfade.
  */
 @Composable
-fun EffectsPage(onBack: () -> Unit) {
+fun EffectsPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     val store = LocalAppContainer.current.store
     val settings by store.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -60,6 +65,35 @@ fun EffectsPage(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 16.dp)
         ) {
+            SectionHeader(stringResource(R.string.headphones_correction))
+            Explanation(stringResource(R.string.headphones_correction_explanation))
+            val profile = settings.headphoneCorrection
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenPage(Page.HeadphonePicker) }
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(profile?.name ?: stringResource(R.string.headphones_choose))
+                    Text(
+                        text = if (profile != null) headphoneSourceLine(profile) else stringResource(R.string.mode_off),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (profile != null) {
+                    TextButton(onClick = { store.update { it.copy(headphoneCorrection = null) } }) {
+                        Text(stringResource(R.string.headphones_turn_off))
+                    }
+                } else {
+                    Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.effects_surround))
             Explanation(stringResource(R.string.effects_surround_explanation))
             ChoiceChips(

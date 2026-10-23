@@ -56,6 +56,8 @@ data class AppSettings(
     val eqBandGainsDb: List<Float> = List(EQ_BAND_COUNT) { 0f },
     val eqPostGainDb: Float = 0f,
     // Effects page.
+    /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
+    val headphoneCorrection: HeadphoneProfile? = null,
     val surroundPreset: SurroundPreset = SurroundPreset.Off,
     /** 0-100: how much of the virtual room is mixed in. */
     val surroundAmountPercent: Int = 50,
@@ -193,6 +195,15 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 eqEnabled = root.optBoolean("eqEnabled", false),
                 eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
                 eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
+                headphoneCorrection = root.optJSONObject("headphoneCorrection")?.let { obj ->
+                    HeadphoneProfile(
+                        name = obj.optString("name"),
+                        source = obj.optString("source"),
+                        kind = obj.optString("kind"),
+                        preampDb = obj.optDouble("preampDb", 0.0).takeIf { it.isFinite() } ?: 0.0,
+                        filters = decodeFilters(obj.optString("filters")),
+                    ).takeIf { it.name.isNotEmpty() && it.filters.isNotEmpty() }
+                },
                 surroundPreset = SurroundPreset.entries.firstOrNull { it.name == root.optString("surroundPreset") }
                     ?: SurroundPreset.Off,
                 surroundAmountPercent = root.optInt("surroundAmountPercent", 50).coerceIn(0, 100),
@@ -257,6 +268,16 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("eqEnabled", settings.eqEnabled)
             .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
             .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
+            .apply {
+                settings.headphoneCorrection?.let { profile ->
+                    put("headphoneCorrection", JSONObject()
+                        .put("name", profile.name)
+                        .put("source", profile.source)
+                        .put("kind", profile.kind)
+                        .put("preampDb", profile.preampDb)
+                        .put("filters", encodeFilters(profile.filters)))
+                }
+            }
             .put("surroundPreset", settings.surroundPreset.name)
             .put("surroundAmountPercent", settings.surroundAmountPercent)
             .put("stereoWidthPercent", settings.stereoWidthPercent)

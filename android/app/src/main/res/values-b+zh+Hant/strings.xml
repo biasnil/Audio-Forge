@@ -531,7 +531,7 @@
     <string name="radio_directory_note">電台來自社群維護的目錄 Radio Browser（radio-browser.info）。在你點按電台之前不會播放任何內容。</string>
     <string name="stats_radio">電台：%1$s</string>
     <string name="effects">音效</string>
-    <string name="effects_row_summary">3D 環繞、立體聲寬度、殘響</string>
+    <string name="effects_row_summary">耳機校正、3D 環繞、立體聲寬度、殘響</string>
     <string name="effects_surround">3D 環繞</string>
     <string name="effects_surround_explanation">讓耳機聽起來像音樂在你周圍的空間中播放。</string>
     <string name="effects_room">房間</string>
@@ -550,4 +550,11 @@
     <string name="effects_android_spatial_explanation">使用手機內建的空間音訊，支援的耳機可使用頭部追蹤。開啟後會關閉 3D 環繞。</string>
     <string name="effects_android_spatial_off_in_system">手機設定中的空間音訊已關閉。請先在那裡開啟（通常在「音效」設定或耳機的藍牙設定中）。</string>
     <string name="effects_reset">重設音效</string>
+    <string name="headphones_correction">耳機校正</string>
+    <string name="headphones_correction_explanation">使用 AutoEq 專案的測量資料，讓耳機聲音更均衡。離線可用。你自己的等化器仍會疊加生效。</string>
+    <string name="headphones_choose">選擇你的耳機</string>
+    <string name="headphones_search_hint">搜尋，例如 Sony WH-1000XM4</string>
+    <string name="headphones_none_found">沒有符合的耳機。試試少輸入幾個字，例如只輸入品牌。</string>
+    <string name="headphones_more_results">僅顯示前 200 個。輸入更完整的名稱以縮小範圍。</string>
+    <string name="headphones_turn_off">關閉</string>
 </resources>

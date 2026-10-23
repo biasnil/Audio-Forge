@@ -306,6 +306,7 @@ fun LicenseTextPage(id: String, onBack: () -> Unit) {
         textRes = when (license) {
             License.Apache2 -> R.raw.apache_2_0
             License.Lgpl21 -> R.raw.lgpl_2_1
+            License.Mit -> R.raw.mit
         },
         onBack = onBack,
         note = users.joinToString("\n") { "${it.name}\n${it.url}" },

@@ -12,6 +12,7 @@ import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.PlayLogStore
 import com.biasnil.audioforge.data.PodcastRepository
+import com.biasnil.audioforge.data.HeadphoneProfileRepository
 import com.biasnil.audioforge.data.RadioRepository
 import com.biasnil.audioforge.data.RadioStation
 import com.biasnil.audioforge.data.SongDataStore
@@ -62,6 +63,8 @@ class AppContainer(context: Context) {
     val podcasts = PodcastRepository(context, library, appScope)
     /** Internet radio (the Radio tab): stations, favorites, recently played. */
     val radio = RadioRepository(context, appScope)
+    /** AutoEq headphone correction profiles (Equalizer -> Effects). */
+    val headphoneProfiles = HeadphoneProfileRepository(context)
     val wallpapers = WallpaperRepository(context, store)
     /** The visualizer's custom GIFs / videos (Settings -> Visualizer). */
     val customMedia = CustomMediaRepository(context, store)

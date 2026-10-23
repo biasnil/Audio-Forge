@@ -24,6 +24,7 @@ import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.biasnil.audioforge.audio.AudioEffectsProcessor
+import com.biasnil.audioforge.audio.CorrectionSettings
 import com.biasnil.audioforge.audio.VisualizerTap
 import com.biasnil.audioforge.audio.EqualizerSettings
 import com.biasnil.audioforge.audio.SpatialParams
@@ -147,12 +148,13 @@ class PlaybackManager(
     private val appContext: Context = context.applicationContext
     private val equalizer = EqualizerSettings()
     private val spatial = SpatialSettings()
+    private val correction = CorrectionSettings()
     /** Changes when Android's own spatial audio is switched on or off. */
     private var audioAttributes = audioAttributesFor(store.settings.value)
 
     /** One player + its effects chain + what it's playing. */
     private inner class Slot {
-        val effects = AudioEffectsProcessor(equalizer, spatial)
+        val effects = AudioEffectsProcessor(equalizer, spatial, correction)
         val player: ExoPlayer = buildPlayer(appContext, effects, audioAttributes)
         var track: Track? = null
         var replayGainDb = 0f
@@ -936,6 +938,7 @@ class PlaybackManager(
     private fun applyAudioSettings(settings: AppSettings) {
         val old = appliedSettings
         appliedSettings = settings
+        correction.update(settings.headphoneCorrection)
         equalizer.update(settings.eqEnabled, settings.eqBandGainsDb)
         spatial.update(
             SpatialParams(

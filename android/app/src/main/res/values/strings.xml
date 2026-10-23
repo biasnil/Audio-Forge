@@ -545,7 +545,7 @@
     <string name="radio_directory_note">Stations come from Radio Browser (radio-browser.info), a community-run directory. Nothing plays until you tap a station.</string>
     <string name="stats_radio">Radio: %1$s</string>
     <string name="effects">Effects</string>
-    <string name="effects_row_summary">3D Surround, stereo width, reverb</string>
+    <string name="effects_row_summary">Headphone correction, 3D Surround, stereo width, reverb</string>
     <string name="effects_surround">3D Surround</string>
     <string name="effects_surround_explanation">Makes headphones sound like the music is playing in a space around you.</string>
     <string name="effects_room">Room</string>
@@ -564,4 +564,11 @@
     <string name="effects_android_spatial_explanation">Uses your phone\'s own spatial audio, with head tracking on headphones that support it. Turning it on turns 3D Surround off.</string>
     <string name="effects_android_spatial_off_in_system">Spatial audio is off in your phone\'s settings. Turn it on there first (usually in Sound settings, or in your headphones\' Bluetooth settings).</string>
     <string name="effects_reset">Reset effects</string>
+    <string name="headphones_correction">Headphone correction</string>
+    <string name="headphones_correction_explanation">Evens out your headphones\' sound using measurements from the AutoEq project. Works offline. Your own EQ still applies on top.</string>
+    <string name="headphones_choose">Choose your headphones</string>
+    <string name="headphones_search_hint">Search, e.g. Sony WH-1000XM4</string>
+    <string name="headphones_none_found">No headphones match. Try fewer words, like just the brand.</string>
+    <string name="headphones_more_results">Showing the first 200. Type more of the name to narrow it down.</string>
+    <string name="headphones_turn_off">Turn off</string>
 </resources>

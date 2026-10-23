@@ -9,6 +9,7 @@ package com.biasnil.audioforge.data
 enum class License(val id: String, val title: String) {
     Apache2("apache-2.0", "Apache License 2.0"),
     Lgpl21("lgpl-2.1", "GNU Lesser General Public License 2.1"),
+    Mit("mit", "MIT License"),
 }
 
 /** A library (with its [license]) or an online service ([license] = null). */
@@ -22,6 +23,7 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("jaudiotagger", "https://bitbucket.org/ijabz/jaudiotagger", License.Lgpl21),
     Acknowledgement("Material Design icons", "https://github.com/google/material-design-icons", License.Apache2),
     Acknowledgement("LiteRT", "https://ai.google.dev/edge/litert", License.Apache2),
+    Acknowledgement("AutoEq (headphone correction profiles)", "https://github.com/jaakkopasanen/AutoEq", License.Mit),
     Acknowledgement("YAMNet", "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet", License.Apache2),
     Acknowledgement("LRCLIB", "https://lrclib.net", null),
     Acknowledgement("Musixmatch", "https://www.musixmatch.com", null),
