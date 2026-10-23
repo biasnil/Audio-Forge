@@ -557,4 +557,15 @@
     <string name="headphones_none_found">沒有符合的耳機。試試少輸入幾個字，例如只輸入品牌。</string>
     <string name="headphones_more_results">僅顯示前 200 個。輸入更完整的名稱以縮小範圍。</string>
     <string name="headphones_turn_off">關閉</string>
+    <string name="device_sound">每個裝置獨立的等化器</string>
+    <string name="device_sound_explanation">為每個藍牙裝置、車用、耳機和手機喇叭分別記住等化器和耳機校正，連線時自動切換。</string>
+    <string name="device_sound_now">目前輸出：%1$s</string>
+    <string name="device_sound_eq_on">等化器已開啟</string>
+    <string name="device_sound_eq_off">等化器已關閉</string>
+    <string name="device_sound_forget">忘記</string>
+    <string name="device_speaker">手機喇叭</string>
+    <string name="device_wired">有線耳機</string>
+    <string name="device_bluetooth">藍牙裝置</string>
+    <string name="device_usb">USB 音訊</string>
+    <string name="device_other">其他輸出</string>
 </resources>

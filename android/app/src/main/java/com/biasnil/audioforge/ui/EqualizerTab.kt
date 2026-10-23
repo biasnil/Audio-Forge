@@ -42,7 +42,8 @@ import kotlin.math.roundToInt
  * The desktop's Equalizer tab: 10 bands, presets, post-gain, reset. Bands
  * are horizontal sliders here (easier to use on a phone than 10 thin
  * vertical ones). Changes apply to the music immediately, including
- * during a crossfade. The row at the top opens the Effects page.
+ * during a crossfade. The row at the top opens the Effects page; below it,
+ * [DeviceSoundSection] (a separate EQ for each output device).
  */
 @Composable
 fun EqualizerTab(onOpenPage: (Page) -> Unit) {
@@ -74,6 +75,7 @@ fun EqualizerTab(onOpenPage: (Page) -> Unit) {
             Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         HorizontalDivider()
+        DeviceSoundSection()
 
         Row(
             modifier = Modifier

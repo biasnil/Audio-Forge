@@ -583,4 +583,15 @@
     <string name="headphones_none_found">Aucun casque trouvé. Essayez moins de mots, par exemple juste la marque.</string>
     <string name="headphones_more_results">Affichage des 200 premiers. Tapez plus du nom pour affiner.</string>
     <string name="headphones_turn_off">Désactiver</string>
+    <string name="device_sound">Un égaliseur pour chaque appareil</string>
+    <string name="device_sound_explanation">Mémorise l\'égaliseur et la correction du casque pour chaque appareil Bluetooth, voiture, casque et le haut-parleur du téléphone, et les applique dès la connexion.</string>
+    <string name="device_sound_now">Lecture sur : %1$s</string>
+    <string name="device_sound_eq_on">Égaliseur activé</string>
+    <string name="device_sound_eq_off">Égaliseur désactivé</string>
+    <string name="device_sound_forget">Oublier</string>
+    <string name="device_speaker">Haut-parleur du téléphone</string>
+    <string name="device_wired">Casque filaire</string>
+    <string name="device_bluetooth">Appareil Bluetooth</string>
+    <string name="device_usb">Audio USB</string>
+    <string name="device_other">Autre sortie</string>
 </resources>

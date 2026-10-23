@@ -20,6 +20,7 @@ import com.biasnil.audioforge.data.UpdateChecker
 import com.biasnil.audioforge.data.WallpaperRepository
 import com.biasnil.audioforge.lyrics.LyricLineTracker
 import com.biasnil.audioforge.lyrics.LyricsRepository
+import com.biasnil.audioforge.playback.OutputDeviceMonitor
 import com.biasnil.audioforge.playback.PlaybackManager
 import com.biasnil.audioforge.playback.QueueStore
 import com.biasnil.audioforge.tags.TagEditor
@@ -57,6 +58,8 @@ class AppContainer(context: Context) {
     val genres = GenreStore(context, appScope)
     val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
     val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope, library::isPodcast)
+    /** Where music is playing now; swaps in that device's EQ when "A separate EQ for each device" is on. */
+    val outputDevice = OutputDeviceMonitor(context, store, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */

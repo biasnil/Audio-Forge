@@ -557,4 +557,15 @@
     <string name="headphones_none_found">没有匹配的耳机。试试少输几个词，比如只输品牌。</string>
     <string name="headphones_more_results">仅显示前 200 个。输入更完整的名称以缩小范围。</string>
     <string name="headphones_turn_off">关闭</string>
+    <string name="device_sound">每个设备单独的均衡器</string>
+    <string name="device_sound_explanation">为每个蓝牙设备、车载、耳机和手机扬声器分别记住均衡器和耳机校正，连接时自动切换。</string>
+    <string name="device_sound_now">当前输出：%1$s</string>
+    <string name="device_sound_eq_on">均衡器已开启</string>
+    <string name="device_sound_eq_off">均衡器已关闭</string>
+    <string name="device_sound_forget">忘记</string>
+    <string name="device_speaker">手机扬声器</string>
+    <string name="device_wired">有线耳机</string>
+    <string name="device_bluetooth">蓝牙设备</string>
+    <string name="device_usb">USB 音频</string>
+    <string name="device_other">其他输出</string>
 </resources>

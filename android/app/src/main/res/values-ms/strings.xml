@@ -557,4 +557,15 @@
     <string name="headphones_none_found">Tiada fon kepala sepadan. Cuba kurangkan perkataan, contohnya jenama sahaja.</string>
     <string name="headphones_more_results">Menunjukkan 200 yang pertama. Taip lebih banyak nama untuk mengecilkan carian.</string>
     <string name="headphones_turn_off">Matikan</string>
+    <string name="device_sound">EQ berasingan untuk setiap peranti</string>
+    <string name="device_sound_explanation">Mengingati EQ dan pembetulan fon kepala untuk setiap peranti Bluetooth, kereta, fon kepala dan pembesar suara telefon, dan bertukar kepadanya apabila anda menyambung.</string>
+    <string name="device_sound_now">Dimainkan melalui: %1$s</string>
+    <string name="device_sound_eq_on">EQ hidup</string>
+    <string name="device_sound_eq_off">EQ mati</string>
+    <string name="device_sound_forget">Lupakan</string>
+    <string name="device_speaker">Pembesar suara telefon</string>
+    <string name="device_wired">Fon kepala berwayar</string>
+    <string name="device_bluetooth">Peranti Bluetooth</string>
+    <string name="device_usb">Audio USB</string>
+    <string name="device_other">Output lain</string>
 </resources>

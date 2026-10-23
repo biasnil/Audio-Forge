@@ -571,4 +571,15 @@
     <string name="headphones_none_found">No headphones match. Try fewer words, like just the brand.</string>
     <string name="headphones_more_results">Showing the first 200. Type more of the name to narrow it down.</string>
     <string name="headphones_turn_off">Turn off</string>
+    <string name="device_sound">A separate EQ for each device</string>
+    <string name="device_sound_explanation">Remembers the EQ and headphone correction for each Bluetooth device, car, headphones and the phone speaker, and switches to them when you connect.</string>
+    <string name="device_sound_now">Playing through: %1$s</string>
+    <string name="device_sound_eq_on">EQ on</string>
+    <string name="device_sound_eq_off">EQ off</string>
+    <string name="device_sound_forget">Forget</string>
+    <string name="device_speaker">Phone speaker</string>
+    <string name="device_wired">Wired headphones</string>
+    <string name="device_bluetooth">Bluetooth device</string>
+    <string name="device_usb">USB audio</string>
+    <string name="device_other">Other output</string>
 </resources>

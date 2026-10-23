@@ -55,6 +55,10 @@ data class AppSettings(
     /** One per band, see EqualizerSettings.FREQUENCIES_HZ. */
     val eqBandGainsDb: List<Float> = List(EQ_BAND_COUNT) { 0f },
     val eqPostGainDb: Float = 0f,
+    /** Equalizer -> "A separate EQ for each device": [deviceSounds] is swapped in when the output changes. */
+    val deviceSoundEnabled: Boolean = false,
+    /** By OutputDevice.key, in the order first seen. */
+    val deviceSounds: Map<String, DeviceSound> = emptyMap(),
     // Effects page.
     /** AutoEq headphone correction; null = off. A copy, so it keeps working if the bundled list changes. */
     val headphoneCorrection: HeadphoneProfile? = null,
@@ -195,15 +199,18 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 eqEnabled = root.optBoolean("eqEnabled", false),
                 eqBandGainsDb = root.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
                 eqPostGainDb = root.optDouble("eqPostGainDb", 0.0).toFloat(),
-                headphoneCorrection = root.optJSONObject("headphoneCorrection")?.let { obj ->
-                    HeadphoneProfile(
-                        name = obj.optString("name"),
-                        source = obj.optString("source"),
-                        kind = obj.optString("kind"),
-                        preampDb = obj.optDouble("preampDb", 0.0).takeIf { it.isFinite() } ?: 0.0,
-                        filters = decodeFilters(obj.optString("filters")),
-                    ).takeIf { it.name.isNotEmpty() && it.filters.isNotEmpty() }
-                },
+                headphoneCorrection = root.optJSONObject("headphoneCorrection")?.let(::readHeadphoneProfile),
+                deviceSoundEnabled = root.optBoolean("deviceSoundEnabled", false),
+                deviceSounds = root.optJSONArray("deviceSounds").toObjects().mapNotNull { obj ->
+                    val kind = OutputKind.entries.firstOrNull { it.name == obj.optString("kind") } ?: return@mapNotNull null
+                    DeviceSound(
+                        device = OutputDevice(kind, obj.optString("productName")),
+                        eqEnabled = obj.optBoolean("eqEnabled", false),
+                        eqBandGainsDb = obj.optJSONArray("eqBandGainsDb").toFloatList(AppSettings.EQ_BAND_COUNT),
+                        eqPostGainDb = obj.optDouble("eqPostGainDb", 0.0).toFloat(),
+                        headphoneCorrection = obj.optJSONObject("headphoneCorrection")?.let(::readHeadphoneProfile),
+                    )
+                }.associateBy { it.device.key },
                 surroundPreset = SurroundPreset.entries.firstOrNull { it.name == root.optString("surroundPreset") }
                     ?: SurroundPreset.Off,
                 surroundAmountPercent = root.optInt("surroundAmountPercent", 50).coerceIn(0, 100),
@@ -268,16 +275,17 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("eqEnabled", settings.eqEnabled)
             .put("eqBandGainsDb", JSONArray(settings.eqBandGainsDb.map { it.toDouble() }))
             .put("eqPostGainDb", settings.eqPostGainDb.toDouble())
-            .apply {
-                settings.headphoneCorrection?.let { profile ->
-                    put("headphoneCorrection", JSONObject()
-                        .put("name", profile.name)
-                        .put("source", profile.source)
-                        .put("kind", profile.kind)
-                        .put("preampDb", profile.preampDb)
-                        .put("filters", encodeFilters(profile.filters)))
-                }
-            }
+            .apply { settings.headphoneCorrection?.let { put("headphoneCorrection", writeHeadphoneProfile(it)) } }
+            .put("deviceSoundEnabled", settings.deviceSoundEnabled)
+            .put("deviceSounds", JSONArray(settings.deviceSounds.values.map { sound ->
+                JSONObject()
+                    .put("kind", sound.device.kind.name)
+                    .put("productName", sound.device.productName)
+                    .put("eqEnabled", sound.eqEnabled)
+                    .put("eqBandGainsDb", JSONArray(sound.eqBandGainsDb.map { it.toDouble() }))
+                    .put("eqPostGainDb", sound.eqPostGainDb.toDouble())
+                    .apply { sound.headphoneCorrection?.let { put("headphoneCorrection", writeHeadphoneProfile(it)) } }
+            }))
             .put("surroundPreset", settings.surroundPreset.name)
             .put("surroundAmountPercent", settings.surroundAmountPercent)
             .put("stereoWidthPercent", settings.stereoWidthPercent)
@@ -355,3 +363,20 @@ private fun JSONArray?.toObjects(): List<JSONObject> =
 /** Exactly [count] values, 0 dB for any missing ones. */
 private fun JSONArray?.toFloatList(count: Int): List<Float> =
     List(count) { index -> this?.optDouble(index, 0.0)?.toFloat()?.takeUnless { it.isNaN() } ?: 0f }
+
+private fun readHeadphoneProfile(obj: JSONObject): HeadphoneProfile? =
+    HeadphoneProfile(
+        name = obj.optString("name"),
+        source = obj.optString("source"),
+        kind = obj.optString("kind"),
+        preampDb = obj.optDouble("preampDb", 0.0).takeIf { it.isFinite() } ?: 0.0,
+        filters = decodeFilters(obj.optString("filters")),
+    ).takeIf { it.name.isNotEmpty() && it.filters.isNotEmpty() }
+
+private fun writeHeadphoneProfile(profile: HeadphoneProfile): JSONObject =
+    JSONObject()
+        .put("name", profile.name)
+        .put("source", profile.source)
+        .put("kind", profile.kind)
+        .put("preampDb", profile.preampDb)
+        .put("filters", encodeFilters(profile.filters))
