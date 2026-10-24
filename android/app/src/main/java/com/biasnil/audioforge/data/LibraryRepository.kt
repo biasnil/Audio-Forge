@@ -12,6 +12,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.os.SystemClock
 import android.util.Log
 import java.io.File
 import androidx.core.content.ContextCompat
@@ -81,6 +82,7 @@ class LibraryRepository(
         val generation = ++scanGeneration
         _scanning.value = true
         scanJob = scope.launch {
+            val started = SystemClock.elapsedRealtime()
             try {
                 val settings = store.settings.value
                 val hasPermission = checkAudioPermission()
@@ -92,6 +94,7 @@ class LibraryRepository(
                 phoneTracks = phone
                 addedFolderTracks = folders
                 publish()
+                Log.i(TAG, "Library scan: ${phone.size} phone + ${folders.size} folder songs in ${SystemClock.elapsedRealtime() - started} ms")
             } catch (e: CancellationException) {
                 throw e // superseded by a newer refresh()
             } catch (e: Exception) {

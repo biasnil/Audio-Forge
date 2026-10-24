@@ -11,12 +11,14 @@ import java.util.Locale
 /**
  * Folders the user added (the desktop's "Add Folder..."), read through the
  * Storage Access Framework with a persisted tree permission. Each audio
- * file's tags are read with MediaMetadataRetriever, so this is slower than
- * MediaStore -- it always runs in the background.
+ * file's tags are read with MediaMetadataRetriever -- slower than MediaStore,
+ * so it runs in the background, and only for files that are new or changed
+ * since the last scan ([FolderTagCache]).
  */
 class FolderSource(private val context: Context) {
 
     private val resolver = context.contentResolver
+    private val tagCache = FolderTagCache(context)
 
     private class Entry(val id: String, val name: String, val size: Long, val modifiedMs: Long)
 
@@ -29,6 +31,8 @@ class FolderSource(private val context: Context) {
         }
         val tracks = ArrayList<Track>()
         scanDirectory(treeUri, treeUriString, rootId, tracks)
+        tagCache.keepOnly(treeUriString, tracks.mapTo(HashSet()) { it.uri })
+        tagCache.save()
         return tracks
     }
 
@@ -105,8 +109,9 @@ class FolderSource(private val context: Context) {
             sidecarLyricsUri = lyricsUri,
             dateAddedMs = entry.modifiedMs,
         )
+        tagCache.lookup(base)?.let { return it }
         return try {
-            readTags(context, base)
+            readTags(context, base).also(tagCache::remember)
         } catch (e: Exception) {
             // Unreadable tags: still list the file, by name.
             Log.w(TAG, "Couldn't read tags of ${entry.name}", e)
