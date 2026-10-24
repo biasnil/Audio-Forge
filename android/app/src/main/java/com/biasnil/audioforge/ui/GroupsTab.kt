@@ -48,9 +48,11 @@ fun AlbumsTab(onOpenAlbum: (String) -> Unit, onRequestAudioPermission: () -> Uni
     val container = LocalAppContainer.current
     val trackActions = LocalTrackActions.current
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
-    val albums = remember(tracks) { albumGroups(tracks) }
+    val groups by container.library.groups.collectAsStateWithLifecycle()
+    val albums = groups.albums
     if (albums.isEmpty()) {
-        LibraryEmptyState(onRequestAudioPermission)
+        // Still being grouped: show nothing rather than "no music" for a moment.
+        if (groups.ready || tracks.isEmpty()) LibraryEmptyState(onRequestAudioPermission)
         return
     }
     val unknownAlbum = stringResource(R.string.unknown_album)
@@ -118,10 +120,12 @@ fun GroupsTab(
     onRequestAudioPermission: () -> Unit,
     roundArtwork: Boolean = false,
     showAlbumCount: Boolean = false,
+    /** False while the library is still being grouped (nothing is shown yet). */
+    ready: Boolean = true,
 ) {
     val trackActions = LocalTrackActions.current
     if (groups.isEmpty()) {
-        LibraryEmptyState(onRequestAudioPermission)
+        if (ready) LibraryEmptyState(onRequestAudioPermission)
         return
     }
     LazyColumn {

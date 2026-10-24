@@ -25,6 +25,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import com.biasnil.audioforge.data.SongAnalysis
+import com.biasnil.audioforge.data.LibraryGroups
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,50 +73,84 @@ class SongsTabState {
     }
 }
 
-/** The songs as listed: searched + sorted. */
+/** The songs as listed (searched + sorted), and the first row of each letter for the A-Z index. */
+class ShownSongs(val songs: List<Track>, val letterTargets: List<Pair<String, Int>>)
+
+/**
+ * The Songs tab's list, worked out in the background (waiting for typing in
+ * the search box to pause), so a big library never stalls the screen. The
+ * search text and sort are watched from here, not read while drawing: a
+ * letter typed only redraws the search box, not the whole screen. Null
+ * until the first result.
+ */
 @Composable
-fun rememberShownSongs(state: SongsTabState): List<Track> {
+fun rememberShownSongs(state: SongsTabState): ShownSongs? {
     val container = LocalAppContainer.current
-    val tracks by container.library.tracks.collectAsStateWithLifecycle()
-    val analysis by container.analysis.analysis.collectAsStateWithLifecycle()
-    // Only the BPM / Key sorts depend on the analysis (which grows while "Analyze" runs).
-    val analysisKey: Any = if (state.sort == TrackSort.Bpm || state.sort == TrackSort.Key) analysis else Unit
-    return remember(tracks, state.query, state.sort, analysisKey) {
-        sortTracks(searchTracks(tracks, state.query), state.sort, container.analysis::analysisFor)
+    val result = remember { mutableStateOf<ShownSongs?>(null) }
+    LaunchedEffect(state) {
+        var lastQuery: String? = null
+        combine(
+            container.library.groups,
+            container.analysis.analysis,
+            snapshotFlow { state.query to state.sort },
+        ) { groups, analysis, (query, sort) ->
+            // Only the BPM / Key sorts depend on the analysis (which grows while "Analyze" runs).
+            val analysisKey: Any = if (sort == TrackSort.Bpm || sort == TrackSort.Key) analysis else Unit
+            SongsInputs(groups, query, sort, analysisKey)
+        }
+            .distinctUntilChanged()
+            .collectLatest { inputs ->
+                // Wait for typing to pause; a new sort or library shows at once.
+                if (lastQuery != null && inputs.query != lastQuery && inputs.query.isNotBlank()) delay(SEARCH_DELAY_MS)
+                lastQuery = inputs.query
+                result.value = withContext(Dispatchers.Default) { shownSongs(inputs, container.analysis::analysisFor) }
+            }
     }
+    return result.value
 }
+
+private data class SongsInputs(val groups: LibraryGroups, val query: String, val sort: TrackSort, val analysisKey: Any)
+
+private fun shownSongs(inputs: SongsInputs, analysisFor: (Track) -> SongAnalysis?): ShownSongs {
+    val (groups, query, sort) = inputs
+    // A-Z is already sorted by the library; other sorts start from it too (stable order for ties).
+    val searched = searchTracks(groups.byTitle, query)
+    val songs = if (sort == TrackSort.Title) searched else sortTracks(searched, sort, analysisFor)
+    val letters = if (!sort.isAlphabetical) emptyList() else {
+        val seen = LinkedHashMap<String, Int>()
+        songs.forEachIndexed { index, track -> seen.putIfAbsent(indexLetter(track, sort), index) }
+        seen.toList()
+    }
+    return ShownSongs(songs, letters)
+}
+
+/** How long typing must pause before the library is searched. */
+const val SEARCH_DELAY_MS = 300L
 
 /**
  * The Songs tab: search, the list (tapping a song queues exactly this list),
  * an A-Z index on alphabetical sorts, and multi-select.
  */
 @Composable
-fun TracksTab(state: SongsTabState, onRequestAudioPermission: () -> Unit) {
+fun TracksTab(state: SongsTabState, shownSongs: ShownSongs?, onRequestAudioPermission: () -> Unit) {
     val container = LocalAppContainer.current
     val trackActions = LocalTrackActions.current
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
     val playback by container.playback.state.collectAsStateWithLifecycle()
     val songsLabel = stringResource(R.string.tab_songs)
 
-    val query = state.query
     val sort = state.sort
-    val shown = rememberShownSongs(state)
+    // Only whether there's a search matters here; the text itself is read by the search box.
+    val searching by remember { derivedStateOf { state.query.isNotEmpty() } }
+    val shown = shownSongs?.songs.orEmpty()
     // First row of each letter, for the index.
-    val letterTargets = remember(shown, sort) {
-        if (!sort.isAlphabetical) emptyList()
-        else {
-            val seen = LinkedHashMap<String, Int>()
-            shown.forEachIndexed { index, track -> seen.putIfAbsent(indexLetter(track, sort), index) }
-            seen.toList()
-        }
-    }
+    val letterTargets = shownSongs?.letterTargets.orEmpty()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize()) {
-        SearchField(
-            query = query,
-            onQueryChange = { state.query = it },
+        SongsSearchField(
+            state = state,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -113,6 +158,8 @@ fun TracksTab(state: SongsTabState, onRequestAudioPermission: () -> Unit) {
 
         if (tracks.isEmpty()) {
             LibraryEmptyState(onRequestAudioPermission)
+        } else if (shownSongs == null) {
+            // Still sorting the library: nothing yet, rather than "no results" for a moment.
         } else if (shown.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 CenteredText(stringResource(R.string.search_no_results))
@@ -154,7 +201,7 @@ fun TracksTab(state: SongsTabState, onRequestAudioPermission: () -> Unit) {
                         }
                     }
                 }
-                if (!state.selecting && query.isEmpty() && letterTargets.size > 3) {
+                if (!state.selecting && !searching && letterTargets.size > 3) {
                     AlphabetIndex(
                         letters = letterTargets.map { it.first },
                         onSelect = { letter ->
@@ -170,6 +217,12 @@ fun TracksTab(state: SongsTabState, onRequestAudioPermission: () -> Unit) {
             }
         }
     }
+}
+
+/** The Songs search box; it alone reads the text, so typing only redraws the box. */
+@Composable
+private fun SongsSearchField(state: SongsTabState, modifier: Modifier = Modifier) {
+    SearchField(query = state.query, onQueryChange = { state.query = it }, modifier = modifier)
 }
 
 /** The iOS search bar: a filled, rounded field. */

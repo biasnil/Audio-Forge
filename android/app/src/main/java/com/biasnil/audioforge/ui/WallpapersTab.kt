@@ -189,8 +189,10 @@ fun SongChecklistPage(
     val libraryTracks by container.library.tracks.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var selected by rememberSaveable { mutableStateOf(initial) }
-    val allTracks = remember(libraryTracks) { sortTracks(libraryTracks, TrackSort.Title) }
-    val shown = remember(allTracks, query) { searchTracks(allTracks, query) }
+    val groups by container.library.groups.collectAsStateWithLifecycle()
+    val shown = rememberInBackground(groups, query, debounceMs = if (query.isBlank()) 0 else SEARCH_DELAY_MS) {
+        searchTracks(groups.byTitle, query)
+    }.orEmpty()
 
     Scaffold(
         topBar = {
@@ -199,7 +201,7 @@ fun SongChecklistPage(
                     enabled = selected.isNotEmpty() || allowNone,
                     onClick = {
                         val chosen = selected.toSet()
-                        onDone(allTracks.map { it.uri }.filter { it in chosen })
+                        onDone(groups.byTitle.map { it.uri }.filter { it in chosen })
                         onBack()
                     },
                 ) { Text(stringResource(R.string.wallpaper_done_count, selected.size)) }

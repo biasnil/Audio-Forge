@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -49,6 +50,16 @@ class LibraryRepository(
     /** The music: every song except podcasts and audiobooks. */
     private val _tracks = MutableStateFlow<List<Track>>(emptyList())
     val tracks: StateFlow<List<Track>> = _tracks.asStateFlow()
+
+    private val _groups = MutableStateFlow(LibraryGroups())
+    /** Albums, artists, genres and songs A-Z, regrouped in the background whenever [tracks] changes. */
+    val groups: StateFlow<LibraryGroups> = _groups.asStateFlow()
+
+    init {
+        scope.launch {
+            _tracks.collectLatest { list -> _groups.value = withContext(Dispatchers.Default) { libraryGroups(list) } }
+        }
+    }
 
     /** Songs in folders marked Podcast (the Podcasts tab); never in [tracks]. */
     private val _podcasts = MutableStateFlow<List<Track>>(emptyList())

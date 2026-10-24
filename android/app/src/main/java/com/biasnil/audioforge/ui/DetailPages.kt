@@ -436,11 +436,11 @@ fun AddTracksPage(playlistId: String, onBack: () -> Unit) {
         LaunchedEffect(Unit) { onBack() }
         return
     }
-    val candidates = remember(libraryTracks, playlist.trackUris) {
-        val alreadyIn = playlist.trackUris.toSet()
-        sortTracks(libraryTracks.filter { it.uri !in alreadyIn }, TrackSort.Title)
-    }
-    val shown = remember(candidates, query) { searchTracks(candidates, query) }
+    val groups by container.library.groups.collectAsStateWithLifecycle()
+    val alreadyIn = remember(playlist.trackUris) { playlist.trackUris.toSet() }
+    val shown = rememberInBackground(groups, alreadyIn, query, debounceMs = if (query.isBlank()) 0 else SEARCH_DELAY_MS) {
+        searchTracks(groups.byTitle.filter { it.uri !in alreadyIn }, query)
+    }.orEmpty()
 
     Scaffold(
         topBar = {
@@ -450,7 +450,7 @@ fun AddTracksPage(playlistId: String, onBack: () -> Unit) {
                     onClick = {
                         // Added in list order, not tap order.
                         val chosen = selected.toSet()
-                        container.library.addToPlaylist(playlistId, candidates.map { it.uri }.filter { it in chosen })
+                        container.library.addToPlaylist(playlistId, groups.byTitle.map { it.uri }.filter { it in chosen })
                         onBack()
                     },
                 ) { Text(stringResource(R.string.playlist_add_count, selected.size)) }
@@ -465,7 +465,7 @@ fun AddTracksPage(playlistId: String, onBack: () -> Unit) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            if (candidates.isEmpty()) {
+            if (groups.ready && shown.isEmpty() && query.isBlank()) {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                     CenteredText(stringResource(R.string.playlist_nothing_to_add))
                 }

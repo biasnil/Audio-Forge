@@ -176,6 +176,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
     val container = LocalAppContainer.current
     val settings by container.store.settings.collectAsStateWithLifecycle()
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
+    val libraryGroups by container.library.groups.collectAsStateWithLifecycle()
     val scanning by container.library.scanning.collectAsStateWithLifecycle()
     val playback by container.playback.state.collectAsStateWithLifecycle()
 
@@ -239,7 +240,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     )
                 }
                 when (tab) {
-                    LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs)
+                    LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs?.songs.orEmpty())
                     LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
                     LibraryTab.Podcasts -> PodcastsHeaderActions(onOpenPage)
                     else -> Unit
@@ -251,13 +252,14 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     .fillMaxWidth()
             ) {
                 when (tab) {
-                    LibraryTab.Songs -> TracksTab(songsState, onRequestAudioPermission)
+                    LibraryTab.Songs -> TracksTab(songsState, shownSongs, onRequestAudioPermission)
                     LibraryTab.Albums -> AlbumsTab(
                         onOpenAlbum = { onOpenPage(Page.AlbumDetail(it)) },
                         onRequestAudioPermission = onRequestAudioPermission,
                     )
                     LibraryTab.Artists -> GroupsTab(
-                        groups = remember(tracks) { artistGroups(tracks) },
+                        groups = libraryGroups.artists,
+                        ready = libraryGroups.ready || tracks.isEmpty(),
                         unknownName = R.string.unknown_artist,
                         onOpenGroup = { onOpenPage(Page.ArtistDetail(it)) },
                         tracksOf = { tracksByArtist(tracks, it.name) },
@@ -266,7 +268,8 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                         showAlbumCount = true,
                     )
                     LibraryTab.Genres -> GroupsTab(
-                        groups = remember(tracks) { genreGroups(tracks) },
+                        groups = libraryGroups.genres,
+                        ready = libraryGroups.ready || tracks.isEmpty(),
                         unknownName = R.string.unknown_genre,
                         onOpenGroup = { onOpenPage(Page.GenreDetail(it)) },
                         tracksOf = { tracksInGenre(tracks, it.name) },

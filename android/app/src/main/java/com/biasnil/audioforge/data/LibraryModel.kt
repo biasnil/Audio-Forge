@@ -8,6 +8,27 @@ import java.util.Locale
 /** An album or artist. An empty [name] is the "Unknown Album" / "Unknown Artist" group. */
 data class TrackGroup(val name: String, val tracks: List<Track>)
 
+/**
+ * The library's albums, artists and genres, and every song A-Z: worked out
+ * once per library change, off the main thread, so tabs open without
+ * sorting thousands of songs. [ready] is false until the first result.
+ */
+data class LibraryGroups(
+    val albums: List<TrackGroup> = emptyList(),
+    val artists: List<TrackGroup> = emptyList(),
+    val genres: List<TrackGroup> = emptyList(),
+    val byTitle: List<Track> = emptyList(),
+    val ready: Boolean = false,
+)
+
+fun libraryGroups(tracks: List<Track>) = LibraryGroups(
+    albums = albumGroups(tracks),
+    artists = artistGroups(tracks),
+    genres = genreGroups(tracks),
+    byTitle = sortTracks(tracks, TrackSort.Title),
+    ready = true,
+)
+
 data class LibraryStats(val tracks: Int, val albums: Int, val artists: Int, val genres: Int)
 
 enum class TrackSort {

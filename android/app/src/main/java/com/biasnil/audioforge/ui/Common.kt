@@ -33,6 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -503,4 +507,21 @@ fun PlayShuffleButtons(onPlay: () -> Unit, onShuffle: () -> Unit) {
             Text(stringResource(R.string.shuffle))
         }
     }
+}
+
+/**
+ * [compute] on a background thread each time [keys] change -- after
+ * [debounceMs], to let typing pause -- so sorting or searching thousands of
+ * songs never holds up the screen. The previous result stays shown in the
+ * meantime; null until the first one is ready.
+ */
+@Composable
+fun <T : Any> rememberInBackground(vararg keys: Any?, debounceMs: Long = 0, compute: () -> T): T? {
+    val result = remember { mutableStateOf<T?>(null) }
+    val latest = rememberUpdatedState(compute)
+    LaunchedEffect(*keys) {
+        if (debounceMs > 0 && result.value != null) delay(debounceMs)
+        result.value = withContext(Dispatchers.Default) { latest.value() }
+    }
+    return result.value
 }
