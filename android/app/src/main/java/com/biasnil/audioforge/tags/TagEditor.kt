@@ -69,6 +69,11 @@ class TagEditor(private val context: Context) {
     suspend fun prepareCoverImage(imageUri: Uri): CoverImage = withContext(Dispatchers.IO) {
         val bytes = resolver.openInputStream(imageUri)?.use { it.readBytes() }
             ?: throw IOException("Couldn't open $imageUri")
+        prepareCoverBytes(bytes)
+    }
+
+    /** The same for image bytes already in hand (a cover found online). */
+    suspend fun prepareCoverBytes(bytes: ByteArray): CoverImage = withContext(Dispatchers.IO) {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("Not an image")

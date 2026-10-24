@@ -4,6 +4,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -103,10 +104,16 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
                     Text(folderLabel(folder), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 },
                 supportingContent = {
-                    PodcastChip(
-                        selected = folder in settings.podcastFolders,
-                        onClick = { library.setPodcastFolder(folder, folder !in settings.podcastFolders) },
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PodcastChip(
+                            selected = folder in settings.podcastFolders,
+                            onClick = { library.setPodcastFolder(folder, folder !in settings.podcastFolders) },
+                        )
+                        AudiobookChip(
+                            selected = folder in settings.audiobookFolders,
+                            onClick = { library.setAudiobookFolder(folder, folder !in settings.audiobookFolders) },
+                        )
+                    }
                 },
                 trailingContent = {
                     TextButton(onClick = { library.removeFolder(folder) }) {
@@ -133,6 +140,12 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
         )
         Text(
             text = stringResource(R.string.folders_podcast_explanation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        Text(
+            text = stringResource(R.string.folders_audiobook_explanation),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -174,16 +187,25 @@ private fun PhoneLibraryFolders() {
         // ...or every song in it is one Android itself files as a podcast.
         val podcastByParent = !podcastItself && (settings.podcastFolders.any { isInFolder(folder.key, it) } ||
             folder.systemPodcastCount == folder.trackCount)
+        val bookItself = folder.key in settings.audiobookFolders
+        val bookByParent = !bookItself && settings.audiobookFolders.any { isInFolder(folder.key, it) }
         ListItem(
             headlineContent = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
                 Column {
                     Text("${folder.path}  •  ${trackCountText(folder.trackCount)}", maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    PodcastChip(
-                        selected = podcastItself || podcastByParent,
-                        enabled = !podcastByParent,
-                        onClick = { container.library.setPodcastFolder(folder.key, !podcastItself) },
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PodcastChip(
+                            selected = podcastItself || podcastByParent,
+                            enabled = !podcastByParent,
+                            onClick = { container.library.setPodcastFolder(folder.key, !podcastItself) },
+                        )
+                        AudiobookChip(
+                            selected = bookItself || bookByParent,
+                            enabled = !bookByParent,
+                            onClick = { container.library.setAudiobookFolder(folder.key, !bookItself) },
+                        )
+                    }
                 }
             },
             trailingContent = {
@@ -206,6 +228,18 @@ private fun PodcastChip(selected: Boolean, onClick: () -> Unit, enabled: Boolean
         enabled = enabled,
         label = { Text(stringResource(R.string.folder_podcast)) },
         leadingIcon = { Icon(AppIcons.Podcast, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+    )
+}
+
+/** Marks a folder as Audiobook: its files move to the Audiobooks tab and always continue where you stopped. */
+@Composable
+private fun AudiobookChip(selected: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(stringResource(R.string.folder_audiobook)) },
+        leadingIcon = { Icon(AppIcons.Book, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
     )
 }
 

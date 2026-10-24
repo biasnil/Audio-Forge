@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Collections
 
 /**
@@ -49,7 +50,9 @@ class CoverArtLoader(private val context: Context) {
         val station = track.station
         if (station != null) return station.favicon?.let { RemoteImages.load(it, sizePx) }
         val bitmap = withContext(Dispatchers.IO) {
-            decodeEmbedded(track.uri, sizePx) ?: track.folderCoverUri?.let { decodeFile(it, sizePx) }
+            decodeEmbedded(track.uri, sizePx)
+                ?: track.folderCoverUri?.let { decodeFile(it, sizePx) }
+                ?: decodeFoundCover(track, sizePx)
         }
         if (bitmap != null) cache.put(key, bitmap) else missing += key
         return bitmap
@@ -69,6 +72,18 @@ class CoverArtLoader(private val context: Context) {
             ?.let { decodeSampled(it, sizePx) }
     } catch (e: Exception) {
         null
+    }
+
+    /** A cover found online for the album (Settings -> Library -> Find missing covers), if any. */
+    private fun decodeFoundCover(track: Track, sizePx: Int): Bitmap? {
+        if (track.album.isBlank()) return null
+        val file = MetadataRepository.coverFile(File(context.filesDir, MetadataRepository.COVERS_DIR), track)
+        if (!file.exists()) return null
+        return try {
+            decodeSampled(file.readBytes(), sizePx)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** Decodes at the smallest power-of-two reduction that's still at least [sizePx]. */

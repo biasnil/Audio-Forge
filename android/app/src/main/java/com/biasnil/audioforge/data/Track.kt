@@ -35,6 +35,8 @@ data class Track(
     val dateAddedMs: Long = 0,
     /** Android itself files this as a podcast (MediaStore IS_PODCAST): always in the Podcasts tab. */
     val systemPodcast: Boolean = false,
+    /** Android itself files this as an audiobook (MediaStore IS_AUDIOBOOK): always in the Audiobooks tab. */
+    val systemAudiobook: Boolean = false,
     /**
      * An internet radio station (the Radio tab), [uri] being its stream: live,
      * so no seeking, crossfade, gapless, lyrics, play counts or tag editing.

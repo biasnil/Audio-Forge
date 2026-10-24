@@ -253,6 +253,7 @@ private fun LibrarySettings(onOpenPage: (Page) -> Unit) {
         }
     }
     SettingsLinkRow(stringResource(R.string.listening_stats)) { onOpenPage(Page.ListeningStats) }
+    FindMissingCoversRow()
 }
 
 /** Light / dark, and the home-screen widgets. */

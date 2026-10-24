@@ -41,6 +41,8 @@ sealed interface Page {
     /** Effects tab -> Headphone correction: the AutoEq model list. */
     data object HeadphonePicker : Page
     data object PodcastSearch : Page
+    /** The audiobook playing now: its chapters and bookmarks. */
+    data object BookChapters : Page
     /** A show from its feed; [artworkUrl] is shown until the feed has loaded (from search results). */
     data class PodcastFeed(val feedUrl: String, val artworkUrl: String?) : Page
 
@@ -69,6 +71,7 @@ sealed interface Page {
         is SettingsSectionPage -> "settings:$key"
         HeadphonePicker -> "headphones"
         PodcastSearch -> "psearch"
+        BookChapters -> "bookchapters"
         is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
     }
 
@@ -100,6 +103,7 @@ sealed interface Page {
             value.startsWith("settings:") -> SettingsSectionPage(value.removePrefix("settings:"))
             value == "headphones" -> HeadphonePicker
             value == "psearch" -> PodcastSearch
+            value == "bookchapters" -> BookChapters
             value.startsWith("pfeed:") -> value.removePrefix("pfeed:").let {
                 PodcastFeed(feedUrl = it.substringAfter('\t'), artworkUrl = it.substringBefore('\t').ifEmpty { null })
             }

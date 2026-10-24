@@ -17,6 +17,7 @@ enum class LibraryTab(@StringRes val title: Int, val icon: ImageVector, val hide
     Folders(R.string.tab_folders, AppIcons.Folder),
     Playlists(R.string.tab_playlists, AppIcons.QueueMusic),
     Podcasts(R.string.tab_podcasts, AppIcons.Podcast),
+    Audiobooks(R.string.tab_audiobooks, AppIcons.Book),
     Radio(R.string.tab_radio, AppIcons.Radio),
     Equalizer(R.string.tab_equalizer, AppIcons.Equalizer),
     Effects(R.string.effects, AppIcons.SurroundSound),

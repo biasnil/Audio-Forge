@@ -45,13 +45,17 @@ class LibraryRepository(
     private val mediaStore = MediaStoreSource(context.contentResolver)
     private val folderSource = FolderSource(context)
 
-    /** The music: every song except podcasts. */
+    /** The music: every song except podcasts and audiobooks. */
     private val _tracks = MutableStateFlow<List<Track>>(emptyList())
     val tracks: StateFlow<List<Track>> = _tracks.asStateFlow()
 
     /** Songs in folders marked Podcast (the Podcasts tab); never in [tracks]. */
     private val _podcasts = MutableStateFlow<List<Track>>(emptyList())
     val podcasts: StateFlow<List<Track>> = _podcasts.asStateFlow()
+
+    /** .m4b files, Android's audiobooks and songs in folders marked Audiobook (the Audiobooks tab); never in [tracks]. */
+    private val _audiobooks = MutableStateFlow<List<Track>>(emptyList())
+    val audiobooks: StateFlow<List<Track>> = _audiobooks.asStateFlow()
 
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
@@ -131,7 +135,11 @@ class LibraryRepository(
             }
         }
         store.update { settings ->
-            settings.copy(folders = settings.folders.filterNot { it == treeUriString }, podcastFolders = settings.podcastFolders - treeUriString)
+            settings.copy(
+                folders = settings.folders.filterNot { it == treeUriString },
+                podcastFolders = settings.podcastFolders - treeUriString,
+                audiobookFolders = settings.audiobookFolders - treeUriString,
+            )
         }
         refresh()
     }
@@ -155,13 +163,27 @@ class LibraryRepository(
         val settings = store.settings.value
         val merged = mergeSources(excludeFolders(phoneTracks, settings.hiddenFolders), addedFolderTracks)
         tracksByUri = merged.associateBy { it.uri }
-        val (podcastTracks, music) = merged.partition { isPodcast(it, settings.podcastFolders) }
+        // Audiobooks first: an .m4b in a podcast folder is still a book.
+        val (books, rest) = merged.partition { isAudiobook(it, settings.audiobookFolders) }
+        val (podcastTracks, music) = rest.partition { isPodcast(it, settings.podcastFolders) }
         _tracks.value = music
         _podcasts.value = podcastTracks
+        _audiobooks.value = books
         _phoneFolders.value = folderCounts(phoneTracks)
     }
 
     fun isPodcast(uri: String): Boolean = tracksByUri[uri]?.let { isPodcast(it, store.settings.value.podcastFolders) } == true
+
+    fun isAudiobook(uri: String): Boolean = tracksByUri[uri]?.let { isAudiobook(it, store.settings.value.audiobookFolders) } == true
+
+    /** Marks an added folder (tree URI) or a phone-library folder (folder key) as Audiobook, or back to music. */
+    fun setAudiobookFolder(key: String, audiobook: Boolean) {
+        if (key.isEmpty()) return
+        store.update { settings ->
+            settings.copy(audiobookFolders = if (audiobook) settings.audiobookFolders + key else settings.audiobookFolders - key)
+        }
+        publish()
+    }
 
     /** Marks an added folder (tree URI) or a phone-library folder (folder key) as Podcast, or back to music. */
     fun setPodcastFolder(key: String, podcast: Boolean) {
