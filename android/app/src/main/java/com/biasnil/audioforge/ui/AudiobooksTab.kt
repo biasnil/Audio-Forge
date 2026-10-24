@@ -172,7 +172,8 @@ fun BookBar(track: Track, positionMs: Long, onOpenPage: (Page) -> Unit) {
     val playback = container.playback
     val book = rememberBookOf(track.uri) ?: return
     val chapters = rememberChapters(track)
-    var addingBookmark by rememberSaveable { mutableStateOf(false) }
+    /** Where the bookmark goes: the moment the button was tapped, not when the note is saved. */
+    var bookmarkAt by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val index = currentChapterIndex(chapters, positionMs)
     val part = book.parts.indexOfFirst { it.uri == track.uri }
@@ -205,19 +206,19 @@ fun BookBar(track: Track, positionMs: Long, onOpenPage: (Page) -> Unit) {
         IconButton(onClick = { nextChapterStart(chapters, positionMs)?.let(playback::seekTo) ?: playback.next() }) {
             Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.audiobook_chapter_next))
         }
-        IconButton(onClick = { addingBookmark = true }) {
+        IconButton(onClick = { bookmarkAt = positionMs }) {
             Icon(AppIcons.Bookmark, contentDescription = stringResource(R.string.audiobook_add_bookmark))
         }
     }
 
-    if (addingBookmark) {
+    bookmarkAt?.let { at ->
         AddBookmarkDialog(
-            positionMs = positionMs,
+            positionMs = at,
             onAdd = { note ->
-                container.audiobookStore.addBookmark(track.uri, positionMs, note)
-                addingBookmark = false
+                container.audiobookStore.addBookmark(track.uri, at, note)
+                bookmarkAt = null
             },
-            onDismiss = { addingBookmark = false },
+            onDismiss = { bookmarkAt = null },
         )
     }
 }
@@ -265,7 +266,8 @@ fun BookChaptersPage(onBack: () -> Unit) {
         val uris = book.parts.map { it.uri }.toSet()
         data.bookmarks.filter { it.uri in uris }.sortedByDescending { it.createdMs }
     }
-    var addingBookmark by rememberSaveable { mutableStateOf(false) }
+    /** Where the bookmark goes: the moment the button was tapped, not when the note is saved. */
+    var bookmarkAt by rememberSaveable { mutableStateOf<Long?>(null) }
 
     fun goTo(uri: String, positionMs: Long) {
         if (uri == track.uri) playback.seekTo(positionMs)
@@ -298,7 +300,7 @@ fun BookChaptersPage(onBack: () -> Unit) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, end = 16.dp)) {
                     SectionHeader(stringResource(R.string.audiobook_bookmarks), Modifier.weight(1f))
-                    FilledTonalButton(onClick = { addingBookmark = true }) {
+                    FilledTonalButton(onClick = { bookmarkAt = position }) {
                         Icon(AppIcons.Bookmark, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.audiobook_add_bookmark))
@@ -341,14 +343,14 @@ fun BookChaptersPage(onBack: () -> Unit) {
         }
     }
 
-    if (addingBookmark) {
+    bookmarkAt?.let { at ->
         AddBookmarkDialog(
-            positionMs = position,
+            positionMs = at,
             onAdd = { note ->
-                container.audiobookStore.addBookmark(track.uri, position, note)
-                addingBookmark = false
+                container.audiobookStore.addBookmark(track.uri, at, note)
+                bookmarkAt = null
             },
-            onDismiss = { addingBookmark = false },
+            onDismiss = { bookmarkAt = null },
         )
     }
 }
