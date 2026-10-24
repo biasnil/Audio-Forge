@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -171,13 +173,25 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
     private val _settings = MutableStateFlow(read())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
+    /** The pending save: settings are written once changes pause (a slider drag is one save, not hundreds). */
+    private var saveJob: Job? = null
+
     fun update(transform: (AppSettings) -> AppSettings) {
         _settings.updateAndGet(transform)
-        scope.launch(Dispatchers.IO) {
+        saveJob?.cancel()
+        saveJob = scope.launch(Dispatchers.IO) {
+            delay(SAVE_DELAY_MS)
             // Always writes the latest value, so writes finishing out of
             // order can't leave an older snapshot on disk.
             writeLock.withLock { write(_settings.value) }
         }
+    }
+
+    /** Saves any pending change now (when the app goes to the background, in case it's closed). */
+    fun flush() {
+        if (saveJob?.isActive != true) return
+        saveJob?.cancel()
+        saveJob = scope.launch(Dispatchers.IO) { writeLock.withLock { write(_settings.value) } }
     }
 
     private fun read(): AppSettings {
@@ -393,6 +407,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
     private companion object {
         const val TAG = "AppStore"
         const val FILE_NAME = "audioforge.json"
+        /** How long changes must pause before they're written. */
+        const val SAVE_DELAY_MS = 500L
     }
 }
 

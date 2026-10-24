@@ -104,6 +104,8 @@ class AppContainer(context: Context) {
     }
 
     init {
+        // Pending settings are saved as soon as the app leaves the screen, in case it's closed.
+        appScope.launch { appVisible.collect { visible -> if (!visible) store.flush() } }
         // Remember which file of a book was playing, for the book's progress and for Play.
         appScope.launch {
             playback.state.map { it.current }.distinctUntilChangedBy { it?.uri }.collect { track ->
