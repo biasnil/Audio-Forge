@@ -7,7 +7,6 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.LruCache
-import android.util.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,9 +29,10 @@ import kotlin.math.roundToInt
  * The music files are only read, never changed.
  *
  * Built for big libraries:
- * - Phone-library songs use Android's own album-art thumbnails (cached by
- *   the system); other files get a small JPEG copy in the app's cache, so
- *   showing a cover rarely means opening a music file again.
+ * - Each cover is kept as a small JPEG copy in the app's cache, so showing
+ *   a cover rarely means opening a music file again. (Android's own
+ *   thumbnails aren't used: for a song without art they return any picture
+ *   lying in its folder, so a whole folder showed one cover.)
  * - At most [PARALLEL_DECODES] covers decode at once, and a row scrolled
  *   away before its turn is simply skipped.
  * - Covers are kept in memory at the size they're shown at (rounded up to
@@ -100,7 +100,6 @@ class CoverArtLoader(private val context: Context) {
     }
 
     private fun decode(track: Track, sizePx: Int): Bitmap? {
-        systemThumbnail(track.uri, sizePx)?.let { return it }
         val disk = File(diskDir, diskName(coverKey(track)) + "_$sizePx.jpg")
         val none = File(diskDir, diskName(coverKey(track)) + "_$sizePx.none")
         if (disk.exists()) decodeSampled(disk.readBytes(), sizePx)?.let { return it }
@@ -120,19 +119,6 @@ class CoverArtLoader(private val context: Context) {
             // A full disk only costs speed.
         }
         return bitmap
-    }
-
-    /**
-     * Android's own album-art thumbnail for a phone-library song: fast, and
-     * cached by the system. Null for added-folder files or songs without art.
-     */
-    private fun systemThumbnail(uri: String, sizePx: Int): Bitmap? {
-        if (!isMediaStore(uri)) return null
-        return try {
-            fitTo(context.contentResolver.loadThumbnail(Uri.parse(uri), Size(sizePx, sizePx), null), sizePx)
-        } catch (_: Exception) {
-            null
-        }
     }
 
     private fun decodeEmbedded(uri: String, sizePx: Int): Bitmap? = try {
