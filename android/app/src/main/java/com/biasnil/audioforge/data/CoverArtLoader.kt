@@ -30,8 +30,6 @@ import kotlin.math.roundToInt
  * The music files are only read, never changed.
  *
  * Built for big libraries:
- * - Songs of one album share one cover ([coverKey]), so 800 songs in 100
- *   albums decode 100 pictures, not 800.
  * - Phone-library songs use Android's own album-art thumbnails (cached by
  *   the system); other files get a small JPEG copy in the app's cache, so
  *   showing a cover rarely means opening a music file again.
@@ -47,7 +45,7 @@ class CoverArtLoader(private val context: Context) {
     }
     /** Covers known to be missing, so they aren't looked for on every recomposition. */
     private val missing: MutableSet<String> = Collections.synchronizedSet(HashSet())
-    /** One decode per cover at a time: other rows of the same album wait and then hit the cache. */
+    /** One decode per cover at a time: another row asking for it waits and then hits the cache. */
     private val locks = ConcurrentHashMap<String, Mutex>()
     @OptIn(ExperimentalCoroutinesApi::class)
     private val decoding = Dispatchers.IO.limitedParallelism(PARALLEL_DECODES)
@@ -59,7 +57,7 @@ class CoverArtLoader(private val context: Context) {
 
     fun cached(track: Track, sizePx: Int): Bitmap? = cache.get(memoryKey(track, sizePx))
 
-    /** Forgets the cover of [track]'s album (after a cover was changed or found). */
+    /** Forgets [track]'s cover (after a cover was changed or found). */
     fun invalidate(track: Track) {
         val key = coverKey(track)
         cache.snapshot().keys.filter { it.startsWith("$key@") }.forEach { cache.remove(it) }
@@ -87,7 +85,7 @@ class CoverArtLoader(private val context: Context) {
 
         val lock = locks.getOrPut(key) { Mutex() }
         return lock.withLock {
-            // Another row of the same album may have just decoded it.
+            // Another row may have just decoded it.
             cache.get(key)?.let { return@withLock it }
             if (key in missing) return@withLock null
             val bitmap = withContext(decoding) { decode(track, bucket(sizePx)) }
@@ -216,8 +214,9 @@ class CoverArtLoader(private val context: Context) {
 }
 
 /**
- * Which cover a track shows: its album's (songs of one album, in one
- * folder, share it), or its own when it has no album name.
+ * Which cover a track shows: always its own. Songs of one album aren't
+ * made to share one, because the album name often isn't real: Android
+ * names untagged songs' album after their folder ("Music"), and
+ * downloaded songs tagged "Singles" each have their own picture.
  */
-internal fun coverKey(track: Track): String =
-    if (track.album.isBlank()) "track:${track.uri}" else "album:${track.folderKey}|${track.album.trim().lowercase()}"
+internal fun coverKey(track: Track): String = "track:${track.uri}"
