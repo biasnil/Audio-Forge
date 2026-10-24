@@ -718,4 +718,10 @@
     <string name="editor_lyrics_saved">Saved. AudioForge uses the new timing for this song.</string>
     <string name="editor_lrc_export">Export .lrc</string>
     <string name="editor_lrc_exported">The .lrc file was saved.</string>
+    <string name="tags_file_name">File name</string>
+    <string name="lrc_access_title">Update the lyrics file too?</string>
+    <string name="lrc_access_text">If this song has a .lrc lyrics file next to it, AudioForge can rename it and update its title and artist to match. Android needs you to choose the song\'s folder once.</string>
+    <string name="lrc_access_choose">Choose folder</string>
+    <string name="lrc_access_skip">Not now</string>
+    <string name="lrc_access_never">Don\'t ask again</string>
 </resources>

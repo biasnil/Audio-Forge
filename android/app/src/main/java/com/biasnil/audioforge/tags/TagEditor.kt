@@ -1,9 +1,11 @@
 package com.biasnil.audioforge.tags
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.MediaStore
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +24,12 @@ import java.io.IOException
  * SecurityException.
  */
 class TagEditor(private val context: Context) {
+
+    /** Renames a phone-library song's file to [newName] (with its extension); it keeps its place in playlists and stats. */
+    suspend fun renameFile(track: Track, newName: String) = withContext(Dispatchers.IO) {
+        val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, newName) }
+        check(context.contentResolver.update(Uri.parse(track.uri), values, null, null) > 0) { "Couldn't rename ${track.fileName}" }
+    }
 
     private val resolver = context.contentResolver
 

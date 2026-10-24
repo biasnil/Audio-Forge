@@ -7,6 +7,7 @@ import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.AudiobookStore
 import com.biasnil.audioforge.data.FreeAudiobookRepository
+import com.biasnil.audioforge.data.SidecarLyrics
 import com.biasnil.audioforge.data.ChapterRepository
 import com.biasnil.audioforge.data.bookKey
 import com.biasnil.audioforge.data.CoverArtLoader
@@ -72,6 +73,8 @@ class AppContainer(context: Context) {
     val outputDevice = OutputDeviceMonitor(context, store, appScope)
     val lyrics = LyricsRepository(context, store, playback, appScope)
     val tagEditor = TagEditor(context)
+    /** The .lrc next to a song, kept in step when it's renamed or retitled. */
+    val sidecarLyrics = SidecarLyrics(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
     val podcasts = PodcastRepository(context, library, appScope)
     /** A link shared to the app, until the screen opens Download from link with it (GitHub version). */

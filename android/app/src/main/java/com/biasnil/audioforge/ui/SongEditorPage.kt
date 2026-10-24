@@ -400,6 +400,8 @@ private fun LyricTab(track: Track, source: PcmSource) {
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(formatLrc(current, track.title, track.artist).toByteArray()) }
+                    // So a later rename or retitle of the song can update it too.
+                    container.sidecarLyrics.rememberExport(track.uri, uri)
                 }.isSuccess
             }
             message = context.getString(if (ok) R.string.editor_lrc_exported else R.string.editor_save_failed)

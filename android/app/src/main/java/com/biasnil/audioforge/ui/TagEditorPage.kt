@@ -42,6 +42,11 @@ import androidx.compose.ui.unit.dp
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.DetectedGenre
 import com.biasnil.audioforge.data.Track
+import com.biasnil.audioforge.data.safeFileName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.biasnil.audioforge.tags.TagEditException
 import com.biasnil.audioforge.tags.TagFileEditor
 import java.io.IOException
@@ -83,6 +88,13 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
     var saveError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var addingField by remember { mutableStateOf(false) }
+    // The file's name without its extension; only phone-library songs can be renamed here
+    // (an added folder's file would get a new identity, and lose its playlists and stats).
+    val extension = track.fileName.substringAfterLast('.', "")
+    val originalBase = track.fileName.substringBeforeLast('.')
+    val canRename = track.sourceFolder == null && track.fileName.isNotEmpty()
+    var fileBase by rememberSaveable { mutableStateOf(originalBase) }
+    var askLrcFolder by remember { mutableStateOf<LrcSync?>(null) }
 
     LaunchedEffect(trackUri) {
         try {
@@ -98,16 +110,58 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
     val writeFile = rememberTrackFileWriter()
     val trackActions = LocalTrackActions.current
     val scope = rememberCoroutineScope()
+    val newBase = safeFileName(fileBase).ifEmpty { originalBase }
+    val renamed = canRename && newBase != originalBase
+
+    // After saving: the .lrc next to the song follows a new file name, title or artist.
+    fun syncLrc(sync: LrcSync) {
+        scope.launch {
+            val lrc = withContext(Dispatchers.IO) { container.sidecarLyrics.find(track) }
+            when {
+                lrc != null -> {
+                    withContext(Dispatchers.IO) { container.sidecarLyrics.update(track, lrc, sync.title, sync.artist, sync.newBase) }
+                    onBack()
+                }
+                container.sidecarLyrics.couldAskForFolder(track) && container.sidecarLyrics.mayAsk -> askLrcFolder = sync
+                else -> onBack()
+            }
+        }
+    }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
+        val sync = askLrcFolder
+        askLrcFolder = null
+        if (picked != null && sync != null) {
+            container.sidecarLyrics.grantFolder(picked)
+            syncLrc(sync)
+        } else onBack()
+    }
+
     val startSave: () -> Unit = {
         val baseline = original
         val edited = fields
         if (baseline != null && edited != null && !saving) {
             saving = true
             saveError = null
-            writeFile(track, { container.tagEditor.write(track, baseline, edited.toMap()) }) { error ->
+            val tagsChanged = edited.toMap() != baseline
+            val newName = if (extension.isEmpty()) newBase else "$newBase.$extension"
+            writeFile(track, {
+                // Rename first: writing the tags makes Android re-read the file by its name, and
+                // renaming while that's pending makes it drop the song from its index.
+                if (renamed) container.tagEditor.renameFile(track, newName)
+                if (tagsChanged) container.tagEditor.write(track, baseline, edited.toMap())
+            }) { error ->
                 saving = false
                 when (error) {
-                    null -> onBack()
+                    null -> {
+                        if (renamed) container.library.refresh()
+                        val editedMap = edited.toMap()
+                        val sync = LrcSync(
+                            title = editedMap["TITLE"]?.takeIf { it != baseline["TITLE"] },
+                            artist = editedMap["ARTIST"]?.takeIf { it != baseline["ARTIST"] },
+                            newBase = newBase.takeIf { renamed },
+                        )
+                        if (sync.title != null || sync.artist != null || sync.newBase != null) syncLrc(sync) else onBack()
+                    }
                     WriteCancelled -> Unit
                     else -> saveError = errorMessage(context, error)
                 }
@@ -115,7 +169,7 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
         }
     }
 
-    val changed = original != null && fields != null && fields.orEmpty().toMap() != original
+    val changed = original != null && fields != null && (fields.orEmpty().toMap() != original || renamed)
     Scaffold(
         topBar = {
             DetailTopBar(stringResource(R.string.tags_title), onBack) {
@@ -152,13 +206,24 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                             CoverImage(track, decodeSize = 72.dp, modifier = Modifier.size(72.dp))
                             Spacer(Modifier.width(16.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = track.fileName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                if (canRename) {
+                                    OutlinedTextField(
+                                        value = fileBase,
+                                        onValueChange = { fileBase = it },
+                                        label = { Text(stringResource(R.string.tags_file_name)) },
+                                        suffix = { if (extension.isNotEmpty()) Text(".$extension") },
+                                        singleLine = true,
+                                        enabled = !saving,
+                                    )
+                                } else {
+                                    Text(
+                                        text = track.fileName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                                 TextButton(onClick = { trackActions.changeCover(track) }, enabled = !saving) {
                                     Text(stringResource(R.string.cover_change))
                                 }
@@ -258,6 +323,35 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
         }
     }
 
+    askLrcFolder?.let { sync ->
+        AlertDialog(
+            onDismissRequest = {
+                askLrcFolder = null
+                onBack()
+            },
+            title = { Text(stringResource(R.string.lrc_access_title)) },
+            text = { Text(stringResource(R.string.lrc_access_text)) },
+            confirmButton = {
+                TextButton(onClick = { pickFolder.launch(container.sidecarLyrics.folderOf(track)) }) {
+                    Text(stringResource(R.string.lrc_access_choose))
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        container.sidecarLyrics.mayAsk = false
+                        askLrcFolder = null
+                        onBack()
+                    }) { Text(stringResource(R.string.lrc_access_never)) }
+                    TextButton(onClick = {
+                        askLrcFolder = null
+                        onBack()
+                    }) { Text(stringResource(R.string.lrc_access_skip)) }
+                }
+            },
+        )
+    }
+
     if (addingField) {
         val present = fields.orEmpty().map { it.first }.toSet()
         AddFieldDialog(
@@ -270,6 +364,9 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
         )
     }
 }
+
+/** What changed that the song's .lrc should follow (null = unchanged). */
+private data class LrcSync(val title: String?, val artist: String?, val newBase: String?)
 
 @Composable
 private fun TagFieldRow(

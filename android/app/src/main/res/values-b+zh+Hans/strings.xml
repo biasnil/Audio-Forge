@@ -704,4 +704,10 @@
     <string name="editor_lyrics_saved">已保存。AudioForge 会为这首歌使用新的时间。</string>
     <string name="editor_lrc_export">导出 .lrc</string>
     <string name="editor_lrc_exported">.lrc 文件已保存。</string>
+    <string name="tags_file_name">文件名</string>
+    <string name="lrc_access_title">也更新歌词文件吗？</string>
+    <string name="lrc_access_text">如果这首歌旁边有 .lrc 歌词文件，AudioForge 可以把它重命名并更新标题和艺人。Android 需要你选择一次这首歌所在的文件夹。</string>
+    <string name="lrc_access_choose">选择文件夹</string>
+    <string name="lrc_access_skip">暂不</string>
+    <string name="lrc_access_never">不再询问</string>
 </resources>

@@ -704,4 +704,10 @@
     <string name="editor_lyrics_saved">Disimpan. AudioForge menggunakan masa baharu untuk lagu ini.</string>
     <string name="editor_lrc_export">Eksport .lrc</string>
     <string name="editor_lrc_exported">Fail .lrc telah disimpan.</string>
+    <string name="tags_file_name">Nama fail</string>
+    <string name="lrc_access_title">Kemas kini fail lirik juga?</string>
+    <string name="lrc_access_text">Jika lagu ini ada fail lirik .lrc di sebelahnya, AudioForge boleh menamakannya semula dan mengemas kini tajuk serta artisnya. Android memerlukan anda memilih folder lagu itu sekali.</string>
+    <string name="lrc_access_choose">Pilih folder</string>
+    <string name="lrc_access_skip">Bukan sekarang</string>
+    <string name="lrc_access_never">Jangan tanya lagi</string>
 </resources>

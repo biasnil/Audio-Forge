@@ -730,4 +730,10 @@
     <string name="editor_lyrics_saved">Enregistré. AudioForge utilise le nouveau minutage pour ce morceau.</string>
     <string name="editor_lrc_export">Exporter .lrc</string>
     <string name="editor_lrc_exported">Le fichier .lrc a été enregistré.</string>
+    <string name="tags_file_name">Nom du fichier</string>
+    <string name="lrc_access_title">Mettre aussi à jour le fichier de paroles ?</string>
+    <string name="lrc_access_text">Si ce morceau a un fichier de paroles .lrc à côté, AudioForge peut le renommer et mettre à jour son titre et son artiste. Android vous demande de choisir le dossier du morceau une fois.</string>
+    <string name="lrc_access_choose">Choisir le dossier</string>
+    <string name="lrc_access_skip">Pas maintenant</string>
+    <string name="lrc_access_never">Ne plus demander</string>
 </resources>
