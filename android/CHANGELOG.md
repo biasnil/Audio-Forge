@@ -33,14 +33,21 @@ open too.
     (the rest closes up) or **Keep only this** (trims the start and end).
     Change the volume or **Normalize**, undo, and listen before saving.
     **Save** asks each time: a new copy next to the original, or replace
-    the original. M4A and WAV songs can be replaced; Android can't write
-    MP3, FLAC or OGG, so those are saved as an M4A copy. Tags and cover are
+    the original. The song keeps its format: MP3 stays MP3 (at its own
+    bitrate), FLAC stays FLAC (still lossless), and M4A and WAV stay as they
+    are. Replacing keeps it the same song, so playlists, play counts and its
+    .lrc stay with it; the original is backed up until the edit is safely in.
+    Other formats (OGG, Opus) are saved as an M4A copy. Tags and cover are
     kept.
   - **Lyric:** the synced lyrics against a close-up of the waveform, with a
     mark where each line starts. Tap a line, then **Set to now** as it's
     sung; nudge a line, or all of them, by 0.05 s. **Save** keeps the new
     timing for that song; **Export .lrc** saves a file other players can
     read, wherever you choose (it starts in the song's folder).
+
+- **Rename a song's file.** Edit tags has a File name field. Renaming a
+  song, or changing its title or artist, also updates the .lrc lyrics file
+  next to it (renamed to match, with the new title and artist inside).
 
 ### Better
 
