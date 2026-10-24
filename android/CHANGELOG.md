@@ -27,6 +27,26 @@ open too.
     itself from GitHub so it keeps working when sites change. Only download
     what you have the right to. The Play Store version doesn't have this.
 
+- **Edit this song.** Long-press a song (in Songs, Now Playing and other
+  lists) → **Edit this song**:
+  - **Audio:** drag across the waveform to select a part, then **Cut** it
+    (the rest closes up) or **Keep only this** (trims the start and end).
+    Change the volume or **Normalize**, undo, and listen before saving.
+    **Save** asks each time: a new copy next to the original, or replace
+    the original. M4A and WAV songs can be replaced; Android can't write
+    MP3, FLAC or OGG, so those are saved as an M4A copy. Tags and cover are
+    kept.
+  - **Lyric:** the synced lyrics against a close-up of the waveform, with a
+    mark where each line starts. Tap a line, then **Set to now** as it's
+    sung; nudge a line, or all of them, by 0.05 s. **Save** keeps the new
+    timing for that song; **Export .lrc** saves a file other players can
+    read, wherever you choose (it starts in the song's folder).
+
+### Better
+
+- **Less text on screen.** Long explanations under settings now sit behind
+  a small (i) next to each one; tap it to read.
+
 ### Privacy
 
 - The privacy policy now covers free audiobooks (your search words and the
