@@ -47,6 +47,16 @@ class AudioEditTest {
     }
 
     @Test
+    fun cutPartsCanBePutBack() {
+        val edit = AudioEdit.whole(1000).keepOnly(100, 900).cut(200, 300)
+        // Trimmed start, the cut in the middle, and the trimmed end.
+        val gaps = edit.gaps(1000)
+        assertEquals(listOf(Gap(0, Span(0, 100)), Gap(200, Span(300, 400)), Gap(700, Span(900, 1000))), gaps)
+        assertEquals(listOf(Span(100, 900)), edit.restore(gaps[1]).spans)
+        assertEquals(AudioEdit.whole(1000), gaps.fold(edit) { e, gap -> e.restore(gap) })
+    }
+
+    @Test
     fun changedOnlyWhenSomethingWasEdited() {
         assertFalse(AudioEdit.whole(1000).changed)
         assertTrue(AudioEdit.whole(1000).cut(0, 10).changed)

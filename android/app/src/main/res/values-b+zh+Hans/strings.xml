@@ -675,12 +675,10 @@
     <string name="editor_lyric">歌词</string>
     <string name="editor_opening">正在打开歌曲…</string>
     <string name="editor_cant_open">无法打开这首歌进行编辑。</string>
-    <string name="editor_select_hint">在波形上拖动来选择一段。轻点可移动播放位置。</string>
     <string name="editor_selected">已选择 %1$s 至 %2$s（%3$s）</string>
     <string name="editor_play">播放</string>
     <string name="editor_stop">停止</string>
     <string name="editor_cut">剪掉</string>
-    <string name="editor_keep">只保留这段</string>
     <string name="editor_undo">撤销</string>
     <string name="editor_volume">音量</string>
     <string name="editor_volume_explanation">让整首歌变大声或变小声。“标准化”会把最响的地方调到刚好低于最大音量，在不失真的情况下尽量大声。</string>
@@ -710,4 +708,24 @@
     <string name="lrc_access_choose">选择文件夹</string>
     <string name="lrc_access_skip">暂不</string>
     <string name="lrc_access_never">不再询问</string>
+    <string name="editor_trim">修剪</string>
+    <string name="editor_redo">重做</string>
+    <string name="editor_more">更多</string>
+    <string name="editor_zoom_in">放大</string>
+    <string name="editor_zoom_out">缩小</string>
+    <string name="editor_zoom_selection">缩放到所选</string>
+    <string name="editor_set_start">从这里开始</string>
+    <string name="editor_set_end">到这里结束</string>
+    <string name="editor_gesture_hint">双指缩放，滑动滚动，轻点设定播放位置。长按后拖动来选择。</string>
+    <string name="editor_gap">已剪掉的部分 · %1$s</string>
+    <string name="editor_restore">放回</string>
+    <string name="editor_restore_all">全部还原</string>
+    <string name="editor_original_safe">保存之前，原文件不会被更改。</string>
+    <string name="editor_did_cut">已剪掉 %1$s</string>
+    <string name="editor_did_trim">已修剪为 %1$s</string>
+    <string name="editor_did_restore">已放回 %1$s</string>
+    <string name="editor_did_restore_all">已全部还原</string>
+    <string name="editor_did_normalize">音量已设为 %1$s</string>
+    <string name="editor_waveform_desc">波形。播放位置 %1$s。</string>
+    <string name="editor_overview">整首歌</string>
 </resources>

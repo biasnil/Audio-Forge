@@ -701,12 +701,10 @@
     <string name="editor_lyric">Paroles</string>
     <string name="editor_opening">Ouverture du morceau…</string>
     <string name="editor_cant_open">Impossible d\'ouvrir ce morceau pour le modifier.</string>
-    <string name="editor_select_hint">Faites glisser sur la forme d\'onde pour sélectionner un passage. Touchez pour déplacer la tête de lecture.</string>
     <string name="editor_selected">Sélection de %1$s à %2$s (%3$s)</string>
     <string name="editor_play">Lire</string>
     <string name="editor_stop">Arrêter</string>
     <string name="editor_cut">Couper</string>
-    <string name="editor_keep">Garder seulement ceci</string>
     <string name="editor_undo">Annuler</string>
     <string name="editor_volume">Volume</string>
     <string name="editor_volume_explanation">Rend tout le morceau plus fort ou plus doux. Normaliser amène son moment le plus fort juste sous le maximum, pour qu\'il soit aussi fort que possible sans distorsion.</string>
@@ -736,4 +734,24 @@
     <string name="lrc_access_choose">Choisir le dossier</string>
     <string name="lrc_access_skip">Pas maintenant</string>
     <string name="lrc_access_never">Ne plus demander</string>
+    <string name="editor_trim">Rogner</string>
+    <string name="editor_redo">Rétablir</string>
+    <string name="editor_more">Plus</string>
+    <string name="editor_zoom_in">Zoom avant</string>
+    <string name="editor_zoom_out">Zoom arrière</string>
+    <string name="editor_zoom_selection">Zoomer sur la sélection</string>
+    <string name="editor_set_start">Début ici</string>
+    <string name="editor_set_end">Fin ici</string>
+    <string name="editor_gesture_hint">Pincez pour zoomer, balayez pour défiler, touchez pour placer la tête de lecture. Appui long puis glisser pour sélectionner.</string>
+    <string name="editor_gap">Passage coupé · %1$s</string>
+    <string name="editor_restore">Remettre</string>
+    <string name="editor_restore_all">Tout remettre</string>
+    <string name="editor_original_safe">Votre fichier d\'origine n\'est pas modifié avant l\'enregistrement.</string>
+    <string name="editor_did_cut">%1$s coupé</string>
+    <string name="editor_did_trim">Rogné à %1$s</string>
+    <string name="editor_did_restore">%1$s remis</string>
+    <string name="editor_did_restore_all">Tout est revenu comme avant</string>
+    <string name="editor_did_normalize">Volume réglé à %1$s</string>
+    <string name="editor_waveform_desc">Forme d\'onde. Tête de lecture à %1$s.</string>
+    <string name="editor_overview">Morceau entier</string>
 </resources>

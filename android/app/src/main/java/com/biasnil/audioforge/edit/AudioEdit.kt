@@ -66,6 +66,35 @@ data class AudioEdit(val spans: List<Span>, val gainDb: Float = 0f) {
         return out
     }
 
+    /**
+     * The parts of the original (of [sourceFrames] frames) that were cut
+     * or trimmed away, each with where it was on the edited timeline, so it
+     * can be put back ([restore]).
+     */
+    fun gaps(sourceFrames: Long): List<Gap> {
+        val out = ArrayList<Gap>()
+        var at = 0L
+        var previousEnd = 0L
+        for (span in spans) {
+            if (span.start > previousEnd) out += Gap(at, Span(previousEnd, span.start))
+            at += span.length
+            previousEnd = span.end
+        }
+        if (previousEnd < sourceFrames) out += Gap(at, Span(previousEnd, sourceFrames))
+        return out
+    }
+
+    /** Puts [gap]'s part of the original back where it was. */
+    fun restore(gap: Gap): AudioEdit {
+        val merged = ArrayList<Span>()
+        for (span in (spans + gap.source).sortedBy { it.start }) {
+            val last = merged.lastOrNull()
+            if (last != null && last.end >= span.start) merged[merged.lastIndex] = Span(last.start, maxOf(last.end, span.end))
+            else merged += span
+        }
+        return copy(spans = merged)
+    }
+
     val changed: Boolean get() = gainDb != 0f || spans.size != 1 || spans.firstOrNull()?.start != 0L
 
     companion object {
@@ -75,6 +104,9 @@ data class AudioEdit(val spans: List<Span>, val gainDb: Float = 0f) {
         fun whole(frames: Long) = AudioEdit(listOf(Span(0, frames)))
     }
 }
+
+/** A part of the original that's been cut out: [source], which was at [position] on the edited timeline. */
+data class Gap(val position: Long, val source: Span)
 
 /** dB -> the factor samples are multiplied by. */
 fun gainFactor(db: Float): Float = 10.0.pow(db / 20.0).toFloat()

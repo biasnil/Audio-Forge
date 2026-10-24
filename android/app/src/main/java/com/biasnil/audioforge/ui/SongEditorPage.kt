@@ -161,208 +161,6 @@ fun SongEditorPage(trackUri: String, onBack: () -> Unit) {
     }
 }
 
-// --- Audio ------------------------------------------------------------------
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AudioTab(track: Track, source: PcmSource, workDir: File) {
-    val container = LocalAppContainer.current
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val preview = remember(source) { EditPreview(source, scope) }
-    DisposableEffect(preview) { onDispose { preview.stop() } }
-    val playing by preview.playing.collectAsStateWithLifecycle()
-    val position by preview.position.collectAsStateWithLifecycle()
-
-    var history by remember(source) { mutableStateOf(listOf(AudioEdit.whole(source.frames))) }
-    val edit = history.last()
-    fun change(next: AudioEdit) {
-        preview.stop()
-        history = history + next
-    }
-    // Selection on the edited timeline, in frames; null = nothing selected.
-    var selection by remember(source) { mutableStateOf<LongRange?>(null) }
-    var askSave by remember { mutableStateOf(false) }
-    var draggingVolume by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf<Float?>(null) }
-    var message by remember { mutableStateOf<String?>(null) }
-
-    val writeFile = rememberTrackFileWriter()
-
-    fun save(replace: Boolean) {
-        askSave = false
-        preview.stop()
-        saving = 0f
-        scope.launch {
-            val rendered = try {
-                withContext(Dispatchers.IO) {
-                    EditSaver.renderTagged(context, track, source, edit, File(workDir, "out")) { saving = it }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                saving = null
-                message = context.getString(R.string.editor_save_failed)
-                return@launch
-            }
-            if (replace) {
-                writeFile(track, { withContext(Dispatchers.IO) { EditSaver.replace(context, track, rendered) } }) { error ->
-                    saving = null
-                    rendered.delete()
-                    message = when (error) {
-                        null -> context.getString(R.string.editor_replaced)
-                        is WriteCancelled -> null
-                        else -> context.getString(R.string.editor_save_failed)
-                    }
-                    if (error == null) history = listOf(AudioEdit.whole(source.frames))
-                }
-            } else {
-                val folder = withContext(Dispatchers.IO) { EditSaver.saveCopy(context, track, rendered) }
-                rendered.delete()
-                saving = null
-                message = if (folder != null) context.getString(R.string.editor_saved_copy, folder) else context.getString(R.string.editor_save_failed)
-                if (folder != null) container.library.refresh()
-            }
-        }
-    }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        Waveform(
-            source = source,
-            edit = edit,
-            from = 0,
-            to = edit.length,
-            playhead = position,
-            selection = selection,
-            onTap = { frame ->
-                selection = null
-                preview.seek(frame)
-            },
-            onSelect = { selection = it },
-            modifier = Modifier.fillMaxWidth().height(140.dp),
-        )
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text(formatPrecise(source.framesToMs(position)), style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.weight(1f))
-            Text(formatTime(source.framesToMs(edit.length)), style = MaterialTheme.typography.labelMedium)
-        }
-        val picked = selection
-        Text(
-            text = if (picked == null) stringResource(R.string.editor_select_hint)
-            else stringResource(
-                R.string.editor_selected,
-                formatPrecise(source.framesToMs(picked.first)),
-                formatPrecise(source.framesToMs(picked.last)),
-                formatPrecise(source.framesToMs(picked.last - picked.first)),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
-
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            FilledTonalButton(onClick = {
-                if (playing) preview.stop() else preview.play(edit, picked?.first ?: position)
-            }) {
-                Icon(if (playing) AppIcons.Pause else AppIcons.Play, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(if (playing) R.string.editor_stop else R.string.editor_play))
-            }
-            OutlinedButton(
-                onClick = {
-                    picked?.let { change(edit.cut(it.first, it.last)) }
-                    selection = null
-                    preview.seek(picked?.first ?: 0)
-                },
-                enabled = picked != null,
-            ) { Text(stringResource(R.string.editor_cut)) }
-            OutlinedButton(
-                onClick = {
-                    picked?.let { change(edit.keepOnly(it.first, it.last)) }
-                    selection = null
-                    preview.seek(0)
-                },
-                enabled = picked != null,
-            ) { Text(stringResource(R.string.editor_keep)) }
-            TextButton(onClick = {
-                preview.stop()
-                history = history.dropLast(1)
-                selection = null
-            }, enabled = history.size > 1) { Text(stringResource(R.string.editor_undo)) }
-        }
-
-        Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.editor_volume), style = MaterialTheme.typography.titleSmall)
-            InfoButton(stringResource(R.string.editor_volume_explanation), title = stringResource(R.string.editor_volume))
-            Spacer(Modifier.weight(1f))
-            Text(String.format(Locale.ROOT, "%+.1f dB", edit.gainDb), style = MaterialTheme.typography.labelLarge)
-        }
-        Slider(
-            value = edit.gainDb,
-            onValueChange = { db ->
-                val next = edit.copy(gainDb = (db * 2).roundToInt() / 2f)
-                // One undo step per drag, not one per tick.
-                history = if (draggingVolume) history.dropLast(1) + next else history + next
-                draggingVolume = true
-            },
-            onValueChangeFinished = {
-                draggingVolume = false
-                if (playing) preview.play(history.last(), position)
-            },
-            valueRange = -AudioEdit.MAX_GAIN_DB..AudioEdit.MAX_GAIN_DB,
-        )
-        OutlinedButton(onClick = { change(edit.copy(gainDb = normalizeGainDb(source.peakOf(edit)))) }) {
-            Text(stringResource(R.string.editor_normalize))
-        }
-
-        Button(
-            onClick = { askSave = true },
-            enabled = edit.changed && saving == null,
-            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-        ) { Text(stringResource(R.string.editor_save)) }
-        saving?.let { progress ->
-            Text(stringResource(R.string.editor_saving), modifier = Modifier.padding(top = 8.dp))
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
-        }
-    }
-
-    if (askSave) {
-        val canReplace = EditSaver.canReplace(track)
-        AlertDialog(
-            onDismissRequest = { askSave = false },
-            title = { Text(stringResource(R.string.editor_save_title)) },
-            text = {
-                Text(stringResource(if (canReplace) R.string.editor_save_text else R.string.editor_save_text_copy_only))
-            },
-            confirmButton = {
-                TextButton(onClick = { save(replace = false) }) { Text(stringResource(R.string.editor_save_copy)) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { askSave = false }) { Text(stringResource(R.string.cancel)) }
-                    if (canReplace) {
-                        TextButton(onClick = { save(replace = true) }) {
-                            Text(stringResource(R.string.editor_save_replace), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            },
-        )
-    }
-    message?.let { text ->
-        AlertDialog(
-            onDismissRequest = { message = null },
-            text = { Text(text) },
-            confirmButton = { TextButton(onClick = { message = null }) { Text(stringResource(R.string.info_got_it)) } },
-        )
-    }
-}
-
 // --- Lyric ------------------------------------------------------------------
 
 @Composable
@@ -608,7 +406,7 @@ private fun Waveform(
 }
 
 /** [count] levels (0..1): the loudest moment of each slice of [from, to) of the edit. */
-private fun waveBars(source: PcmSource, edit: AudioEdit, from: Long, to: Long, count: Int): FloatArray {
+internal fun waveBars(source: PcmSource, edit: AudioEdit, from: Long, to: Long, count: Int): FloatArray {
     if (count <= 0) return FloatArray(0)
     val bars = FloatArray(count)
     val perBar = (to - from).toDouble() / count
@@ -630,7 +428,7 @@ private fun waveBars(source: PcmSource, edit: AudioEdit, from: Long, to: Long, c
 }
 
 /** "1:02.35" */
-private fun formatPrecise(ms: Long): String {
+internal fun formatPrecise(ms: Long): String {
     val centis = ms.coerceAtLeast(0) / 10
     return String.format(Locale.ROOT, "%d:%02d.%02d", centis / 6000, centis / 100 % 60, centis % 100)
 }
@@ -654,7 +452,7 @@ private class CreateLrcDocument(private val initialFolder: Uri?) : ActivityResul
         }
 }
 
-private const val BAR_PX = 3
+internal const val BAR_PX = 3
 private const val WINDOW_MS = 10_000L
 private const val SKIP_MS = 5_000L
 private const val NUDGE_MS = 50L

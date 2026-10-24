@@ -675,12 +675,10 @@
     <string name="editor_lyric">Lirik</string>
     <string name="editor_opening">Membuka lagu…</string>
     <string name="editor_cant_open">Tidak dapat membuka lagu ini untuk disunting.</string>
-    <string name="editor_select_hint">Seret merentasi bentuk gelombang untuk memilih satu bahagian. Ketik untuk mengalihkan kepala main.</string>
     <string name="editor_selected">Dipilih %1$s hingga %2$s (%3$s)</string>
     <string name="editor_play">Main</string>
     <string name="editor_stop">Henti</string>
     <string name="editor_cut">Potong</string>
-    <string name="editor_keep">Simpan ini sahaja</string>
     <string name="editor_undo">Buat asal</string>
     <string name="editor_volume">Kelantangan</string>
     <string name="editor_volume_explanation">Menjadikan seluruh lagu lebih kuat atau perlahan. Normalkan membawa saat paling kuatnya hampir ke kelantangan penuh, jadi ia sekuat mungkin tanpa herot.</string>
@@ -710,4 +708,24 @@
     <string name="lrc_access_choose">Pilih folder</string>
     <string name="lrc_access_skip">Bukan sekarang</string>
     <string name="lrc_access_never">Jangan tanya lagi</string>
+    <string name="editor_trim">Pangkas</string>
+    <string name="editor_redo">Buat semula</string>
+    <string name="editor_more">Lagi</string>
+    <string name="editor_zoom_in">Zum masuk</string>
+    <string name="editor_zoom_out">Zum keluar</string>
+    <string name="editor_zoom_selection">Zum ke pilihan</string>
+    <string name="editor_set_start">Mula di sini</string>
+    <string name="editor_set_end">Tamat di sini</string>
+    <string name="editor_gesture_hint">Cubit untuk zum, leret untuk tatal, ketik untuk tetapkan kepala main. Tekan lama dan seret untuk memilih.</string>
+    <string name="editor_gap">Bahagian dipotong · %1$s</string>
+    <string name="editor_restore">Kembalikan</string>
+    <string name="editor_restore_all">Kembalikan semua</string>
+    <string name="editor_original_safe">Fail asal anda tidak diubah sehingga anda menyimpan.</string>
+    <string name="editor_did_cut">%1$s dipotong</string>
+    <string name="editor_did_trim">Dipangkas kepada %1$s</string>
+    <string name="editor_did_restore">%1$s dikembalikan</string>
+    <string name="editor_did_restore_all">Semuanya kembali seperti asal</string>
+    <string name="editor_did_normalize">Kelantangan ditetapkan kepada %1$s</string>
+    <string name="editor_waveform_desc">Bentuk gelombang. Kepala main pada %1$s.</string>
+    <string name="editor_overview">Seluruh lagu</string>
 </resources>
