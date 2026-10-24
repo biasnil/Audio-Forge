@@ -18,17 +18,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 /** (done, total) of a running analysis. */
 data class AnalysisProgress(val done: Int, val total: Int)
 
 /**
- * Runs the key/BPM analysis over the library, two songs at a time, in the
+ * Runs the key/BPM analysis over the library, [ANALYSIS_THREADS] songs at a time, in the
  * background (the iOS app's LibraryAnalyzer). When every song has been
  * analyzed, the Smart Options unlock. Analysis decodes whole songs and warms
  * the phone, so while the app isn't on screen it only carries on when the
@@ -41,8 +40,6 @@ class LibraryAnalyzer(
     private val scope: CoroutineScope,
     /** Whether the app is on screen (MainActivity started). */
     private val appVisible: StateFlow<Boolean>,
-    /** Shared with genre detection, so the two never decode at once. */
-    private val analysisLock: Mutex,
 ) {
     private val _progress = MutableStateFlow<AnalysisProgress?>(null)
     val progress: StateFlow<AnalysisProgress?> = _progress.asStateFlow()
@@ -61,23 +58,20 @@ class LibraryAnalyzer(
         }
         _progress.value = AnalysisProgress(0, todo.size)
         job = scope.launch {
-            var done = 0
+            val done = AtomicInteger()
             var cancelled = false
             try {
-                analysisLock.withLock {
-                    val permits = Semaphore(2)
-                    todo.map { track ->
-                        async {
-                            permits.withPermit {
-                                waitUntilAllowed()
-                                val result = withContext(AnalysisDispatcher) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
-                                if (result != null) analysis.store(track.uri, result)
-                                done++
-                                _progress.value = AnalysisProgress(done, todo.size)
-                            }
+                val permits = Semaphore(ANALYSIS_THREADS)
+                todo.map { track ->
+                    async {
+                        permits.withPermit {
+                            waitUntilAllowed()
+                            val result = withContext(AnalysisDispatcher) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
+                            if (result != null) analysis.store(track.uri, result)
+                            _progress.value = AnalysisProgress(done.incrementAndGet(), todo.size)
                         }
-                    }.awaitAll()
-                }
+                    }
+                }.awaitAll()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 cancelled = true
                 throw e

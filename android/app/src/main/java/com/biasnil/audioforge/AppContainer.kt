@@ -38,7 +38,6 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 
 /** App-wide singletons, created once in [AudioForgeApplication]. */
 class AppContainer(context: Context) {
@@ -59,12 +58,11 @@ class AppContainer(context: Context) {
     val analysis = AnalysisStore(context, appScope)
     /** Whether the app is on screen (set by MainActivity); analysis only runs in the background while charging. */
     val appVisible = MutableStateFlow(false)
-    /** Key/BPM analysis and genre detection take turns: both decode audio and work the CPU. */
-    private val analysisLock = Mutex()
-    val analyzer = LibraryAnalyzer(context, analysis, store, appScope, appVisible, analysisLock)
+    /** Key/BPM analysis and genre detection each have their own threads, so both can run at once. */
+    val analyzer = LibraryAnalyzer(context, analysis, store, appScope, appVisible)
     /** Detected genres per song (Settings -> Detect Genres); separate from the GENRE tag. */
     val genres = GenreStore(context, appScope)
-    val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible, analysisLock)
+    val genreAnalyzer = GenreAnalyzer(context, genres, appScope, appVisible)
     // Audiobooks behave like podcast episodes in the player: they always resume and count as listened at the end.
     val playback = PlaybackManager(context, store, queueStore, songData, playLog, analysis, appScope) { uri ->
         library.isPodcast(uri) || library.isAudiobook(uri)

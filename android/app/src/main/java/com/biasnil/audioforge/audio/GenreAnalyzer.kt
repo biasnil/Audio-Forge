@@ -13,17 +13,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Settings -> Detect Genres: runs [GenreClassifier] over the library, one
- * song at a time, like [LibraryAnalyzer] (while the app isn't on screen,
- * only when the phone is charging). Results are kept, so stopping costs
- * nothing and a second run only does new or changed songs. It shares
- * [analysisLock] with the key/BPM analysis, so the two never decode at once.
+ * Settings -> Detect Genres: runs [GenreClassifier] over the library,
+ * [ANALYSIS_THREADS] songs at a time on its own threads (so it doesn't wait
+ * for the key/BPM analysis), like [LibraryAnalyzer] (while the app isn't on
+ * screen, only when the phone is charging). Results are kept, so stopping
+ * costs nothing and a second run only does new or changed songs.
  */
 class GenreAnalyzer(
     private val context: Context,
@@ -31,7 +31,6 @@ class GenreAnalyzer(
     private val scope: CoroutineScope,
     /** Whether the app is on screen (MainActivity started). */
     private val appVisible: StateFlow<Boolean>,
-    private val analysisLock: Mutex,
 ) {
     private val _progress = MutableStateFlow<AnalysisProgress?>(null)
     val progress: StateFlow<AnalysisProgress?> = _progress.asStateFlow()
@@ -45,18 +44,24 @@ class GenreAnalyzer(
         _progress.value = AnalysisProgress(0, todo.size)
         job = scope.launch {
             try {
-                analysisLock.withLock {
-                    GenreClassifier(context).use { classifier ->
-                        todo.forEachIndexed { index, track ->
-                            waitUntilAllowed()
-                            val result = withContext(AnalysisDispatcher) {
-                                classifier.detect(Uri.parse(track.uri), track.durationMs)
+                val next = AtomicInteger()
+                val done = AtomicInteger()
+                // Each worker has its own classifier: one model can't run two songs at once.
+                List(ANALYSIS_THREADS) {
+                    launch {
+                        GenreClassifier(context).use { classifier ->
+                            while (true) {
+                                val track = todo.getOrNull(next.getAndIncrement()) ?: break
+                                waitUntilAllowed()
+                                val result = withContext(GenreDispatcher) {
+                                    classifier.detect(Uri.parse(track.uri), track.durationMs)
+                                }
+                                genres.store(track.uri, result)
+                                _progress.value = AnalysisProgress(done.incrementAndGet(), todo.size)
                             }
-                            genres.store(track.uri, result)
-                            _progress.value = AnalysisProgress(index + 1, todo.size)
                         }
                     }
-                }
+                }.joinAll()
             } finally {
                 _progress.value = null
                 job = null
