@@ -317,3 +317,10 @@ Musixmatch API key is encrypted with Windows DPAPI (tied to your Windows
 account); on other platforms it's stored as-is. Video wallpaper assignments
 live in `wallpapers.json` next to it, and warnings/errors are logged to
 `warnings.log` in the app data folder.
+
+## License
+
+AudioForge is free software under the GNU General Public License v3.0 (see
+`LICENSE`): use it, change it and share it, as long as what you share stays
+GPL-3.0 with its source. Libraries it uses keep their own licences (listed in
+each app's Acknowledgements).
