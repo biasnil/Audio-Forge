@@ -46,6 +46,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.AppContainer
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.splitTabBar
+import com.biasnil.audioforge.data.LinkTarget
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
 import com.biasnil.audioforge.data.TrackSort
 import com.biasnil.audioforge.data.artistGroups
 import com.biasnil.audioforge.data.audioPermission
@@ -78,6 +80,15 @@ fun AudioForgeApp(container: AppContainer) {
                 }
             },
         )
+        // A link shared from another app (GitHub version): open Download from link with it.
+        LaunchedEffect(Unit) {
+            container.sharedLink.collect { link ->
+                if (link != null) {
+                    container.sharedLink.value = null
+                    openPage(Page.LinkDownload(LinkTarget.Songs, link))
+                }
+            }
+        }
         LaunchedEffect(Unit) {
             container.playback.errors.collect { error ->
                 val message = when (error) {
@@ -163,6 +174,7 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         Page.FreeBookSearch -> FreeBookSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.FreeBookPage -> FreeBookPage(page.id, onBack = onBack)
+        is Page.LinkDownload -> LinkDownloadFeature.Page(page.target, page.link, onBack = onBack)
         Page.BookChapters -> BookChaptersPage(onBack = onBack)
         is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
     }
@@ -242,7 +254,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     )
                 }
                 when (tab) {
-                    LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs?.songs.orEmpty())
+                    LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs?.songs.orEmpty(), onOpenPage)
                     LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
                     LibraryTab.Podcasts -> PodcastsHeaderActions(onOpenPage)
                     LibraryTab.Audiobooks -> AudiobooksHeaderActions(onOpenPage)

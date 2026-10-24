@@ -44,6 +44,8 @@ import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.Audiobook
 import com.biasnil.audioforge.data.Chapter
 import com.biasnil.audioforge.data.Track
+import com.biasnil.audioforge.data.LinkTarget
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
 import com.biasnil.audioforge.data.audiobooks
 import com.biasnil.audioforge.data.bookProgress
 import com.biasnil.audioforge.data.currentChapterIndex
@@ -79,9 +81,10 @@ private fun rememberChapters(track: Track): List<Chapter> {
  * The Audiobooks tab: each book with how far you are and the time left.
  * Tapping one continues it where you stopped and opens Now Playing.
  */
-/** The Audiobooks tab's header button: Find free audiobooks. */
+/** The Audiobooks tab's header buttons: Download from link (GitHub version only) and Find free audiobooks. */
 @Composable
 fun AudiobooksHeaderActions(onOpenPage: (Page) -> Unit) {
+    LinkDownloadFeature.HeaderButton { onOpenPage(Page.LinkDownload(LinkTarget.Audiobooks, null)) }
     IconButton(onClick = { onOpenPage(Page.FreeBookSearch) }) {
         Icon(AppIcons.Search, contentDescription = stringResource(R.string.free_books_find))
     }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub version only: Download from link. -->
+<resources>
+    <string name="link_title">Télécharger depuis un lien</string>
+    <string name="link_share_label">Télécharger avec AudioForge</string>
+    <string name="link_hint">Collez le lien d\'une vidéo, d\'un morceau ou d\'une playlist</string>
+    <string name="link_paste">Coller</string>
+    <string name="link_as_songs">Morceaux</string>
+    <string name="link_as_audiobook">Livre audio</string>
+    <string name="link_look">Rechercher</string>
+    <string name="link_note_songs">Enregistré dans le dossier Music de votre téléphone en M4A, avec le titre, l\'artiste et la pochette. Les noms « Artiste - Titre » sont séparés et les ajouts comme « (Official Video) » retirés.</string>
+    <string name="link_note_audiobook">Enregistré dans le dossier Audiobooks de votre téléphone avec les chapitres de la vidéo : chapitres, signets et reprise.</string>
+    <string name="link_one_book">Enregistrer la playlist comme un seul livre</string>
+    <string name="link_download">Télécharger (%1$d)</string>
+    <string name="link_downloading">Téléchargement</string>
+    <string name="link_progress">Téléchargement %1$d sur %2$d : %3$s</string>
+    <string name="link_stop">Arrêter</string>
+    <string name="link_channel">Téléchargements depuis des liens</string>
+    <string name="link_where_songs">Music</string>
+    <string name="link_where_audiobooks">Audiobooks</string>
+    <string name="link_done">Terminé : %1$d enregistré(s) dans %2$s.</string>
+    <string name="link_done_some_failed">%1$d enregistré(s) dans %3$s ; %2$d n\'ont pas pu être téléchargé(s).</string>
+    <string name="link_stopped">Arrêté. %1$d enregistré(s).</string>
+    <string name="link_ok">OK</string>
+    <string name="link_look_failed">Impossible d\'ouvrir ce lien. Vérifiez-le, ainsi que votre connexion Internet.</string>
+    <string name="link_nothing">Rien à télécharger à ce lien.</string>
+    <string name="link_rights">Ne téléchargez que ce que vous avez le droit de télécharger. Utilise yt-dlp %1$s, qui se met à jour depuis GitHub une fois à chaque démarrage de l\'app.</string>
+</resources>

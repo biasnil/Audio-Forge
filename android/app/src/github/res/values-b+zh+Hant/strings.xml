@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub version only: Download from link. -->
+<resources>
+    <string name="link_title">從連結下載</string>
+    <string name="link_share_label">用 AudioForge 下載</string>
+    <string name="link_hint">貼上影片、歌曲或播放清單的連結</string>
+    <string name="link_paste">貼上</string>
+    <string name="link_as_songs">歌曲</string>
+    <string name="link_as_audiobook">有聲書</string>
+    <string name="link_look">查詢</string>
+    <string name="link_note_songs">以 M4A 格式儲存到手機的 Music 資料夾，包含標題、演出者和封面。「演出者 - 標題」會被拆開，「(Official Video)」之類的附加文字會被去掉。</string>
+    <string name="link_note_audiobook">儲存到手機的 Audiobooks 資料夾，並保留影片的章節，可以使用章節、書籤和續播。</string>
+    <string name="link_one_book">把播放清單儲存為一本書</string>
+    <string name="link_download">下載 (%1$d)</string>
+    <string name="link_downloading">正在下載</string>
+    <string name="link_progress">正在下載第 %1$d / %2$d 個：%3$s</string>
+    <string name="link_stop">停止</string>
+    <string name="link_channel">連結下載</string>
+    <string name="link_where_songs">Music</string>
+    <string name="link_where_audiobooks">Audiobooks</string>
+    <string name="link_done">完成：%1$d 個已儲存到 %2$s。</string>
+    <string name="link_done_some_failed">%1$d 個已儲存到 %3$s；%2$d 個無法下載。</string>
+    <string name="link_stopped">已停止。已儲存 %1$d 個。</string>
+    <string name="link_ok">好</string>
+    <string name="link_look_failed">無法開啟這個連結。請檢查連結和網路連線。</string>
+    <string name="link_nothing">這個連結沒有可下載的內容。</string>
+    <string name="link_rights">只下載你有權下載的內容。使用 yt-dlp %1$s，每次啟動 App 時會從 GitHub 更新一次。</string>
+</resources>

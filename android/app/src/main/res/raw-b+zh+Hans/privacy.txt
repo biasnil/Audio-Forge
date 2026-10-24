@@ -28,6 +28,8 @@ Deezer（api.deezer.com）：同样的歌曲或专辑信息，仅在 Apple 没�
 
 Internet Archive（archive.org），用于免费有声书：在有声书标签页使用「查找免费有声书」时输入的文字，以及你打开或下载的书。封面和书的音频文件从 archive.org 下载；下载由 Android 的下载管理器完成，并保存到手机的 Audiobooks 文件夹。
 
+从链接下载（仅 GitHub 版本）：你粘贴或分享的链接会发送到它指向的网站（例如 YouTube），该网站会返回视频的信息和音频；封面也来自同一网站。下载器（yt-dlp）在每次启动应用并使用此功能时，会在 GitHub（github.com）检查一次是否有新版本。下载内容保存到手机的 Music 或 Audiobooks 文件夹。
+
 播客托管方：当你打开节目、检查新单集或下载单集时，会从该节目使用的服务器获取节目的订阅源、封面和音频。下载由 Android 的下载管理器完成，并保存到手机的 Podcasts 文件夹。
 
 Radio Browser（radio-browser.info）：你在“电台”标签页中搜索的内容（电台名称、标签或国家/地区），以及你播放的电台（它会计数）。电台标志从各电台的网站加载。

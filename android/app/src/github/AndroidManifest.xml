@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub version only: Download from link. Merged into src/main's manifest. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The download keeps running with the screen off: a data-sync foreground service. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application>
+        <!-- Share a link from YouTube (or any app) to AudioForge to download it. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter android:label="@string/link_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".linkdownload.LinkDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+    </application>
+</manifest>

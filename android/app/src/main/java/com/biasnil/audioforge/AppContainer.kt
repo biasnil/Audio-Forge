@@ -74,6 +74,8 @@ class AppContainer(context: Context) {
     val tagEditor = TagEditor(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
     val podcasts = PodcastRepository(context, library, appScope)
+    /** A link shared to the app, until the screen opens Download from link with it (GitHub version). */
+    val sharedLink = MutableStateFlow<String?>(null)
     /** Free public-domain audiobooks (LibriVox, from the Internet Archive). */
     val freeAudiobooks = FreeAudiobookRepository(context, library, appScope)
     /** Audiobook bookmarks and each book's last-played file (the Audiobooks tab). */

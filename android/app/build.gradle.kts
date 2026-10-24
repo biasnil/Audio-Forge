@@ -28,10 +28,12 @@ android {
         }
     }
 
-    // Two builds of the same app, differing only in the update check:
-    //   github: the APK attached to GitHub releases (./gradlew assembleGithubRelease)
+    // Two builds of the same app:
+    //   github: the APK attached to GitHub releases (./gradlew assembleGithubRelease).
+    //           Also has Download from link (src/github: yt-dlp), which Play doesn't allow.
     //   play:   the Play Store bundle (./gradlew bundlePlayRelease). Play doesn't
-    //           allow apps to point users at updates from elsewhere.
+    //           allow apps to point users at updates from elsewhere either.
+    //           src/play has an empty stand-in for Download from link.
     flavorDimensions += "store"
     productFlavors {
         create("github") {
@@ -102,6 +104,17 @@ android {
         // yet; adding the intent filter without handling the search would
         // advertise a feature the app doesn't have.
         disable += "MissingIntentFilterForMediaSearch"
+        // The GitHub version's downloader brings in AppCompat, whose lint wants
+        // app:tint -- which home-screen widgets (RemoteViews) can't use.
+        disable += "UseAppTint"
+    }
+}
+
+androidComponents {
+    // yt-dlp's Python and FFmpeg run from the app's native library folder, so
+    // the GitHub version's .so files are installed extracted, not left in the APK.
+    onVariants(selector().withFlavor("store" to "github")) { variant ->
+        variant.packaging.jniLibs.useLegacyPackaging.set(true)
     }
 }
 
@@ -132,6 +145,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Download from link, GitHub version only (never in the Play build).
+    "githubImplementation"(libs.youtubedl.library)
+    "githubImplementation"(libs.youtubedl.ffmpeg)
 
     testImplementation(libs.junit)
     // Android's org.json is only a stub in JVM unit tests; this is the real one (tests only).

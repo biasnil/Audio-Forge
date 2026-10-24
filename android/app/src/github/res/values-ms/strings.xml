@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub version only: Download from link. -->
+<resources>
+    <string name="link_title">Muat turun daripada pautan</string>
+    <string name="link_share_label">Muat turun dengan AudioForge</string>
+    <string name="link_hint">Tampal pautan video, lagu atau senarai main</string>
+    <string name="link_paste">Tampal</string>
+    <string name="link_as_songs">Lagu</string>
+    <string name="link_as_audiobook">Buku audio</string>
+    <string name="link_look">Cari</string>
+    <string name="link_note_songs">Disimpan dalam folder Music telefon anda sebagai M4A, dengan tajuk, artis dan kulit. Nama \"Artis - Tajuk\" dipisahkan, dan tambahan seperti \"(Official Video)\" dibuang.</string>
+    <string name="link_note_audiobook">Disimpan dalam folder Audiobooks telefon anda bersama bab video, jadi anda dapat bab, penanda buku dan sambung semula.</string>
+    <string name="link_one_book">Simpan senarai main sebagai satu buku</string>
+    <string name="link_download">Muat turun (%1$d)</string>
+    <string name="link_downloading">Memuat turun</string>
+    <string name="link_progress">Memuat turun %1$d daripada %2$d: %3$s</string>
+    <string name="link_stop">Henti</string>
+    <string name="link_channel">Muat turun daripada pautan</string>
+    <string name="link_where_songs">Music</string>
+    <string name="link_where_audiobooks">Audiobooks</string>
+    <string name="link_done">Selesai: %1$d disimpan dalam %2$s.</string>
+    <string name="link_done_some_failed">%1$d disimpan dalam %3$s; %2$d tidak dapat dimuat turun.</string>
+    <string name="link_stopped">Dihentikan. %1$d disimpan.</string>
+    <string name="link_ok">OK</string>
+    <string name="link_look_failed">Tidak dapat membuka pautan ini. Semak pautan dan sambungan internet anda.</string>
+    <string name="link_nothing">Tiada apa untuk dimuat turun pada pautan ini.</string>
+    <string name="link_rights">Muat turun hanya apa yang anda berhak. Menggunakan yt-dlp %1$s, yang mengemas kini dirinya daripada GitHub sekali setiap kali apl dimulakan.</string>
+</resources>

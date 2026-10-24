@@ -2,6 +2,7 @@ package com.biasnil.audioforge
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -13,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
 import com.biasnil.audioforge.playback.PlaybackService
 import com.biasnil.audioforge.ui.AudioForgeApp
 import com.biasnil.audioforge.ui.theme.AudioForgeTheme
@@ -49,6 +51,20 @@ class MainActivity : ComponentActivity() {
                 AudioForgeApp(container)
             }
         }
+        if (savedInstanceState == null) shareLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        shareLink(intent)
+    }
+
+    /** A link shared to the app ("Share" -> AudioForge, GitHub version only) goes to Download from link. */
+    private fun shareLink(intent: Intent?) {
+        if (!LinkDownloadFeature.AVAILABLE || intent?.action != Intent.ACTION_SEND) return
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+        val link = LINK.find(text)?.value ?: return
+        container.sharedLink.value = link
     }
 
     override fun onStart() {
@@ -84,3 +100,6 @@ class MainActivity : ComponentActivity() {
             SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         }
 }
+
+/** The first web link in shared text (apps often share "Title https://..."). */
+private val LINK = Regex("https?://\\S+")

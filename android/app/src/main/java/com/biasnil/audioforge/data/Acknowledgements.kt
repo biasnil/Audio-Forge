@@ -1,5 +1,7 @@
 package com.biasnil.audioforge.data
 
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
+
 /**
  * Settings -> About -> Acknowledgements: what the app is built with.
  *
@@ -10,12 +12,15 @@ enum class License(val id: String, val title: String) {
     Apache2("apache-2.0", "Apache License 2.0"),
     Lgpl21("lgpl-2.1", "GNU Lesser General Public License 2.1"),
     Mit("mit", "MIT License"),
+    Gpl3("gpl-3.0", "GNU General Public License 3.0"),
+    Unlicense("unlicense", "The Unlicense"),
+    Psf2("psf-2.0", "Python Software Foundation License 2.0"),
 }
 
 /** A library (with its [license]) or an online service ([license] = null). */
 data class Acknowledgement(val name: String, val url: String, val license: License?)
 
-val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
+val ACKNOWLEDGEMENTS: List<Acknowledgement> = LinkDownloadFeature.acknowledgements + listOf(
     Acknowledgement("AndroidX Core, Lifecycle, Activity", "https://developer.android.com/jetpack/androidx", License.Apache2),
     Acknowledgement("Jetpack Compose, Material 3", "https://developer.android.com/compose", License.Apache2),
     Acknowledgement("AndroidX Media3 (ExoPlayer, HLS, Session, UI)", "https://github.com/androidx/media", License.Apache2),

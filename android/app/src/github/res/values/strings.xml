@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub version only: Download from link. -->
+<resources>
+    <string name="link_title">Download from link</string>
+    <string name="link_share_label">Download with AudioForge</string>
+    <string name="link_hint">Paste a link to a video, song or playlist</string>
+    <string name="link_paste">Paste</string>
+    <string name="link_as_songs">Songs</string>
+    <string name="link_as_audiobook">Audiobook</string>
+    <string name="link_look">Look up</string>
+    <string name="link_note_songs">Saved in your phone\'s Music folder as M4A, with the title, artist and cover. \"Artist - Title\" names are split, and extras like \"(Official Video)\" are left out.</string>
+    <string name="link_note_audiobook">Saved in your phone\'s Audiobooks folder with the video\'s chapters, so you get chapters, bookmarks and resume.</string>
+    <string name="link_one_book">Save the playlist as one book</string>
+    <string name="link_download">Download (%1$d)</string>
+    <string name="link_downloading">Downloading</string>
+    <string name="link_progress">Downloading %1$d of %2$d: %3$s</string>
+    <string name="link_stop">Stop</string>
+    <string name="link_channel">Downloads from links</string>
+    <string name="link_where_songs">Music</string>
+    <string name="link_where_audiobooks">Audiobooks</string>
+    <string name="link_done">Done: %1$d saved in %2$s.</string>
+    <string name="link_done_some_failed">%1$d saved in %3$s; %2$d couldn\'t be downloaded.</string>
+    <string name="link_stopped">Stopped. %1$d saved.</string>
+    <string name="link_ok">OK</string>
+    <string name="link_look_failed">Couldn\'t open this link. Check it, and your internet connection.</string>
+    <string name="link_nothing">Nothing to download at this link.</string>
+    <string name="link_rights">Only download what you have the right to. Uses yt-dlp %1$s, which updates itself from GitHub once each time the app starts.</string>
+</resources>

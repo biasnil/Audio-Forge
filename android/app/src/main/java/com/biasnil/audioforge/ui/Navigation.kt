@@ -1,5 +1,7 @@
 package com.biasnil.audioforge.ui
 
+import com.biasnil.audioforge.data.LinkTarget
+
 import androidx.compose.runtime.saveable.listSaver
 
 /**
@@ -49,6 +51,8 @@ sealed interface Page {
     data object FreeBookSearch : Page
     /** One free audiobook, by its Internet Archive id. */
     data class FreeBookPage(val id: String) : Page
+    /** Download from link (GitHub version only), saving as [target]; [link] when shared from another app. */
+    data class LinkDownload(val target: LinkTarget, val link: String?) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -78,6 +82,7 @@ sealed interface Page {
         BookChapters -> "bookchapters"
         FreeBookSearch -> "fbsearch"
         is FreeBookPage -> "fbook:$id"
+        is LinkDownload -> "link:" + target.name + "|" + link.orEmpty()
         is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
     }
 
@@ -111,6 +116,12 @@ sealed interface Page {
             value == "psearch" -> PodcastSearch
             value == "fbsearch" -> FreeBookSearch
             value.startsWith("fbook:") -> FreeBookPage(value.removePrefix("fbook:"))
+            value.startsWith("link:") -> value.removePrefix("link:").let {
+                LinkDownload(
+                    LinkTarget.entries.firstOrNull { t -> t.name == it.substringBefore('|') } ?: LinkTarget.Songs,
+                    it.substringAfter('|', "").ifEmpty { null },
+                )
+            }
             value == "bookchapters" -> BookChapters
             value.startsWith("pfeed:") -> value.removePrefix("pfeed:").let {
                 PodcastFeed(feedUrl = it.substringAfter('\t'), artworkUrl = it.substringBefore('\t').ifEmpty { null })

@@ -28,6 +28,8 @@ Deezer (api.deezer.com) : les mêmes informations sur le morceau ou l'album, seu
 
 Internet Archive (archive.org), pour les livres audio gratuits : les mots que vous tapez quand vous utilisez Trouver des livres audio gratuits dans l'onglet Livres audio, et le livre que vous ouvrez ou téléchargez. Les pochettes et les fichiers audio des livres sont téléchargés depuis archive.org ; les téléchargements sont faits par le gestionnaire de téléchargements d'Android et enregistrés dans le dossier Audiobooks de votre téléphone.
 
+Télécharger depuis un lien (version GitHub uniquement) : le lien que vous collez ou partagez est envoyé au site qu'il désigne (par exemple YouTube), qui renvoie les détails et l'audio de la vidéo ; la pochette vient du même site. Le téléchargeur (yt-dlp) vérifie sur GitHub (github.com) s'il existe une version plus récente une fois à chaque démarrage de l'app quand vous l'utilisez. Les téléchargements sont enregistrés dans le dossier Music ou Audiobooks de votre téléphone.
+
 Hébergeurs de podcasts : quand vous ouvrez une émission, recherchez de nouveaux épisodes ou téléchargez un épisode, le flux, la pochette et l'audio de l'émission sont récupérés sur les serveurs qu'elle utilise. Les téléchargements sont faits par le gestionnaire de téléchargement d'Android et enregistrés dans le dossier Podcasts de votre téléphone.
 
 Radio Browser (radio-browser.info) : ce que vous recherchez dans l'onglet Radio (nom de station, étiquette ou pays), et la station que vous écoutez, qu'il comptabilise. Les logos des stations sont chargés depuis leurs sites.

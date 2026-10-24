@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.TrackSort
+import com.biasnil.audioforge.data.LinkTarget
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
 import com.biasnil.audioforge.data.analysisDetail
 import com.biasnil.audioforge.data.indexLetter
 import com.biasnil.audioforge.data.searchTracks
@@ -294,7 +296,7 @@ fun SortMenu(sort: TrackSort, onSortChange: (TrackSort) -> Unit, onSelectSongs: 
  * selecting, Done, All/None and what to do with the selection.
  */
 @Composable
-fun RowScope.SongsHeaderActions(state: SongsTabState, shown: List<Track>) {
+fun RowScope.SongsHeaderActions(state: SongsTabState, shown: List<Track>, onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val trackActions = LocalTrackActions.current
     val scope = rememberCoroutineScope()
@@ -309,6 +311,7 @@ fun RowScope.SongsHeaderActions(state: SongsTabState, shown: List<Track>) {
 
     if (!state.selecting) {
         SortMenu(sort = state.sort, onSortChange = { state.sort = it }, onSelectSongs = { state.selecting = true })
+        LinkDownloadFeature.HeaderButton { onOpenPage(Page.LinkDownload(LinkTarget.Songs, null)) }
         IconButton(onClick = { importFiles.launch(arrayOf("audio/*")) }) {
             Icon(AppIcons.Add, contentDescription = stringResource(R.string.import_songs))
         }
