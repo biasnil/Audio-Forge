@@ -175,6 +175,7 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         Page.FreeBookSearch -> FreeBookSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.FreeBookPage -> FreeBookPage(page.id, onBack = onBack)
         is Page.LinkDownload -> LinkDownloadFeature.Page(page.target, page.link, onBack = onBack)
+        is Page.SongEditor -> SongEditorPage(page.trackUri, onBack = onBack)
         Page.BookChapters -> BookChaptersPage(onBack = onBack)
         is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
     }

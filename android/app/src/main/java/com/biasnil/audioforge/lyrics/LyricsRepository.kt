@@ -43,7 +43,7 @@ import java.util.Locale
 class LyricsRepository(
     private val context: Context,
     private val store: AppStore,
-    playback: PlaybackManager,
+    private val playback: PlaybackManager,
     scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow<LyricsState>(LyricsState.None)
@@ -67,6 +67,21 @@ class LyricsRepository(
                     }
                 }
         }
+    }
+
+    /** Any song's lyrics (cached, looked up, or from a sidecar file), for the song editor. */
+    suspend fun lyricsFor(track: Track): LyricsState = withContext(Dispatchers.IO) { find(track) }
+
+    /**
+     * Keeps edited synced lyrics as this song's lyrics from now on (they
+     * replace what was looked up), and shows them if it's playing.
+     */
+    suspend fun saveSynced(track: Track, lrc: String) {
+        withContext(Dispatchers.IO) {
+            cacheFile(track, synced = false).delete()
+            writeCache(track, lrc, synced = true)
+        }
+        if (playback.state.value.current?.uri == track.uri) _state.value = lyricsStateFor(lrc, maybeSynced = true)
     }
 
     private fun find(track: Track): LyricsState {

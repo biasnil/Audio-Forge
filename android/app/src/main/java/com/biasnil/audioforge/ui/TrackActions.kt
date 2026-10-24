@@ -270,6 +270,13 @@ fun rememberTrackActions(
                         TextButton(
                             onClick = {
                                 menuTrackUri = null
+                                onOpenPage(Page.SongEditor(track.uri))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.editor_open)) }
+                        TextButton(
+                            onClick = {
+                                menuTrackUri = null
                                 changeCover(track)
                             },
                             modifier = Modifier.fillMaxWidth(),

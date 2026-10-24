@@ -53,6 +53,8 @@ sealed interface Page {
     data class FreeBookPage(val id: String) : Page
     /** Download from link (GitHub version only), saving as [target]; [link] when shared from another app. */
     data class LinkDownload(val target: LinkTarget, val link: String?) : Page
+    /** Edit this song: its audio (cut, trim, volume) and its lyrics' timing. */
+    data class SongEditor(val trackUri: String) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -83,6 +85,7 @@ sealed interface Page {
         FreeBookSearch -> "fbsearch"
         is FreeBookPage -> "fbook:$id"
         is LinkDownload -> "link:" + target.name + "|" + link.orEmpty()
+        is SongEditor -> "songedit:$trackUri"
         is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
     }
 
@@ -116,6 +119,7 @@ sealed interface Page {
             value == "psearch" -> PodcastSearch
             value == "fbsearch" -> FreeBookSearch
             value.startsWith("fbook:") -> FreeBookPage(value.removePrefix("fbook:"))
+            value.startsWith("songedit:") -> SongEditor(value.removePrefix("songedit:"))
             value.startsWith("link:") -> value.removePrefix("link:").let {
                 LinkDownload(
                     LinkTarget.entries.firstOrNull { t -> t.name == it.substringBefore('|') } ?: LinkTarget.Songs,
