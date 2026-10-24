@@ -79,6 +79,14 @@ private fun rememberChapters(track: Track): List<Chapter> {
  * The Audiobooks tab: each book with how far you are and the time left.
  * Tapping one continues it where you stopped and opens Now Playing.
  */
+/** The Audiobooks tab's header button: Find free audiobooks. */
+@Composable
+fun AudiobooksHeaderActions(onOpenPage: (Page) -> Unit) {
+    IconButton(onClick = { onOpenPage(Page.FreeBookSearch) }) {
+        Icon(AppIcons.Search, contentDescription = stringResource(R.string.free_books_find))
+    }
+}
+
 @Composable
 fun AudiobooksTab(onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
@@ -94,6 +102,12 @@ fun AudiobooksTab(onOpenPage: (Page) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             CenteredText(stringResource(R.string.audiobooks_empty))
+            Spacer(Modifier.size(16.dp))
+            FilledTonalButton(onClick = { onOpenPage(Page.FreeBookSearch) }) {
+                Icon(AppIcons.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.free_books_find))
+            }
         }
         return
     }

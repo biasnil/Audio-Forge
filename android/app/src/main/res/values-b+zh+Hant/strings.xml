@@ -650,4 +650,20 @@
     <string name="covers_find">尋找缺少的封面</string>
     <string name="covers_find_explanation">在 Apple 和 Deezer 上為每張沒有封面的專輯尋找封面（會傳送每張專輯的名稱和演出者；沒有專輯的歌曲則傳送其標題和演出者）。封面儲存在 App 內，不會修改你的音樂檔案。</string>
     <string name="covers_progress">已檢查 %1$d / %2$d 張專輯和歌曲 · 找到 %3$d 個封面</string>
+    <string name="free_books_find">尋找免費有聲書</string>
+    <string name="free_books_search_hint">書名或作者</string>
+    <string name="free_books_search_privacy">由 LibriVox 志工朗讀的免費公有領域有聲書，來自 Internet Archive。你的搜尋字詞會傳送到 archive.org。</string>
+    <string name="free_books_search_failed">無法搜尋。請檢查網路連線。</string>
+    <string name="free_books_search_none">找不到書。</string>
+    <string name="free_books_load_failed">無法載入這本書。請檢查網路連線。</string>
+    <string name="free_books_try_again">再試一次</string>
+    <string name="free_books_download">下載</string>
+    <string name="free_books_download_again">重新下載</string>
+    <string name="free_books_downloading">正在下載：已完成 %1$d / %2$d 個部分</string>
+    <string name="free_books_stop">停止</string>
+    <string name="free_books_some_failed">部分內容無法下載（%1$d / %2$d）。</string>
+    <string name="free_books_on_phone">這本書已在你的有聲書中。</string>
+    <string name="free_books_couldnt_start">無法開始下載。</string>
+    <string name="free_books_note">儲存到手機的 Audiobooks 資料夾，包含封面和章節名稱。關閉 App 後也會繼續下載。</string>
+    <string name="free_books_chapters">章節</string>
 </resources>

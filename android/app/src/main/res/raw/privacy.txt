@@ -26,6 +26,8 @@ Apple (itunes.apple.com), for missing tags and covers: when you tap Find missing
 
 Deezer (api.deezer.com): the same song or album details, only when Apple has no match. Covers are downloaded from Deezer's servers.
 
+Internet Archive (archive.org), for free audiobooks: the words you type when you use Find free audiobooks in the Audiobooks tab, and which book you open or download. Covers and the books' audio files are downloaded from archive.org; downloads are made by Android's download manager and saved in your phone's Audiobooks folder.
+
 Podcast hosts: when you open a show, check for new episodes or download an episode, the show's feed, artwork and audio are fetched from the servers the show uses. Downloads are made by Android's download manager and saved in your phone's Podcasts folder.
 
 Radio Browser (radio-browser.info): what you search for in the Radio tab (a station name, tag or country), and which station you play, which it counts. Station logos are loaded from the stations' websites.

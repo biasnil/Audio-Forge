@@ -45,6 +45,10 @@ sealed interface Page {
     data object BookChapters : Page
     /** A show from its feed; [artworkUrl] is shown until the feed has loaded (from search results). */
     data class PodcastFeed(val feedUrl: String, val artworkUrl: String?) : Page
+    /** Audiobooks -> Find free audiobooks. */
+    data object FreeBookSearch : Page
+    /** One free audiobook, by its Internet Archive id. */
+    data class FreeBookPage(val id: String) : Page
 
     fun encode(): String = when (this) {
         NowPlaying -> "now"
@@ -72,6 +76,8 @@ sealed interface Page {
         HeadphonePicker -> "headphones"
         PodcastSearch -> "psearch"
         BookChapters -> "bookchapters"
+        FreeBookSearch -> "fbsearch"
+        is FreeBookPage -> "fbook:$id"
         is PodcastFeed -> "pfeed:" + artworkUrl.orEmpty() + "\t" + feedUrl
     }
 
@@ -103,6 +109,8 @@ sealed interface Page {
             value.startsWith("settings:") -> SettingsSectionPage(value.removePrefix("settings:"))
             value == "headphones" -> HeadphonePicker
             value == "psearch" -> PodcastSearch
+            value == "fbsearch" -> FreeBookSearch
+            value.startsWith("fbook:") -> FreeBookPage(value.removePrefix("fbook:"))
             value == "bookchapters" -> BookChapters
             value.startsWith("pfeed:") -> value.removePrefix("pfeed:").let {
                 PodcastFeed(feedUrl = it.substringAfter('\t'), artworkUrl = it.substringBefore('\t').ifEmpty { null })

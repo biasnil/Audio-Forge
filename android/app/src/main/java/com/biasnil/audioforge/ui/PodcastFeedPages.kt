@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -76,7 +77,7 @@ import java.time.format.FormatStyle
 
 /** Show artwork from the web, with the app's music-note placeholder until (or unless) it loads. */
 @Composable
-fun RemoteArtwork(url: String?, size: Dp, modifier: Modifier = Modifier) {
+fun RemoteArtwork(url: String?, size: Dp, modifier: Modifier = Modifier, placeholder: ImageVector = AppIcons.Podcast) {
     val sizePx = with(LocalDensity.current) { size.roundToPx() }
     val bitmap by produceState(url?.let { RemoteImages.cached(it, sizePx) }, url, sizePx) {
         if (value == null && url != null) value = RemoteImages.load(url, sizePx)
@@ -92,7 +93,7 @@ fun RemoteArtwork(url: String?, size: Dp, modifier: Modifier = Modifier) {
         if (image != null) {
             Image(image.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(AppIcons.Podcast, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(placeholder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -166,7 +167,14 @@ fun PodcastSearchPage(onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
 
 /** One show in a list: artwork, title, a second line, and [trailing]. */
 @Composable
-fun ShowRow(title: String, detail: String, artworkUrl: String?, trailing: @Composable () -> Unit = {}, onClick: () -> Unit) {
+fun ShowRow(
+    title: String,
+    detail: String,
+    artworkUrl: String?,
+    trailing: @Composable () -> Unit = {},
+    placeholder: ImageVector = AppIcons.Podcast,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -174,7 +182,7 @@ fun ShowRow(title: String, detail: String, artworkUrl: String?, trailing: @Compo
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RemoteArtwork(artworkUrl, 56.dp)
+        RemoteArtwork(artworkUrl, 56.dp, placeholder = placeholder)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

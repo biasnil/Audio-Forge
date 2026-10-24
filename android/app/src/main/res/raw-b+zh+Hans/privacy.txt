@@ -26,6 +26,8 @@ Apple（itunes.apple.com），用于补全缺失的标签和封面：在标签�
 
 Deezer（api.deezer.com）：同样的歌曲或专辑信息，仅在 Apple 没有匹配结果时发送。封面从 Deezer 的服务器下载。
 
+Internet Archive（archive.org），用于免费有声书：在有声书标签页使用「查找免费有声书」时输入的文字，以及你打开或下载的书。封面和书的音频文件从 archive.org 下载；下载由 Android 的下载管理器完成，并保存到手机的 Audiobooks 文件夹。
+
 播客托管方：当你打开节目、检查新单集或下载单集时，会从该节目使用的服务器获取节目的订阅源、封面和音频。下载由 Android 的下载管理器完成，并保存到手机的 Podcasts 文件夹。
 
 Radio Browser（radio-browser.info）：你在“电台”标签页中搜索的内容（电台名称、标签或国家/地区），以及你播放的电台（它会计数）。电台标志从各电台的网站加载。

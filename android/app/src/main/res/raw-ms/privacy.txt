@@ -26,6 +26,8 @@ Apple (itunes.apple.com), untuk tag dan kulit album yang tiada: apabila anda men
 
 Deezer (api.deezer.com): butiran lagu atau album yang sama, hanya apabila Apple tiada padanan. Kulit album dimuat turun daripada pelayan Deezer.
 
+Internet Archive (archive.org), untuk buku audio percuma: perkataan yang anda taip apabila anda menggunakan Cari buku audio percuma dalam tab Buku Audio, dan buku yang anda buka atau muat turun. Kulit dan fail audio buku dimuat turun daripada archive.org; muat turun dibuat oleh pengurus muat turun Android dan disimpan dalam folder Audiobooks telefon anda.
+
 Hos podcast: apabila anda membuka rancangan, menyemak episod baharu atau memuat turun episod, suapan, gambar dan audio rancangan itu diambil daripada pelayan yang digunakan oleh rancangan tersebut. Muat turun dibuat oleh pengurus muat turun Android dan disimpan dalam folder Podcasts telefon anda.
 
 Radio Browser (radio-browser.info): apa yang anda cari dalam tab Radio (nama stesen, tag atau negara), dan stesen yang anda mainkan, yang dikiranya. Logo stesen dimuatkan daripada laman web stesen.

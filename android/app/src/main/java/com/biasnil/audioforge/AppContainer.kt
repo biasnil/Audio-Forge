@@ -6,6 +6,7 @@ import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.AudiobookStore
+import com.biasnil.audioforge.data.FreeAudiobookRepository
 import com.biasnil.audioforge.data.ChapterRepository
 import com.biasnil.audioforge.data.bookKey
 import com.biasnil.audioforge.data.CoverArtLoader
@@ -73,6 +74,8 @@ class AppContainer(context: Context) {
     val tagEditor = TagEditor(context)
     /** Podcast search, subscriptions and episode downloads (the Podcasts tab). */
     val podcasts = PodcastRepository(context, library, appScope)
+    /** Free public-domain audiobooks (LibriVox, from the Internet Archive). */
+    val freeAudiobooks = FreeAudiobookRepository(context, library, appScope)
     /** Audiobook bookmarks and each book's last-played file (the Audiobooks tab). */
     val audiobookStore = AudiobookStore(context, appScope)
     /** Chapters read from audiobook files. */

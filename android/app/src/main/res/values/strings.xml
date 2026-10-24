@@ -664,4 +664,20 @@
     <string name="covers_find">Find missing covers</string>
     <string name="covers_find_explanation">Looks up a cover for every album that has none, on Apple and Deezer (each album\'s name and artist are sent; for a song with no album, its title and artist). Covers are kept in the app; your music files aren\'t changed.</string>
     <string name="covers_progress">Checked %1$d of %2$d albums and songs · %3$d covers found</string>
+    <string name="free_books_find">Find free audiobooks</string>
+    <string name="free_books_search_hint">Title or author</string>
+    <string name="free_books_search_privacy">Free public-domain audiobooks read by LibriVox volunteers, from the Internet Archive. Your search words are sent to archive.org.</string>
+    <string name="free_books_search_failed">Couldn\'t search. Check your internet connection.</string>
+    <string name="free_books_search_none">No books found.</string>
+    <string name="free_books_load_failed">Couldn\'t load this book. Check your internet connection.</string>
+    <string name="free_books_try_again">Try again</string>
+    <string name="free_books_download">Download</string>
+    <string name="free_books_download_again">Download again</string>
+    <string name="free_books_downloading">Downloading: %1$d of %2$d parts done</string>
+    <string name="free_books_stop">Stop</string>
+    <string name="free_books_some_failed">Some parts couldn\'t be downloaded (%1$d of %2$d).</string>
+    <string name="free_books_on_phone">This book is in your Audiobooks.</string>
+    <string name="free_books_couldnt_start">Couldn\'t start the download.</string>
+    <string name="free_books_note">Saved in your phone\'s Audiobooks folder, with the cover and chapter names. It carries on if you close the app.</string>
+    <string name="free_books_chapters">Chapters</string>
 </resources>

@@ -676,4 +676,20 @@
     <string name="covers_find">Trouver les pochettes manquantes</string>
     <string name="covers_find_explanation">Cherche une pochette pour chaque album qui n\'en a pas, sur Apple et Deezer (le nom et l\'artiste de chaque album sont envoyés ; pour un morceau sans album, son titre et son artiste). Les pochettes restent dans l\'app ; vos fichiers ne sont pas modifiés.</string>
     <string name="covers_progress">%1$d albums et morceaux vérifiés sur %2$d · %3$d pochettes trouvées</string>
+    <string name="free_books_find">Trouver des livres audio gratuits</string>
+    <string name="free_books_search_hint">Titre ou auteur</string>
+    <string name="free_books_search_privacy">Des livres audio libres de droits lus par les bénévoles de LibriVox, depuis l\'Internet Archive. Vos mots de recherche sont envoyés à archive.org.</string>
+    <string name="free_books_search_failed">Recherche impossible. Vérifiez votre connexion Internet.</string>
+    <string name="free_books_search_none">Aucun livre trouvé.</string>
+    <string name="free_books_load_failed">Impossible de charger ce livre. Vérifiez votre connexion Internet.</string>
+    <string name="free_books_try_again">Réessayer</string>
+    <string name="free_books_download">Télécharger</string>
+    <string name="free_books_download_again">Télécharger à nouveau</string>
+    <string name="free_books_downloading">Téléchargement : %1$d parties sur %2$d terminées</string>
+    <string name="free_books_stop">Arrêter</string>
+    <string name="free_books_some_failed">Certaines parties n\'ont pas pu être téléchargées (%1$d sur %2$d).</string>
+    <string name="free_books_on_phone">Ce livre est dans vos livres audio.</string>
+    <string name="free_books_couldnt_start">Impossible de lancer le téléchargement.</string>
+    <string name="free_books_note">Enregistré dans le dossier Audiobooks de votre téléphone, avec la pochette et le nom des chapitres. Le téléchargement continue si vous fermez l\'app.</string>
+    <string name="free_books_chapters">Chapitres</string>
 </resources>

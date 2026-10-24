@@ -650,4 +650,20 @@
     <string name="covers_find">Cari kulit album yang tiada</string>
     <string name="covers_find_explanation">Mencari kulit untuk setiap album yang tiada, di Apple dan Deezer (nama dan artis setiap album dihantar; bagi lagu tanpa album, tajuk dan artisnya). Kulit album disimpan dalam apl; fail muzik anda tidak diubah.</string>
     <string name="covers_progress">%1$d daripada %2$d album dan lagu disemak · %3$d kulit ditemui</string>
+    <string name="free_books_find">Cari buku audio percuma</string>
+    <string name="free_books_search_hint">Tajuk atau pengarang</string>
+    <string name="free_books_search_privacy">Buku audio domain awam percuma yang dibaca oleh sukarelawan LibriVox, daripada Internet Archive. Kata carian anda dihantar ke archive.org.</string>
+    <string name="free_books_search_failed">Tidak dapat mencari. Semak sambungan internet anda.</string>
+    <string name="free_books_search_none">Tiada buku ditemui.</string>
+    <string name="free_books_load_failed">Tidak dapat memuatkan buku ini. Semak sambungan internet anda.</string>
+    <string name="free_books_try_again">Cuba lagi</string>
+    <string name="free_books_download">Muat turun</string>
+    <string name="free_books_download_again">Muat turun semula</string>
+    <string name="free_books_downloading">Memuat turun: %1$d daripada %2$d bahagian selesai</string>
+    <string name="free_books_stop">Henti</string>
+    <string name="free_books_some_failed">Sesetengah bahagian tidak dapat dimuat turun (%1$d daripada %2$d).</string>
+    <string name="free_books_on_phone">Buku ini ada dalam Buku Audio anda.</string>
+    <string name="free_books_couldnt_start">Tidak dapat memulakan muat turun.</string>
+    <string name="free_books_note">Disimpan dalam folder Audiobooks telefon anda, dengan kulit dan nama bab. Ia diteruskan walaupun anda menutup apl.</string>
+    <string name="free_books_chapters">Bab</string>
 </resources>

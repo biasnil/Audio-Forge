@@ -30,4 +30,6 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = listOf(
     Acknowledgement("Apple iTunes Search API (podcasts, missing tags and covers)", "https://performance-partners.apple.com/search-api", null),
     Acknowledgement("Deezer API (missing tags and covers)", "https://developers.deezer.com/api", null),
     Acknowledgement("Radio Browser", "https://www.radio-browser.info", null),
+    Acknowledgement("LibriVox (free audiobooks, read by volunteers)", "https://librivox.org", null),
+    Acknowledgement("Internet Archive (free audiobook search and downloads)", "https://archive.org", null),
 )

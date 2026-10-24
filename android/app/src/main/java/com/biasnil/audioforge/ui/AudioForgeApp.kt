@@ -161,6 +161,8 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.SettingsSectionPage -> SettingsSectionPage(page.key, onBack = onBack, onOpenPage = onOpenPage)
         Page.HeadphonePicker -> HeadphonePickerPage(onBack = onBack)
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
+        Page.FreeBookSearch -> FreeBookSearchPage(onBack = onBack, onOpenPage = onOpenPage)
+        is Page.FreeBookPage -> FreeBookPage(page.id, onBack = onBack)
         Page.BookChapters -> BookChaptersPage(onBack = onBack)
         is Page.PodcastFeed -> PodcastFeedPage(page.feedUrl, page.artworkUrl, onBack = onBack)
     }
@@ -243,6 +245,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs?.songs.orEmpty())
                     LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
                     LibraryTab.Podcasts -> PodcastsHeaderActions(onOpenPage)
+                    LibraryTab.Audiobooks -> AudiobooksHeaderActions(onOpenPage)
                     else -> Unit
                 }
             }
