@@ -22,7 +22,7 @@ GitHub (api.github.com): satu permintaan untuk nombor keluaran AudioForge yang t
 
 Apple (itunes.apple.com): perkataan yang anda taip semasa mencari podcast. Gambar rancangan dalam hasil carian dimuatkan daripada pelayan Apple.
 
-Apple (itunes.apple.com), untuk tag dan kulit album yang tiada: apabila anda mengetik Cari maklumat yang tiada dalam penyunting tag, tajuk dan artis lagu; apabila anda menggunakan Cari kulit album yang tiada dalam Tetapan, nama dan artis setiap album. Kulit album dimuat turun daripada pelayan Apple.
+Apple (itunes.apple.com), untuk tag dan kulit album yang tiada: apabila anda mengetik Cari maklumat yang tiada dalam penyunting tag, tajuk dan artis lagu; apabila anda menggunakan Cari kulit album yang tiada dalam Tetapan, nama dan artis setiap album, atau bagi lagu tanpa album, tajuk dan artisnya. Kulit album dimuat turun daripada pelayan Apple.
 
 Deezer (api.deezer.com): butiran lagu atau album yang sama, hanya apabila Apple tiada padanan. Kulit album dimuat turun daripada pelayan Deezer.
 

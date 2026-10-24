@@ -137,9 +137,8 @@ class CoverArtLoader(private val context: Context) {
         null
     }
 
-    /** A cover found online for the album (Settings -> Library -> Find missing covers), if any. */
+    /** A cover found online for the album or song (Settings -> Library -> Find missing covers), if any. */
     private fun decodeFoundCover(track: Track, sizePx: Int): Bitmap? {
-        if (track.album.isBlank()) return null
         val file = MetadataRepository.coverFile(File(context.filesDir, MetadataRepository.COVERS_DIR), track)
         if (!file.exists()) return null
         return try {

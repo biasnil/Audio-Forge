@@ -160,3 +160,35 @@ fun fillEmptyFields(fields: List<Pair<String, String>>, found: FoundInfo): Pair<
 
 /** "album|artist", normalized: the key a found cover is saved under (see MetadataRepository). */
 fun albumCoverKey(album: String, artist: String): String = normalizeName(album) + "|" + normalizeName(artist)
+
+/**
+ * Whether [track]'s album name is a real tag. Android names an untagged
+ * song's album after its folder ("Music"), which isn't an album to look up.
+ */
+fun hasRealAlbum(track: Track): Boolean {
+    val album = normalizeName(track.album)
+    if (album.isEmpty() || album == "unknown") return false
+    val folder = track.folderKey.substringAfter('|').trimEnd('/').substringAfterLast('/')
+    return album != normalizeName(folder)
+}
+
+/**
+ * The key a found cover for [track] is saved under: its album's
+ * ([albumCoverKey]), or the song's own when it has no real album.
+ */
+fun foundCoverKey(track: Track): String =
+    if (hasRealAlbum(track)) albumCoverKey(track.album, track.artist)
+    else "song|" + normalizeName(track.title) + "|" + normalizeName(track.artist)
+
+/**
+ * A downloaded song's title as a search term: no "[Official Music Video]"-
+ * style extras, and no "Artist - " in front when that's the song's artist.
+ */
+fun songSearchTitle(title: String, artist: String): String {
+    var s = title.replace(Regex("[(\\[【][^)\\]】]*[)\\]】]"), " ").replace(Regex("\\s+"), " ").trim()
+    val dash = s.indexOf(" - ")
+    if (dash > 0 && artist.isNotBlank() && normalizeName(s.substring(0, dash)) == normalizeName(artist)) {
+        s = s.substring(dash + 3).trim()
+    }
+    return s.ifEmpty { title }
+}

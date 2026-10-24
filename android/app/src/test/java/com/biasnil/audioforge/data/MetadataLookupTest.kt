@@ -1,6 +1,8 @@
 package com.biasnil.audioforge.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -90,5 +92,31 @@ class MetadataLookupTest {
     @Test
     fun coverKeysIgnoreCaseAndExtras() {
         assertEquals(albumCoverKey("Discovery", "Daft Punk"), albumCoverKey("DISCOVERY (Remastered)", "daft punk"))
+    }
+
+    @Test
+    fun folderNamedAlbumsArentRealAlbums() {
+        // Android names an untagged song's album after its folder.
+        assertFalse(hasRealAlbum(Track(uri = "1", title = "a", album = "Music", folderKey = "external_primary|Music/")))
+        assertFalse(hasRealAlbum(Track(uri = "1", title = "a", album = "Unknown")))
+        assertFalse(hasRealAlbum(Track(uri = "1", title = "a", album = "")))
+        assertTrue(hasRealAlbum(Track(uri = "1", title = "a", album = "Discovery", folderKey = "external_primary|Music/")))
+    }
+
+    @Test
+    fun songsWithoutARealAlbumGetTheirOwnFoundCover() {
+        val a = Track(uri = "1", title = "Happy", artist = "NF", album = "Music", folderKey = "external_primary|Music/")
+        val b = Track(uri = "2", title = "Perfect", artist = "Ed Sheeran", album = "Music", folderKey = "external_primary|Music/")
+        assertNotEquals(foundCoverKey(a), foundCoverKey(b))
+        assertEquals(albumCoverKey("Discovery", "Daft Punk"), foundCoverKey(Track(uri = "3", title = "x", artist = "Daft Punk", album = "Discovery")))
+    }
+
+    @Test
+    fun downloadedTitlesAreCleanedForSearching() {
+        assertEquals("Somebody That I Used To Know", songSearchTitle("Gotye - Somebody That I Used To Know (feat. Kimbra) [Official Music Video]", "Gotye"))
+        assertEquals("Perfect", songSearchTitle("Ed Sheeran - Perfect (Official Music Video)", "Ed Sheeran"))
+        // A dash that isn't "Artist - " stays.
+        assertEquals("Rising - Opening", songSearchTitle("Rising - Opening", "TheJimmyleeboy2"))
+        assertEquals("Happy", songSearchTitle("Happy", "NF"))
     }
 }

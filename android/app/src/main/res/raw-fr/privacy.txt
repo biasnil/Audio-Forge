@@ -22,7 +22,7 @@ GitHub (api.github.com) : une requête pour connaître le numéro de la dernièr
 
 Apple (itunes.apple.com) : les mots que vous saisissez quand vous recherchez des podcasts. Les pochettes des émissions dans les résultats sont chargées depuis les serveurs d'Apple.
 
-Apple (itunes.apple.com), pour les tags et pochettes manquants : quand vous touchez Trouver les infos manquantes dans l'éditeur de tags, le titre et l'artiste du morceau ; quand vous utilisez Trouver les pochettes manquantes dans les Réglages, le nom et l'artiste de chaque album. Les pochettes sont téléchargées depuis les serveurs d'Apple.
+Apple (itunes.apple.com), pour les tags et pochettes manquants : quand vous touchez Trouver les infos manquantes dans l'éditeur de tags, le titre et l'artiste du morceau ; quand vous utilisez Trouver les pochettes manquantes dans les Réglages, le nom et l'artiste de chaque album, ou pour un morceau sans album, son titre et son artiste. Les pochettes sont téléchargées depuis les serveurs d'Apple.
 
 Deezer (api.deezer.com) : les mêmes informations sur le morceau ou l'album, seulement quand Apple ne trouve rien. Les pochettes sont téléchargées depuis les serveurs de Deezer.
 

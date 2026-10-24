@@ -648,6 +648,6 @@
     <string name="autofill_use_cover">使用此封面</string>
     <string name="autofill_note">會將標題和演出者傳送給 Apple；如果 Apple 沒有結果，再傳送給 Deezer。只會填寫空白欄位。</string>
     <string name="covers_find">尋找缺少的封面</string>
-    <string name="covers_find_explanation">在 Apple 和 Deezer 上為每張沒有封面的專輯尋找封面（會傳送每張專輯的名稱和演出者）。封面儲存在 App 內，不會修改你的音樂檔案。</string>
-    <string name="covers_progress">已檢查 %1$d / %2$d 張專輯 · 找到 %3$d 個封面</string>
+    <string name="covers_find_explanation">在 Apple 和 Deezer 上為每張沒有封面的專輯尋找封面（會傳送每張專輯的名稱和演出者；沒有專輯的歌曲則傳送其標題和演出者）。封面儲存在 App 內，不會修改你的音樂檔案。</string>
+    <string name="covers_progress">已檢查 %1$d / %2$d 張專輯和歌曲 · 找到 %3$d 個封面</string>
 </resources>

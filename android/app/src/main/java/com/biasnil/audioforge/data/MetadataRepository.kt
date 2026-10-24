@@ -21,9 +21,10 @@ data class CoverSearchProgress(val done: Int, val total: Int, val found: Int)
 
 /**
  * Looks up missing tags and covers (see MetadataLookup.kt): Apple's iTunes
- * Search first, Deezer if Apple has nothing. Covers found for whole albums
- * are saved in files/covers/ and shown in place of the missing art (the
- * music files themselves aren't changed); [CoverArtLoader] reads them.
+ * Search first, Deezer if Apple has nothing. Covers found (for a whole
+ * album, or for one song when it has no real album) are saved in
+ * files/covers/ and shown in place of the missing art (the music files
+ * themselves aren't changed); [CoverArtLoader] reads them.
  */
 class MetadataRepository(
     context: Context,
@@ -59,6 +60,15 @@ class MetadataRepository(
         null
     }
 
+    /** A song's cover from Apple, else Deezer (title and artist are sent). */
+    private fun findSongCover(title: String, artist: String): String? {
+        val search = songSearchTitle(title, artist)
+        val apple = runCatching { bestSongMatch(parseItunesResults(fetch(itunesSongSearchUrl(search, artist))), search, artist) }
+        apple.getOrNull()?.coverUrl?.let { return it }
+        val deezer = runCatching { bestSongMatch(parseDeezerResults(fetch(deezerSongSearchUrl(search, artist))), search, artist) }
+        return deezer.getOrNull()?.coverUrl
+    }
+
     /** An album's cover from Apple, else Deezer (album name and artist are sent). */
     private fun findAlbumCover(album: String, artist: String): String? {
         val apple = runCatching { bestAlbumMatch(parseItunesResults(fetch(itunesAlbumSearchUrl(album, artist))), album, artist) }
@@ -70,14 +80,15 @@ class MetadataRepository(
     suspend fun downloadImage(url: String): ByteArray = withContext(Dispatchers.IO) { PodcastRepository.get(url) { it.readBytes() } }
 
     /**
-     * Goes through [tracks]' albums (by album and artist) and, for each one
-     * with no cover at all, looks one up and saves it. One album every few
-     * seconds, to stay within what the free services allow.
+     * Goes through [tracks]' albums (by album and artist; a song without a
+     * real album on its own) and, for each one with no cover at all, looks
+     * one up and saves it. One search every few seconds, to stay within
+     * what the free services allow.
      */
     fun findMissingCovers(tracks: List<Track>) {
         if (coverJob?.isActive == true) return
-        val albums = tracks.filter { it.album.isNotBlank() && !it.isRadio }
-            .groupBy { albumCoverKey(it.album, it.artist) }
+        val albums = tracks.filter { !it.isRadio && (it.album.isNotBlank() || it.title.isNotBlank()) }
+            .groupBy { foundCoverKey(it) }
             .values.toList()
         coverJob = scope.launch {
             var found = 0
@@ -87,7 +98,9 @@ class MetadataRepository(
                 val first = songs.first()
                 // Cover already there (embedded, folder image or an earlier find)?
                 if (coverArt.load(first, CHECK_SIZE_PX) == null) {
-                    val url = withContext(Dispatchers.IO) { findAlbumCover(first.album, first.artist) }
+                    val url = withContext(Dispatchers.IO) {
+                        if (hasRealAlbum(first)) findAlbumCover(first.album, first.artist) else findSongCover(first.title, first.artist)
+                    }
                     if (url != null && save(first, url)) {
                         found++
                         songs.forEach { coverArt.invalidate(it) }
@@ -128,9 +141,9 @@ class MetadataRepository(
         private const val REQUEST_SPACING_MS = 3_000L
         private const val CHECK_SIZE_PX = 64
 
-        /** Where a found cover for [track]'s album is kept (it may not exist). */
+        /** Where a found cover for [track] (or its album) is kept (it may not exist). */
         fun coverFile(dir: File, track: Track): File {
-            val digest = MessageDigest.getInstance("SHA-1").digest(albumCoverKey(track.album, track.artist).toByteArray())
+            val digest = MessageDigest.getInstance("SHA-1").digest(foundCoverKey(track).toByteArray())
             return File(dir, digest.joinToString("") { "%02x".format(it) } + ".jpg")
         }
     }

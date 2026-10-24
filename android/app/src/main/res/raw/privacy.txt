@@ -22,7 +22,7 @@ GitHub (api.github.com): one request for the number of the latest AudioForge rel
 
 Apple (itunes.apple.com): the words you type when you search for podcasts. Show artwork in the results is loaded from Apple's servers.
 
-Apple (itunes.apple.com), for missing tags and covers: when you tap Find missing info in the tag editor, the song's title and artist; when you use Find missing covers in Settings, each album's name and artist. Covers are downloaded from Apple's servers.
+Apple (itunes.apple.com), for missing tags and covers: when you tap Find missing info in the tag editor, the song's title and artist; when you use Find missing covers in Settings, each album's name and artist, or for a song with no album, its title and artist. Covers are downloaded from Apple's servers.
 
 Deezer (api.deezer.com): the same song or album details, only when Apple has no match. Covers are downloaded from Deezer's servers.
 

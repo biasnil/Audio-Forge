@@ -674,6 +674,6 @@
     <string name="autofill_use_cover">Utiliser cette pochette</string>
     <string name="autofill_note">Envoie le titre et l\'artiste à Apple, et à Deezer si Apple ne trouve rien. Seuls les champs vides sont remplis.</string>
     <string name="covers_find">Trouver les pochettes manquantes</string>
-    <string name="covers_find_explanation">Cherche une pochette pour chaque album qui n\'en a pas, sur Apple et Deezer (le nom et l\'artiste de chaque album sont envoyés). Les pochettes restent dans l\'app ; vos fichiers ne sont pas modifiés.</string>
-    <string name="covers_progress">%1$d albums vérifiés sur %2$d · %3$d pochettes trouvées</string>
+    <string name="covers_find_explanation">Cherche une pochette pour chaque album qui n\'en a pas, sur Apple et Deezer (le nom et l\'artiste de chaque album sont envoyés ; pour un morceau sans album, son titre et son artiste). Les pochettes restent dans l\'app ; vos fichiers ne sont pas modifiés.</string>
+    <string name="covers_progress">%1$d albums et morceaux vérifiés sur %2$d · %3$d pochettes trouvées</string>
 </resources>

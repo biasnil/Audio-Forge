@@ -22,7 +22,7 @@ GitHub（api.github.com）：一次請求，用來取得 AudioForge 最新版本
 
 Apple（itunes.apple.com）：你搜尋 Podcast 時輸入的文字。搜尋結果中的節目封面從 Apple 的伺服器載入。
 
-Apple（itunes.apple.com），用於補齊缺少的標籤和封面：在標籤編輯器中點按「尋找缺少的資訊」時，傳送歌曲的標題和演出者；在設定中使用「尋找缺少的封面」時，傳送每張專輯的名稱和演出者。封面從 Apple 的伺服器下載。
+Apple（itunes.apple.com），用於補齊缺少的標籤和封面：在標籤編輯器中點按「尋找缺少的資訊」時，傳送歌曲的標題和演出者；在設定中使用「尋找缺少的封面」時，傳送每張專輯的名稱和演出者，沒有專輯的歌曲則傳送其標題和演出者。封面從 Apple 的伺服器下載。
 
 Deezer（api.deezer.com）：同樣的歌曲或專輯資訊，只有在 Apple 找不到相符結果時才會傳送。封面從 Deezer 的伺服器下載。
 

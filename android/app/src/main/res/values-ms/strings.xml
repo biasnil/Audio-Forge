@@ -648,6 +648,6 @@
     <string name="autofill_use_cover">Guna kulit album ini</string>
     <string name="autofill_note">Menghantar tajuk dan artis kepada Apple, dan kepada Deezer jika Apple tiada. Hanya medan kosong diisi.</string>
     <string name="covers_find">Cari kulit album yang tiada</string>
-    <string name="covers_find_explanation">Mencari kulit untuk setiap album yang tiada, di Apple dan Deezer (nama dan artis setiap album dihantar). Kulit album disimpan dalam apl; fail muzik anda tidak diubah.</string>
-    <string name="covers_progress">%1$d daripada %2$d album disemak · %3$d kulit ditemui</string>
+    <string name="covers_find_explanation">Mencari kulit untuk setiap album yang tiada, di Apple dan Deezer (nama dan artis setiap album dihantar; bagi lagu tanpa album, tajuk dan artisnya). Kulit album disimpan dalam apl; fail muzik anda tidak diubah.</string>
+    <string name="covers_progress">%1$d daripada %2$d album dan lagu disemak · %3$d kulit ditemui</string>
 </resources>

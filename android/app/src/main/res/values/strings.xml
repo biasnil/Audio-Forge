@@ -662,6 +662,6 @@
     <string name="autofill_use_cover">Use this cover</string>
     <string name="autofill_note">Sends the title and artist to Apple, and to Deezer if Apple has nothing. Only empty fields are filled.</string>
     <string name="covers_find">Find missing covers</string>
-    <string name="covers_find_explanation">Looks up a cover for every album that has none, on Apple and Deezer (each album\'s name and artist are sent). Covers are kept in the app; your music files aren\'t changed.</string>
-    <string name="covers_progress">Checked %1$d of %2$d albums · %3$d covers found</string>
+    <string name="covers_find_explanation">Looks up a cover for every album that has none, on Apple and Deezer (each album\'s name and artist are sent; for a song with no album, its title and artist). Covers are kept in the app; your music files aren\'t changed.</string>
+    <string name="covers_progress">Checked %1$d of %2$d albums and songs · %3$d covers found</string>
 </resources>
