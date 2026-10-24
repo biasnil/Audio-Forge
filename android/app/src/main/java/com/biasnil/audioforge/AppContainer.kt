@@ -16,6 +16,7 @@ import com.biasnil.audioforge.data.LibraryRepository
 import com.biasnil.audioforge.data.PlayLogStore
 import com.biasnil.audioforge.data.PodcastRepository
 import com.biasnil.audioforge.data.HeadphoneProfileRepository
+import com.biasnil.audioforge.data.MetadataRepository
 import com.biasnil.audioforge.data.RadioRepository
 import com.biasnil.audioforge.data.RadioStation
 import com.biasnil.audioforge.data.SongDataStore
@@ -47,6 +48,8 @@ class AppContainer(context: Context) {
     val store = AppStore(context, appScope)
     val library = LibraryRepository(context, store, appScope)
     val coverArt = CoverArtLoader(context)
+    /** Missing tags and covers from Apple / Deezer (tag editor, Settings -> Library). */
+    val metadata = MetadataRepository(context, coverArt, appScope)
     private val queueStore = QueueStore(context)
     /** Play counts, Loved songs, long-track positions. */
     val songData = SongDataStore(context, appScope)

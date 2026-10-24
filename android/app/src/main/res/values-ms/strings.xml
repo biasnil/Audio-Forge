@@ -630,4 +630,16 @@
     <string name="audiobook_delete_bookmark">Padam penanda</string>
     <string name="folder_audiobook">Buku audio</string>
     <string name="folders_audiobook_explanation">Tandakan folder sebagai Buku audio untuk memindahkan failnya ke tab Buku audio, dengan bab, penanda dan sambung semula.</string>
+    <string name="autofill_find">Cari maklumat yang tiada</string>
+    <string name="autofill_searching">Sedang mencari…</string>
+    <string name="autofill_filled">%1$d medan kosong diisi daripada %2$s. Semak, kemudian ketik Simpan.</string>
+    <string name="autofill_nothing_new">%1$s menemui lagu ini, tetapi tiada apa untuk ditambah.</string>
+    <string name="autofill_not_found">Lagu ini tidak ditemui di Apple atau Deezer. Semak tajuk dan artis.</string>
+    <string name="autofill_offline">Tidak dapat menyambung. Semak sambungan internet anda.</string>
+    <string name="autofill_cover_from">Kulit album daripada %1$s</string>
+    <string name="autofill_use_cover">Guna kulit album ini</string>
+    <string name="autofill_note">Menghantar tajuk dan artis kepada Apple, dan kepada Deezer jika Apple tiada. Hanya medan kosong diisi.</string>
+    <string name="covers_find">Cari kulit album yang tiada</string>
+    <string name="covers_find_explanation">Mencari kulit untuk setiap album yang tiada, di Apple dan Deezer (nama dan artis setiap album dihantar). Kulit album disimpan dalam apl; fail muzik anda tidak diubah.</string>
+    <string name="covers_progress">%1$d daripada %2$d album disemak · %3$d kulit ditemui</string>
 </resources>

@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +45,7 @@ import com.biasnil.audioforge.data.Track
 import com.biasnil.audioforge.tags.TagEditException
 import com.biasnil.audioforge.tags.TagFileEditor
 import java.io.IOException
+import kotlinx.coroutines.launch
 
 /** Ordered (field key, value) pairs; saved as "KEY\u0000value" strings so edits survive rotation. */
 private val FieldListSaver = listSaver<List<Pair<String, String>>?, String>(
@@ -95,6 +97,7 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
 
     val writeFile = rememberTrackFileWriter()
     val trackActions = LocalTrackActions.current
+    val scope = rememberCoroutineScope()
     val startSave: () -> Unit = {
         val baseline = original
         val edited = fields
@@ -161,6 +164,30 @@ fun TagEditorPage(trackUri: String, onBack: () -> Unit) {
                                 }
                             }
                         }
+                    }
+                    item {
+                        FindMissingInfoSection(
+                            fields = currentFields,
+                            enabled = !saving,
+                            onFill = { fields = it },
+                            onUseCover = { bytes ->
+                                scope.launch {
+                                    val image = try {
+                                        container.tagEditor.prepareCoverBytes(bytes)
+                                    } catch (e: Exception) {
+                                        trackActions.showMessage(context.getString(R.string.cover_error_image))
+                                        return@launch
+                                    }
+                                    writeFile(track, { container.tagEditor.writeCover(track, image) }) { error ->
+                                        when (error) {
+                                            null -> trackActions.showMessage(context.getString(R.string.cover_changed))
+                                            WriteCancelled -> Unit
+                                            else -> saveError = errorMessage(context, error)
+                                        }
+                                    }
+                                }
+                            },
+                        )
                     }
                     items(currentFields, key = { it.first }) { (key, value) ->
                         TagFieldRow(

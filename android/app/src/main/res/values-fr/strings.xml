@@ -656,4 +656,16 @@
     <string name="audiobook_delete_bookmark">Supprimer le signet</string>
     <string name="folder_audiobook">Livre audio</string>
     <string name="folders_audiobook_explanation">Marquez un dossier Livre audio pour déplacer ses fichiers dans l\'onglet Livres audio, avec chapitres, signets et reprise.</string>
+    <string name="autofill_find">Trouver les infos manquantes</string>
+    <string name="autofill_searching">Recherche…</string>
+    <string name="autofill_filled">%1$d champs vides remplis depuis %2$s. Vérifiez-les, puis touchez Enregistrer.</string>
+    <string name="autofill_nothing_new">%1$s a trouvé ce morceau, mais n\'a rien à ajouter.</string>
+    <string name="autofill_not_found">Ce morceau est introuvable sur Apple et Deezer. Vérifiez le titre et l\'artiste.</string>
+    <string name="autofill_offline">Connexion impossible. Vérifiez votre connexion Internet.</string>
+    <string name="autofill_cover_from">Pochette de %1$s</string>
+    <string name="autofill_use_cover">Utiliser cette pochette</string>
+    <string name="autofill_note">Envoie le titre et l\'artiste à Apple, et à Deezer si Apple ne trouve rien. Seuls les champs vides sont remplis.</string>
+    <string name="covers_find">Trouver les pochettes manquantes</string>
+    <string name="covers_find_explanation">Cherche une pochette pour chaque album qui n\'en a pas, sur Apple et Deezer (le nom et l\'artiste de chaque album sont envoyés). Les pochettes restent dans l\'app ; vos fichiers ne sont pas modifiés.</string>
+    <string name="covers_progress">%1$d albums vérifiés sur %2$d · %3$d pochettes trouvées</string>
 </resources>
