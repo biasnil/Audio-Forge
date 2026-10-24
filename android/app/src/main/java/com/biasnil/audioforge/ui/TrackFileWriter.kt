@@ -53,7 +53,7 @@ fun rememberTrackFileWriter(): (Track, suspend () -> Unit, (Throwable?) -> Unit)
             val hold = container.playback.releaseFileForEdit(job.track.uri)
             val result = runCatching { job.action() }
             val updated = container.library.reloadTrack(job.track)
-            container.coverArt.invalidate(job.track.uri)
+            container.coverArt.invalidate(job.track)
             container.playback.resumeAfterFileEdit(updated, hold)
             job.onResult(result.exceptionOrNull())
         }

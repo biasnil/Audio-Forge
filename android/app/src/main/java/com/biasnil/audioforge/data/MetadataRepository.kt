@@ -90,7 +90,7 @@ class MetadataRepository(
                     val url = withContext(Dispatchers.IO) { findAlbumCover(first.album, first.artist) }
                     if (url != null && save(first, url)) {
                         found++
-                        songs.forEach { coverArt.invalidate(it.uri) }
+                        songs.forEach { coverArt.invalidate(it) }
                     }
                     delay(REQUEST_SPACING_MS)
                 }

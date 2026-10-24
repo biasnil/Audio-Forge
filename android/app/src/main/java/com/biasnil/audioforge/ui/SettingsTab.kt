@@ -240,7 +240,14 @@ private fun LibrarySettings(onOpenPage: (Page) -> Unit) {
         modifier = Modifier.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedButton(onClick = container.library::refresh, enabled = !scanning) {
+        OutlinedButton(
+            onClick = {
+                // Files may have been changed elsewhere: covers are read again too.
+                container.coverArt.clearAll()
+                container.library.refresh()
+            },
+            enabled = !scanning,
+        ) {
             Text(stringResource(R.string.refresh_library))
         }
         Spacer(Modifier.width(12.dp))
