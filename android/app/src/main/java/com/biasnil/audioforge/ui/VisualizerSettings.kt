@@ -163,17 +163,10 @@ private fun CustomMediaSettings(onOpenPage: (Page) -> Unit) {
         if (uri != null) onOpenPage(Page.MediaTracks(entryId = null, newUri = uri.toString()))
     }
 
-    Text(
-        text = stringResource(R.string.custom_media),
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
-    )
-    Text(
-        text = stringResource(R.string.custom_media_explanation),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-    )
+    Row(Modifier.padding(start = 16.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text = stringResource(R.string.custom_media), style = MaterialTheme.typography.titleSmall)
+        InfoButton(stringResource(R.string.custom_media_explanation), title = stringResource(R.string.custom_media))
+    }
 
     // For every song.
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

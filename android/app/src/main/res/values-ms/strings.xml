@@ -666,4 +666,6 @@
     <string name="free_books_couldnt_start">Tidak dapat memulakan muat turun.</string>
     <string name="free_books_note">Disimpan dalam folder Audiobooks telefon anda, dengan kulit dan nama bab. Ia diteruskan walaupun anda menutup apl.</string>
     <string name="free_books_chapters">Bab</string>
+    <string name="info_about">Maklumat lanjut</string>
+    <string name="info_got_it">Faham</string>
 </resources>

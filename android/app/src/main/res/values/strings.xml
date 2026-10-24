@@ -680,4 +680,6 @@
     <string name="free_books_couldnt_start">Couldn\'t start the download.</string>
     <string name="free_books_note">Saved in your phone\'s Audiobooks folder, with the cover and chapter names. It carries on if you close the app.</string>
     <string name="free_books_chapters">Chapters</string>
+    <string name="info_about">More about this</string>
+    <string name="info_got_it">Got it</string>
 </resources>

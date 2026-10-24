@@ -63,32 +63,35 @@ fun FindMissingInfoSection(
     val artist = fields.firstOrNull { it.first == "ARTIST" }?.second.orEmpty()
 
     Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-        OutlinedButton(
-            onClick = {
-                searching = true
-                message = null
-                found = null
-                scope.launch {
-                    try {
-                        val info = container.metadata.findSong(title, artist)
-                        if (info == null) {
-                            message = context.getString(R.string.autofill_not_found)
-                        } else {
-                            found = info
-                            val (updated, filled) = fillEmptyFields(fields, info)
-                            onFill(updated)
-                            message = if (filled.isEmpty()) context.getString(R.string.autofill_nothing_new, info.source)
-                            else context.getString(R.string.autofill_filled, filled.size, info.source)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = {
+                    searching = true
+                    message = null
+                    found = null
+                    scope.launch {
+                        try {
+                            val info = container.metadata.findSong(title, artist)
+                            if (info == null) {
+                                message = context.getString(R.string.autofill_not_found)
+                            } else {
+                                found = info
+                                val (updated, filled) = fillEmptyFields(fields, info)
+                                onFill(updated)
+                                message = if (filled.isEmpty()) context.getString(R.string.autofill_nothing_new, info.source)
+                                else context.getString(R.string.autofill_filled, filled.size, info.source)
+                            }
+                        } catch (e: IOException) {
+                            message = context.getString(R.string.autofill_offline)
+                        } finally {
+                            searching = false
                         }
-                    } catch (e: IOException) {
-                        message = context.getString(R.string.autofill_offline)
-                    } finally {
-                        searching = false
                     }
-                }
-            },
-            enabled = enabled && !searching && title.isNotBlank(),
-        ) { Text(stringResource(if (searching) R.string.autofill_searching else R.string.autofill_find)) }
+                },
+                enabled = enabled && !searching && title.isNotBlank(),
+            ) { Text(stringResource(if (searching) R.string.autofill_searching else R.string.autofill_find)) }
+            InfoButton(stringResource(R.string.autofill_note))
+        }
         if (searching) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
         message?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
@@ -125,12 +128,6 @@ fun FindMissingInfoSection(
                 }
             }
         }
-        Text(
-            stringResource(R.string.autofill_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 
@@ -148,8 +145,11 @@ fun FindMissingCoversRow() {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         val running = progress
         if (running == null) {
-            FilledTonalButton(onClick = { container.metadata.findMissingCovers(tracks) }, enabled = tracks.isNotEmpty()) {
-                Text(stringResource(R.string.covers_find))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FilledTonalButton(onClick = { container.metadata.findMissingCovers(tracks) }, enabled = tracks.isNotEmpty()) {
+                    Text(stringResource(R.string.covers_find))
+                }
+                InfoButton(stringResource(R.string.covers_find_explanation), title = stringResource(R.string.covers_find))
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,11 +165,5 @@ fun FindMissingCoversRow() {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Text(
-            stringResource(R.string.covers_find_explanation),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }

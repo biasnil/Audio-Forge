@@ -58,10 +58,11 @@ fun ThemeSettings() {
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(R.string.theme_pure_black), modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.theme_pure_black))
+        InfoButton(stringResource(R.string.theme_pure_black_explanation), title = stringResource(R.string.theme_pure_black))
+        Spacer(Modifier.weight(1f))
         Switch(checked = settings.pureBlack, onCheckedChange = null)
     }
-    ThemeNote(stringResource(R.string.theme_pure_black_explanation))
 
     SectionHeader(stringResource(R.string.theme_colours))
     ColourStyle.entries.forEach { style ->
@@ -134,15 +135,6 @@ fun ThemeSettings() {
     }
 }
 
-@Composable
-private fun ThemeNote(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-    )
-}
 
 private const val WHITE = 0xFFFFFFFF.toInt()
 private const val BLACK = 0xFF000000.toInt()

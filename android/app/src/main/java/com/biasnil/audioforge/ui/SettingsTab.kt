@@ -363,14 +363,9 @@ private fun PlaybackSettings() {
 
     SettingsSwitchRow(
         label = stringResource(R.string.settings_replaygain),
+        info = stringResource(R.string.settings_replaygain_explanation),
         checked = settings.replayGainEnabled,
         onCheckedChange = { on -> store.update { it.copy(replayGainEnabled = on) } },
-    )
-    Text(
-        text = stringResource(R.string.settings_replaygain_explanation),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
     )
     SettingsSwitchRow(
         label = stringResource(R.string.settings_crossfade),
@@ -397,14 +392,9 @@ private fun PlaybackSettings() {
     )
     SettingsSwitchRow(
         label = stringResource(R.string.settings_resume_long),
+        info = stringResource(R.string.settings_resume_long_explanation),
         checked = settings.rememberLongTrackPosition,
         onCheckedChange = { on -> store.update { it.copy(rememberLongTrackPosition = on) } },
-    )
-    Text(
-        text = stringResource(R.string.settings_resume_long_explanation),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
     )
 }
 
@@ -429,17 +419,12 @@ private fun SmartSettings() {
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.analysis_running, running.done, running.total), modifier = Modifier.weight(1f))
+                InfoButton(stringResource(R.string.analysis_background_note))
                 TextButton(onClick = container.analyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
             }
             LinearProgressIndicator(
                 progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = stringResource(R.string.analysis_background_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
             )
         }
     } else {
@@ -515,17 +500,12 @@ private fun GenreDetectionRow() {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.genre_running, running.done, running.total), modifier = Modifier.weight(1f))
+                InfoButton(stringResource(R.string.analysis_background_note))
                 TextButton(onClick = container.genreAnalyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
             }
             LinearProgressIndicator(
                 progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = stringResource(R.string.analysis_background_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
             )
         }
     } else {
@@ -583,25 +563,16 @@ private fun LyricsSettings() {
 
     SettingsSwitchRow(
         label = stringResource(R.string.settings_lyrics_lock_screen),
+        info = stringResource(R.string.settings_lyrics_lock_screen_explanation),
         checked = settings.lyricsOnNowPlaying,
         onCheckedChange = { on -> store.update { it.copy(lyricsOnNowPlaying = on) } },
-    )
-    Text(
-        text = stringResource(R.string.settings_lyrics_lock_screen_explanation),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
-    Text(
-        text = stringResource(R.string.settings_lyrics_explanation),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
     )
     OutlinedTextField(
         value = keyText,
         onValueChange = { keyText = it },
         placeholder = { Text(stringResource(R.string.settings_musixmatch_key_hint)) },
+        // Where lyrics come from, and what the key is for.
+        trailingIcon = { InfoButton(stringResource(R.string.settings_lyrics_explanation)) },
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         modifier = Modifier
@@ -641,7 +612,14 @@ private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsSwitchRow(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
+private fun SettingsSwitchRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    /** A longer explanation, behind an (i) next to the label. */
+    info: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -651,8 +629,12 @@ private fun SettingsSwitchRow(label: String, checked: Boolean, enabled: Boolean 
         Text(
             text = label,
             color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f, fill = info == null),
         )
+        if (info != null) {
+            InfoButton(info, title = label)
+            Spacer(Modifier.weight(1f))
+        }
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }

@@ -137,18 +137,14 @@ fun AboutSection(onOpenPage: (Page) -> Unit) {
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.update_auto), modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.update_auto))
+            InfoButton(stringResource(R.string.update_auto_explanation), title = stringResource(R.string.update_auto))
+            Spacer(Modifier.weight(1f))
             Switch(
                 checked = settings.autoUpdateCheck,
                 onCheckedChange = { on -> container.store.update { it.copy(autoUpdateCheck = on) } },
             )
         }
-        Text(
-            text = stringResource(R.string.update_auto_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
     }
 }
 

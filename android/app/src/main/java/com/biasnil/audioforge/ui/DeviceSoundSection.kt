@@ -40,15 +40,9 @@ fun DeviceSoundSection() {
             .padding(end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SectionHeader(stringResource(R.string.device_sound), Modifier.weight(1f))
+        SectionHeader(stringResource(R.string.device_sound), Modifier.weight(1f), info = stringResource(R.string.device_sound_explanation))
         Switch(checked = on, onCheckedChange = { value -> store.update { it.copy(deviceSoundEnabled = value) } })
     }
-    Text(
-        text = stringResource(R.string.device_sound_explanation),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
     Text(
         text = stringResource(R.string.device_sound_now, outputDeviceName(current)),
         style = MaterialTheme.typography.bodyMedium,

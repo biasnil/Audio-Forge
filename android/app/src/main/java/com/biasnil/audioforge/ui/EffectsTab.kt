@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -70,8 +71,7 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 16.dp)
     ) {
-        SectionHeader(stringResource(R.string.headphones_correction))
-        Explanation(stringResource(R.string.headphones_correction_explanation))
+        SectionHeader(stringResource(R.string.headphones_correction), info = stringResource(R.string.headphones_correction_explanation))
         val profile = settings.headphoneCorrection
         Row(
             modifier = Modifier
@@ -134,8 +134,7 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
         )
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        SectionHeader(stringResource(R.string.effects_surround))
-        Explanation(stringResource(R.string.effects_surround_explanation))
+        SectionHeader(stringResource(R.string.effects_surround), info = stringResource(R.string.effects_surround_explanation))
         ChoiceChips(
             options = SurroundPreset.entries,
             selected = settings.surroundPreset,
@@ -158,8 +157,7 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
         )
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        SectionHeader(stringResource(R.string.effects_width))
-        Explanation(stringResource(R.string.effects_width_explanation))
+        SectionHeader(stringResource(R.string.effects_width), info = stringResource(R.string.effects_width_explanation))
         PercentRow(
             label = stringResource(R.string.effects_width_short),
             percent = settings.stereoWidthPercent,
@@ -185,8 +183,10 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
         )
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        SectionHeader(stringResource(R.string.karaoke))
-        Explanation(stringResource(R.string.karaoke_explanation))
+        SectionHeader(
+            stringResource(R.string.karaoke),
+            info = stringResource(R.string.karaoke_explanation) + "\n\n" + stringResource(R.string.karaoke_key_explanation),
+        )
         PercentRow(
             label = stringResource(R.string.karaoke_voice),
             percent = settings.karaokeVocalRemovalPercent,
@@ -215,7 +215,6 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
                 modifier = Modifier.width(48.dp),
             )
         }
-        Explanation(stringResource(R.string.karaoke_key_explanation))
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
         SectionHeader(stringResource(R.string.listening))
@@ -294,7 +293,11 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
                     .padding(end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SectionHeader(stringResource(R.string.effects_android_spatial), Modifier.weight(1f))
+                SectionHeader(
+                    stringResource(R.string.effects_android_spatial),
+                    Modifier.weight(1f),
+                    info = stringResource(R.string.effects_android_spatial_explanation),
+                )
                 Switch(
                     checked = settings.androidSpatialAudio && settings.surroundPreset == SurroundPreset.Off,
                     onCheckedChange = { on ->
@@ -307,7 +310,6 @@ fun EffectsTab(onOpenPage: (Page) -> Unit) {
                     },
                 )
             }
-            Explanation(stringResource(R.string.effects_android_spatial_explanation))
             // Read each time the page is shown: the phone's own switch may have changed since.
             if (!spatialOnInPhone()) {
                 Explanation(stringResource(R.string.effects_android_spatial_off_in_system))
@@ -349,20 +351,21 @@ private fun spatialAudioCheck(context: Context): (() -> Boolean)? {
     return { spatializer.isEnabled }
 }
 
-/** A switch with its label, and a line of explanation under it. */
+/** A switch with its label, and an (i) with the explanation next to the label. */
 @Composable
 private fun SwitchRow(label: String, explanation: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f))
+        Text(label)
+        InfoButton(explanation, title = label)
+        Spacer(Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = null)
     }
-    Explanation(explanation)
 }
 
 @Composable

@@ -89,13 +89,8 @@ fun EqualizerTab() {
             label = stringResource(R.string.eq_post_gain),
             gainDb = settings.eqPostGainDb,
             enabled = enabled,
+            info = stringResource(R.string.eq_post_gain_explanation),
             onGainChange = { db -> store.update { it.copy(eqPostGainDb = db) } },
-        )
-        Text(
-            text = stringResource(R.string.eq_post_gain_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         OutlinedButton(
@@ -151,7 +146,7 @@ private fun presetName(key: String): String = when (key) {
 
 /** "1K  [----o----]  +3.0 dB", -15..+15 dB in 0.5 dB steps. */
 @Composable
-private fun GainRow(label: String, gainDb: Float, enabled: Boolean, onGainChange: (Float) -> Unit) {
+private fun GainRow(label: String, gainDb: Float, enabled: Boolean, info: String? = null, onGainChange: (Float) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,6 +167,7 @@ private fun GainRow(label: String, gainDb: Float, enabled: Boolean, onGainChange
             textAlign = TextAlign.End,
             modifier = Modifier.width(64.dp),
         )
+        if (info != null) InfoButton(info, title = label)
     }
 }
 

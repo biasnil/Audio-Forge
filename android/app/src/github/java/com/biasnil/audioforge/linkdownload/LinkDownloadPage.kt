@@ -54,6 +54,7 @@ import com.biasnil.audioforge.data.LinkTarget
 import com.biasnil.audioforge.ui.AppIcons
 import com.biasnil.audioforge.ui.CenteredText
 import com.biasnil.audioforge.ui.DetailTopBar
+import com.biasnil.audioforge.ui.InfoButton
 import com.biasnil.audioforge.ui.LocalAppContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -135,15 +136,10 @@ fun LinkDownloadPage(startTarget: LinkTarget, sharedLink: String?, onBack: () ->
                             onClick = { target = LinkTarget.Audiobooks },
                             label = { Text(stringResource(R.string.link_as_audiobook)) },
                         )
+                        InfoButton(stringResource(if (target == LinkTarget.Songs) R.string.link_note_songs else R.string.link_note_audiobook))
                         Spacer(Modifier.weight(1f))
                         Button(onClick = { look() }, enabled = link.isNotBlank() && !looking) { Text(stringResource(R.string.link_look)) }
                     }
-                    Text(
-                        stringResource(if (target == LinkTarget.Songs) R.string.link_note_songs else R.string.link_note_audiobook),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
                 }
             }
 

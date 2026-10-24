@@ -215,16 +215,19 @@ fun FreeBookPage(id: String, onBack: () -> Unit) {
                                     val start: () -> Unit = {
                                         scope.launch { couldntStart = !books.download(loaded) }
                                     }
-                                    if (onPhone) {
-                                        OutlinedButton(onClick = start, enabled = loaded.parts.isNotEmpty()) {
-                                            Text(stringResource(R.string.free_books_download_again))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (onPhone) {
+                                            OutlinedButton(onClick = start, enabled = loaded.parts.isNotEmpty()) {
+                                                Text(stringResource(R.string.free_books_download_again))
+                                            }
+                                        } else {
+                                            Button(onClick = start, enabled = loaded.parts.isNotEmpty()) {
+                                                Icon(AppIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(stringResource(R.string.free_books_download))
+                                            }
                                         }
-                                    } else {
-                                        Button(onClick = start, enabled = loaded.parts.isNotEmpty()) {
-                                            Icon(AppIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(stringResource(R.string.free_books_download))
-                                        }
+                                        InfoButton(stringResource(R.string.free_books_note))
                                     }
                                     if (couldntStart) {
                                         Text(
@@ -235,12 +238,6 @@ fun FreeBookPage(id: String, onBack: () -> Unit) {
                                     }
                                 }
                             }
-                            Text(
-                                stringResource(R.string.free_books_note),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp),
-                            )
                             if (loaded.description.isNotBlank()) {
                                 Text(
                                     loaded.description,

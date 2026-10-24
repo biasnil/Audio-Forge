@@ -132,23 +132,11 @@ fun FoldersTab(onRequestAudioPermission: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.folders_add))
         }
-        Text(
-            text = stringResource(R.string.folders_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-        )
-        Text(
-            text = stringResource(R.string.folders_podcast_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-        )
-        Text(
-            text = stringResource(R.string.folders_audiobook_explanation),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        InfoButton(
+            stringResource(R.string.folders_explanation) + "\n\n" + stringResource(R.string.folders_podcast_explanation) +
+                "\n\n" + stringResource(R.string.folders_audiobook_explanation),
+            title = stringResource(R.string.folders_add),
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
         )
     }
 }
@@ -164,13 +152,7 @@ private fun PhoneLibraryFolders() {
     val settings by container.store.settings.collectAsStateWithLifecycle()
     val folders by container.library.phoneFolders.collectAsStateWithLifecycle()
 
-    SectionHeader(stringResource(R.string.folders_phone_folders))
-    Text(
-        text = stringResource(R.string.folders_phone_folders_explanation),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
+    SectionHeader(stringResource(R.string.folders_phone_folders), info = stringResource(R.string.folders_phone_folders_explanation))
     if (folders.isEmpty()) {
         Text(
             text = stringResource(R.string.folders_phone_folders_none),

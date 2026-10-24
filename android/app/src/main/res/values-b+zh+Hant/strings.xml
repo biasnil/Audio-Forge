@@ -666,4 +666,6 @@
     <string name="free_books_couldnt_start">無法開始下載。</string>
     <string name="free_books_note">儲存到手機的 Audiobooks 資料夾，包含封面和章節名稱。關閉 App 後也會繼續下載。</string>
     <string name="free_books_chapters">章節</string>
+    <string name="info_about">了解更多</string>
+    <string name="info_got_it">知道了</string>
 </resources>

@@ -30,6 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -483,13 +487,41 @@ fun CenteredText(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-    )
+fun SectionHeader(text: String, modifier: Modifier = Modifier, info: String? = null) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, end = if (info != null) 0.dp else 16.dp, top = 12.dp, bottom = 12.dp),
+        )
+        if (info != null) InfoButton(info, title = text)
+    }
+}
+
+/**
+ * A small (i) next to a setting: tapping it shows the longer explanation
+ * ([text], under [title]) in a box, so the screen itself stays short.
+ */
+@Composable
+fun InfoButton(text: String, title: String? = null, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }, modifier = modifier.size(40.dp)) {
+        Icon(
+            AppIcons.Info,
+            contentDescription = stringResource(R.string.info_about),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = title?.let { { Text(it) } },
+            text = { Text(text, modifier = Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { open = false }) { Text(stringResource(R.string.info_got_it)) } },
+        )
+    }
 }
 
 /** The iOS-style Play / Shuffle pair under a cover. */
