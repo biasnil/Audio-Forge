@@ -9,7 +9,6 @@ import com.biasnil.audioforge.data.AnalysisStore
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -71,7 +70,7 @@ class LibraryAnalyzer(
                         async {
                             permits.withPermit {
                                 waitUntilAllowed()
-                                val result = withContext(Dispatchers.Default) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
+                                val result = withContext(AnalysisDispatcher) { AudioAnalyzer.analyze(context, Uri.parse(track.uri)) }
                                 if (result != null) analysis.store(track.uri, result)
                                 done++
                                 _progress.value = AnalysisProgress(done, todo.size)

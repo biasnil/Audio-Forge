@@ -8,7 +8,6 @@ import android.os.BatteryManager
 import com.biasnil.audioforge.data.GenreStore
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +49,7 @@ class GenreAnalyzer(
                     GenreClassifier(context).use { classifier ->
                         todo.forEachIndexed { index, track ->
                             waitUntilAllowed()
-                            val result = withContext(Dispatchers.Default) {
+                            val result = withContext(AnalysisDispatcher) {
                                 classifier.detect(Uri.parse(track.uri), track.durationMs)
                             }
                             genres.store(track.uri, result)
