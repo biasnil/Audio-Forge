@@ -1,5 +1,45 @@
 # AudioForge for Android: changelog
 
+## 1.4.3
+
+Everything here is free. AudioForge is now open source under the GPL-3.0
+licence: use it, change it and share it, as long as what you share stays
+open too.
+
+### New
+
+- **Free audiobooks.** Audiobooks → Find free audiobooks searches about
+  20,000 public-domain books read by LibriVox volunteers (from the Internet
+  Archive). A book's page shows its cover, length, description and chapters;
+  **Download** saves it in your phone's Audiobooks folder with the cover and
+  chapter names, as one book with bookmarks and resume. It carries on if you
+  close the app, and parts that fail can be tried again.
+- **Download from link (GitHub version only).** Paste a link, or share one
+  from YouTube or another app to AudioForge, and download it:
+  - **As songs** into Music: M4A with the title, artist and cover.
+    "Artist - Title" names are split, and extras like "(Official Video)"
+    are left out.
+  - **As an audiobook** into Audiobooks, keeping the video's chapters. A
+    playlist can be saved as one book.
+  - Playlists: pick which items to download. One at a time, with progress in
+    the notification and Stop; it carries on with the screen off.
+  - Built on yt-dlp (adapted from Media Downloader Toolkit), which updates
+    itself from GitHub so it keeps working when sites change. Only download
+    what you have the right to. The Play Store version doesn't have this.
+
+### Privacy
+
+- The privacy policy now covers free audiobooks (your search words and the
+  books you open go to archive.org) and, in the GitHub version, Download from
+  link (the link goes to the site it points to; yt-dlp checks GitHub for
+  updates).
+
+### Notes
+
+- The GitHub APK is bigger (about 220 MB), because Download from link
+  brings its own Python, yt-dlp and FFmpeg.
+- Translations of the new text are machine-drafted.
+
 ## 1.4.2
 
 Everything here is free.
