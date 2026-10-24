@@ -16,6 +16,8 @@ jaudiotagger = "3.0.1"
 litert = "2.2.0"
 junit = "4.13.2"
 json = "20240303"
+# Song editor: saving edited MP3s as MP3 (LAME in plain Java; Android has no MP3 encoder). LGPL 2.1.
+jump3r = "1.0.5"
 # GitHub version only: download from links (yt-dlp, with its own Python, FFmpeg and QuickJS). GPL-3.0.
 youtubedlAndroid = "0.18.1"
 
@@ -40,6 +42,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 json = { group = "org.json", name = "json", version.ref = "json" }
+jump3r = { group = "de.sciss", name = "jump3r", version.ref = "jump3r" }
 youtubedl-library = { group = "io.github.junkfood02.youtubedl-android", name = "library", version.ref = "youtubedlAndroid" }
 youtubedl-ffmpeg = { group = "io.github.junkfood02.youtubedl-android", name = "ffmpeg", version.ref = "youtubedlAndroid" }
 

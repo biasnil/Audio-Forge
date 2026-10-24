@@ -26,6 +26,7 @@ val ACKNOWLEDGEMENTS: List<Acknowledgement> = LinkDownloadFeature.acknowledgemen
     Acknowledgement("AndroidX Media3 (ExoPlayer, HLS, Session, UI)", "https://github.com/androidx/media", License.Apache2),
     Acknowledgement("Kotlin, kotlinx.coroutines", "https://kotlinlang.org", License.Apache2),
     Acknowledgement("jaudiotagger", "https://bitbucket.org/ijabz/jaudiotagger", License.Lgpl21),
+    Acknowledgement("jump3r (LAME MP3 encoder)", "https://github.com/Sciss/jump3r", License.Lgpl21),
     Acknowledgement("Material Design icons", "https://github.com/google/material-design-icons", License.Apache2),
     Acknowledgement("LiteRT", "https://ai.google.dev/edge/litert", License.Apache2),
     Acknowledgement("AutoEq (headphone correction profiles)", "https://github.com/jaakkopasanen/AutoEq", License.Mit),

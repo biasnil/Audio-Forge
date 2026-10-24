@@ -63,6 +63,24 @@ class AudioEditTest {
     }
 
     @Test
+    fun flacLengthGoesIntoStreamInfo() {
+        val file = java.io.File.createTempFile("streaminfo", ".flac")
+        try {
+            // "fLaC", STREAMINFO header, then 34 bytes: 44.1 kHz, 2 channels, 16 bits, length 0.
+            val info = ByteArray(34)
+            info[10] = 0x0A; info[11] = 0xC4.toByte(); info[12] = 0x42; info[13] = 0xF0.toByte()
+            file.writeBytes("fLaC".toByteArray() + byteArrayOf(0, 0, 0, 34) + info)
+            EditRenderer.setFlacTotalSamples(file, 0x1_2345_6789L)
+            val bytes = file.readBytes()
+            // Bits per sample (top of byte 13) untouched; the 36-bit count after it.
+            assertEquals(0xF1, bytes[8 + 13].toInt() and 0xFF)
+            assertEquals(0x23456789, java.nio.ByteBuffer.wrap(bytes, 8 + 14, 4).int)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun wavHeaderDescribesTheData() {
         val header = EditRenderer.wavHeader(44_100, 2, 1_000)
         assertEquals("RIFF", String(header, 0, 4))

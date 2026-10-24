@@ -9,14 +9,19 @@ import kotlinx.coroutines.ensureActive
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
-/** What an edited song is saved as: M4A (AAC, what Android can encode) or WAV (as-is, for WAV songs). */
+/** What an edited song is saved as: the song's own format where the app can write it. */
 enum class EditFormat(val extension: String, val mimeType: String) {
     M4a("m4a", "audio/mp4"),
     Wav("wav", "audio/wav"),
+    /** jump3r (LAME): Android has no MP3 encoder of its own. */
+    Mp3("mp3", "audio/mpeg"),
+    /** Android's own FLAC encoder: still lossless. */
+    Flac("flac", "audio/flac"),
 }
 
 /**
@@ -27,10 +32,65 @@ object EditRenderer {
     private const val CHUNK_FRAMES = 4096
     private const val AAC_BITRATE = 256_000
 
-    suspend fun render(source: PcmSource, edit: AudioEdit, format: EditFormat, out: File, onProgress: (Float) -> Unit) {
+    suspend fun render(
+        source: PcmSource,
+        edit: AudioEdit,
+        format: EditFormat,
+        out: File,
+        mp3BitrateKbps: Int = 320,
+        onProgress: (Float) -> Unit,
+    ) {
         when (format) {
             EditFormat.Wav -> writeWav(source, edit, out, onProgress)
             EditFormat.M4a -> writeM4a(source, edit, out, onProgress)
+            EditFormat.Mp3 -> writeMp3(source, edit, out, mp3BitrateKbps, onProgress)
+            EditFormat.Flac -> writeFlac(source, edit, out, onProgress)
+        }
+    }
+
+    private suspend fun writeMp3(source: PcmSource, edit: AudioEdit, out: File, bitrateKbps: Int, onProgress: (Float) -> Unit) {
+        BufferedOutputStream(FileOutputStream(out), 1 shl 16).use { stream ->
+            Mp3Encoder(source.sampleRate, source.channels, bitrateKbps, stream).use { encoder ->
+                forEachChunk(source, edit, onProgress) { samples, count -> encoder.encode(samples, count) }
+                encoder.finish()
+            }
+        }
+    }
+
+    /**
+     * FLAC with Android's encoder: its first buffer is the file's header
+     * ("fLaC" and the stream info), then the audio frames, written as they come.
+     */
+    private suspend fun writeFlac(source: PcmSource, edit: AudioEdit, out: File, onProgress: (Float) -> Unit) {
+        val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_FLAC, source.sampleRate, source.channels).apply {
+            setInteger(MediaFormat.KEY_FLAC_COMPRESSION_LEVEL, 5)
+            setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, CHUNK_FRAMES * source.bytesPerFrame)
+        }
+        BufferedOutputStream(FileOutputStream(out), 1 shl 16).use { stream ->
+            encodeWith(MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_FLAC), format, source, edit, onProgress) { data, info ->
+                val bytes = ByteArray(info.size)
+                data.get(bytes)
+                stream.write(bytes)
+            }
+        }
+        // Android's encoder leaves the song's length out of the header (0 = unknown), which
+        // leaves players without a duration or seeking: put it in.
+        setFlacTotalSamples(out, edit.length)
+    }
+
+    /** Writes [frames] into a FLAC file's STREAMINFO (its 36-bit total-samples field). */
+    fun setFlacTotalSamples(file: File, frames: Long) {
+        RandomAccessFile(file, "rw").use { raf ->
+            val head = ByteArray(8)
+            raf.readFully(head)
+            // "fLaC", then a STREAMINFO block (type 0) of 34 bytes.
+            if (String(head, 0, 4, Charsets.US_ASCII) != "fLaC" || (head[4].toInt() and 0x7F) != 0) return
+            val at = 8L + 13 // byte 13 of STREAMINFO holds the bits-per-sample end and the top 4 bits of the count
+            raf.seek(at)
+            val top = raf.read() and 0xF0
+            raf.seek(at)
+            raf.write(top or ((frames ushr 32).toInt() and 0x0F))
+            raf.writeInt((frames and 0xFFFFFFFFL).toInt())
         }
     }
 
@@ -78,13 +138,42 @@ object EditRenderer {
             setInteger(MediaFormat.KEY_BIT_RATE, AAC_BITRATE)
             setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, CHUNK_FRAMES * source.bytesPerFrame)
         }
-        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
         val muxer = MediaMuxer(out.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        var muxerStarted = false
+        var track = -1
+        try {
+            encodeWith(
+                MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC), format, source, edit, onProgress,
+                onFormat = { outputFormat ->
+                    track = muxer.addTrack(outputFormat)
+                    muxer.start()
+                },
+                skipConfig = true,
+            ) { data, info -> muxer.writeSampleData(track, data, info) }
+        } finally {
+            if (track >= 0) runCatching { muxer.stop() }
+            muxer.release()
+        }
+    }
+
+    /**
+     * Feeds the edited song through [codec] (an encoder), handing each
+     * finished buffer to [sink] (positioned on its data). The codec's own
+     * setup buffer is passed on too, unless [skipConfig] (the MP4 muxer
+     * takes it from [onFormat]'s format instead).
+     */
+    private suspend fun encodeWith(
+        codec: MediaCodec,
+        format: MediaFormat,
+        source: PcmSource,
+        edit: AudioEdit,
+        onProgress: (Float) -> Unit,
+        onFormat: (MediaFormat) -> Unit = {},
+        skipConfig: Boolean = false,
+        sink: (ByteBuffer, MediaCodec.BufferInfo) -> Unit,
+    ) {
         try {
             codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             codec.start()
-            var track = -1
             val info = MediaCodec.BufferInfo()
             var framesQueued = 0L
 
@@ -94,18 +183,14 @@ object EditRenderer {
                     val index = codec.dequeueOutputBuffer(info, wait)
                     when {
                         index == MediaCodec.INFO_TRY_AGAIN_LATER -> return false
-                        index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                            track = muxer.addTrack(codec.outputFormat)
-                            muxer.start()
-                            muxerStarted = true
-                        }
+                        index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> onFormat(codec.outputFormat)
                         index >= 0 -> {
                             val data = codec.getOutputBuffer(index)!!
                             val config = info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0
-                            if (info.size > 0 && !config && muxerStarted) {
+                            if (info.size > 0 && !(config && skipConfig)) {
                                 data.position(info.offset)
                                 data.limit(info.offset + info.size)
-                                muxer.writeSampleData(track, data, info)
+                                sink(data, info)
                             }
                             codec.releaseOutputBuffer(index, false)
                             if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return true
@@ -143,8 +228,6 @@ object EditRenderer {
         } finally {
             runCatching { codec.stop() }
             codec.release()
-            if (muxerStarted) runCatching { muxer.stop() }
-            muxer.release()
         }
     }
 

@@ -135,6 +135,8 @@ dependencies {
     implementation(libs.androidx.media3.ui) // PlayerView, for the video wallpaper
     // Tag editing (the desktop uses TagLib; this is the pure-Java equivalent).
     implementation(libs.jaudiotagger)
+    // MP3 encoding for the song editor (LAME in plain Java, LGPL).
+    implementation(libs.jump3r)
     // On-device genre detection (YAMNet). LiteRT is TensorFlow Lite's new name, same Interpreter API.
     implementation(libs.litert)
     implementation(libs.androidx.activity.compose)

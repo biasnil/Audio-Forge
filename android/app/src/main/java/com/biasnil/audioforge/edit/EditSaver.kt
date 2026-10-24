@@ -13,19 +13,23 @@ import java.util.Locale
 
 /**
  * Saving an edited song: as a new copy next to it, or over the original.
- * The original's tags and cover go into the new file. Android can only
- * write AAC (M4A) or plain WAV, so only M4A/AAC and WAV songs can be
- * replaced; others are saved as an M4A copy.
+ * The original's tags and cover go into the new file, which keeps the
+ * song's format: M4A, MP3 (jump3r), FLAC and WAV. Other formats (OGG,
+ * Opus...) are saved as an M4A copy and can't be replaced.
  */
 object EditSaver {
     private const val TAG = "EditSaver"
 
-    /** What the edited [track] is written as: WAV for a WAV song, M4A for everything else. */
-    fun formatFor(track: Track): EditFormat =
-        if (extensionOf(track) == "wav") EditFormat.Wav else EditFormat.M4a
+    /** What the edited [track] is written as: its own format where possible, else M4A. */
+    fun formatFor(track: Track): EditFormat = when (extensionOf(track)) {
+        "wav" -> EditFormat.Wav
+        "mp3" -> EditFormat.Mp3
+        "flac" -> EditFormat.Flac
+        else -> EditFormat.M4a
+    }
 
     /** Whether the original file can be replaced (the format stays the same). */
-    fun canReplace(track: Track): Boolean = extensionOf(track) in setOf("m4a", "mp4", "aac", "wav")
+    fun canReplace(track: Track): Boolean = extensionOf(track) in setOf("m4a", "mp4", "aac", "wav", "mp3", "flac")
 
     /** Writes the edited audio to a temp file in [workDir], with the original's tags and cover. */
     suspend fun renderTagged(
@@ -39,7 +43,7 @@ object EditSaver {
         workDir.mkdirs()
         val format = formatFor(track)
         val out = File(workDir, "edited.${format.extension}")
-        EditRenderer.render(source, edit, format, out, onProgress)
+        EditRenderer.render(source, edit, format, out, Mp3Encoder.bitrateFor(track.bitrateKbps), onProgress)
         copyTags(context, track, out, workDir)
         return out
     }
@@ -74,10 +78,26 @@ object EditSaver {
         return null
     }
 
-    /** Writes [rendered] over [track]'s file. The caller has Android's permission to change it. */
+    /**
+     * Puts [rendered] in place of [track]'s file. The original is copied
+     * aside first and put back if writing fails, so a failed save never
+     * leaves a broken song; the copy is deleted once the edit is in. The
+     * song stays the same file to Android, so its playlists, play counts
+     * and .lrc stay with it. The caller has Android's permission to change it.
+     */
     fun replace(context: Context, track: Track, rendered: File) {
-        context.contentResolver.openOutputStream(Uri.parse(track.uri), "wt")!!.use { out ->
-            rendered.inputStream().use { it.copyTo(out) }
+        val uri = Uri.parse(track.uri)
+        val resolver = context.contentResolver
+        val backup = File(rendered.parentFile, "original-backup")
+        resolver.openInputStream(uri)!!.use { input -> backup.outputStream().use { input.copyTo(it) } }
+        try {
+            resolver.openOutputStream(uri, "wt")!!.use { out -> rendered.inputStream().use { it.copyTo(out) } }
+        } catch (e: Exception) {
+            runCatching { resolver.openOutputStream(uri, "wt")!!.use { out -> backup.inputStream().use { it.copyTo(out) } } }
+                .onFailure { Log.e(TAG, "Couldn't put the original of ${track.uri} back", it) }
+            throw e
+        } finally {
+            backup.delete()
         }
     }
 
