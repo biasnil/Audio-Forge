@@ -29,9 +29,13 @@ open too.
 
 - **Edit this song.** Long-press a song (in Songs, Now Playing and other
   lists) → **Edit this song**:
-  - **Audio:** drag across the waveform to select a part, then **Cut** it
-    (the rest closes up) or **Keep only this** (trims the start and end).
-    Change the volume or **Normalize**, undo, and listen before saving.
+  - **Audio:** a big waveform you work on directly: pinch to zoom, swipe
+    to scroll, tap to set the playhead, long-press and drag to select (then
+    drag the edges to fine-tune; Start here / End here and zoom buttons do
+    the same without gestures). **Cut** a part (the rest closes up) or
+    **Trim** to it; Undo and Redo; every cut leaves a marker you can tap to
+    put that part back. **More** has Volume, Normalize and Put everything
+    back. Nothing touches your song until you save.
     **Save** asks each time: a new copy next to the original, or replace
     the original. The song keeps its format: MP3 stays MP3 (at its own
     bitrate), FLAC stays FLAC (still lossless), and M4A and WAV stay as they
