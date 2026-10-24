@@ -1,5 +1,68 @@
 # AudioForge for Android: changelog
 
+## 1.4.2
+
+Everything here is free.
+
+### New
+
+- **Effects tab.** Sound effects now have their own tab: **3D Surround**
+  (with presets), **stereo width**, **reverb**, and **Android spatial audio**
+  (with head tracking on headphones that support it, Android 13+, when your
+  phone has it).
+- **Headphone correction.** Pick your headphones from about 8,800 models and
+  the app corrects their sound (AutoEq data, built in, works offline).
+- **A separate EQ for each device.** Bluetooth headphones, the phone's
+  speaker, your car: each keeps its own EQ and switches automatically when you
+  connect.
+- **Bass boost, Loudness and a Limiter.** Loudness adds bass and treble when
+  the volume is low; the limiter turns loud peaks down smoothly instead of
+  crackling.
+- **Karaoke.** Remove the singer's voice, and change the key in semitones
+  without changing the speed.
+- **Bit-perfect USB DAC output** (Android 14+). Songs reach your DAC
+  untouched, at their own sample rate.
+- **Mono and left/right balance.**
+- **Skip silence, separately for podcasts and songs.** Podcasts skip every
+  pause; songs only skip silence at the start and end, never in the middle.
+- **Lyrics sync slider.** Fine-tune lyrics timing up to ±10 s in 0.05 s
+  steps, instead of the ±0.5 s buttons.
+- **Themes.** Pure black, Material You (your wallpaper's colours), or your
+  own accent colour.
+- **Audiobooks.** Chapters (.m4b), bookmarks, and resume where you left off.
+  A book split into many files is one book.
+- **Find missing tags and covers.** "Find missing info" in the tag editor
+  fills empty fields; "Find missing covers" in Settings → Library finds covers
+  for albums, and for songs without an album. Both use Apple, then Deezer, no
+  account needed, and never change your music files unless you tap Save.
+- **Choose your tabs.** Settings → Tab bar: drag any 4 tabs (Effects,
+  Podcasts, Radio…) onto the tab bar; the rest go under More.
+
+### Better
+
+- **Clearer Settings.** Grouped into categories like your phone's Settings,
+  with bigger, easier-to-read text; Language is easier to find.
+- **Big libraries are much faster.** Covers load in the background and are
+  kept small; added folders only re-read new or changed files (800 files:
+  16 s → 1 s); search, sorting and grouping no longer slow the screen; typing
+  in the Songs search stays smooth with thousands of songs.
+- **Analyze and Detect Genres work on several songs at once**, side by side,
+  and stay out of the way of scrolling and playback.
+
+### Privacy
+
+- The privacy policy now covers Find missing info and Find missing covers:
+  the song's title and artist (or an album's name and artist) are sent to
+  Apple, and to Deezer if Apple has nothing. Only when you tap them.
+- The app now asks to change audio settings (MODIFY_AUDIO_SETTINGS), used
+  only for bit-perfect USB output.
+
+### Notes
+
+- Translations (French, Malay, Simplified and Traditional Chinese) of the new
+  text are machine-drafted.
+- Bit-perfect output hasn't been tested with a real USB DAC yet.
+
 ## 1.4.1
 
 Everything here is free.
