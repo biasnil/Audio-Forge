@@ -22,6 +22,10 @@
 # LiteRT: its native code calls back into these classes through JNI.
 -keep class org.tensorflow.lite.** { *; }
 -dontwarn org.tensorflow.lite.**
+# Its Play AI-pack model download (unused) refers to Play libraries that
+# app/build.gradle.kts leaves out.
+-dontwarn com.google.android.play.**
+-dontwarn com.google.android.gms.**
 
 # GitHub version only: yt-dlp wrapper, which reads yt-dlp's JSON into its own
 # classes with Jackson (by field name, via reflection).

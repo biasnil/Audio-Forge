@@ -141,10 +141,12 @@ dependencies {
     // MP3 encoding for the song editor (LAME in plain Java, LGPL).
     implementation(libs.jump3r)
     // On-device genre detection (YAMNet). LiteRT is TensorFlow Lite's new name, same Interpreter API.
-    implementation(libs.litert)
-    constraints {
-        // LiteRT brings in fragment 1.1.0, which Play Console flags as outdated.
-        implementation(libs.androidx.fragment)
+    implementation(libs.litert) {
+        // LiteRT can also download models through Play's AI packs, which brings in
+        // Play Services (and an outdated androidx.fragment Play Console flags). The
+        // genre model ships inside the app, so leave all of that out.
+        exclude(group = "com.google.android.play")
+        exclude(group = "com.google.android.gms")
     }
     implementation(libs.androidx.activity.compose)
 

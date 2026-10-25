@@ -14,9 +14,6 @@ jaudiotagger = "3.0.1"
 # Genre detection. Only the core runtime (no -support, -gpu or -metadata). 2.3.0 is
 # built with Kotlin 2.4, newer than this project's; 2.2.0 is the newest that fits.
 litert = "2.2.0"
-# Not used directly: LiteRT pulls in fragment 1.1.0 (via Play's ai-delivery), which
-# Play Console flags as outdated, so app/build.gradle.kts raises it to this.
-fragment = "1.8.9"
 junit = "4.13.2"
 json = "20240303"
 # Song editor: saving edited MP3s as MP3 (LAME in plain Java; Android has no MP3 encoder). LGPL 2.1.
@@ -33,7 +30,6 @@ androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.re
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
-androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
