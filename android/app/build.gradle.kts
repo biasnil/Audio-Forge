@@ -65,7 +65,10 @@ android {
     buildTypes {
         release {
             signingConfig = releaseSigning
-            isMinifyEnabled = false
+            // R8: shrinks, optimizes and obfuscates release builds (Play flags apps
+            // that don't). Keep rules for reflection-using libraries: proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -139,6 +142,10 @@ dependencies {
     implementation(libs.jump3r)
     // On-device genre detection (YAMNet). LiteRT is TensorFlow Lite's new name, same Interpreter API.
     implementation(libs.litert)
+    constraints {
+        // LiteRT brings in fragment 1.1.0, which Play Console flags as outdated.
+        implementation(libs.androidx.fragment)
+    }
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))
