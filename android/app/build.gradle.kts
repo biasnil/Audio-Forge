@@ -42,6 +42,9 @@ android {
         }
         create("play") {
             dimension = "store"
+            // Play counts its own uploads (1 was 1.4.1), separately from the GitHub
+            // releases' versionCode above. Raise this by one for every Play upload.
+            versionCode = 2
             buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
         }
     }
