@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- The phone's music library (MediaStore). Added folders don't need it:
          the folder picker grants access to each one. Android 13+ has a
@@ -16,6 +17,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- LiteRT asks for a data-sync foreground service to download models as
+         Play AI packs. The genre model ships inside the app (and that part of
+         LiteRT is left out, see build.gradle.kts), so drop it: Play would
+         otherwise want a foreground service declaration for a feature the
+         app doesn't have. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:node="remove" />
     <!-- Bit-perfect USB DAC output (Android 14+ preferred mixer attributes);
          a normal permission, granted without asking. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
