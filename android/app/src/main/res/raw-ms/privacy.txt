@@ -22,6 +22,8 @@ GitHub (api.github.com): satu permintaan untuk nombor keluaran AudioForge yang t
 
 Apple (itunes.apple.com): perkataan yang anda taip semasa mencari podcast. Gambar rancangan dalam hasil carian dimuatkan daripada pelayan Apple.
 
+Apple (rss.marketingtools.apple.com dan itunes.apple.com), untuk Podcast teratas dan Carta: apabila anda membukanya, negara yang dipilih dan carta yang mana; paling banyak sekali sehari bagi setiap carta. Melanggan rancangan daripada Podcast teratas meminta alamat suapannya daripada Apple. Cari di YouTube membuka YouTube dengan artis dan tajuk lagu; tiada apa-apa dimuat turun.
+
 Apple (itunes.apple.com), untuk tag dan kulit album yang tiada: apabila anda mengetik Cari maklumat yang tiada dalam penyunting tag, tajuk dan artis lagu; apabila anda menggunakan Cari kulit album yang tiada dalam Tetapan, nama dan artis setiap album, atau bagi lagu tanpa album, tajuk dan artisnya. Kulit album dimuat turun daripada pelayan Apple.
 
 Deezer (api.deezer.com): butiran lagu atau album yang sama, hanya apabila Apple tiada padanan. Kulit album dimuat turun daripada pelayan Deezer.

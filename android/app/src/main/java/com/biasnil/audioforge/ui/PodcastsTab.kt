@@ -167,6 +167,9 @@ fun PodcastsHeaderActions(onOpenPage: (Page) -> Unit) {
             }
         }
     }
+    IconButton(onClick = { onOpenPage(Page.PodcastChart) }) {
+        Icon(AppIcons.TrendingUp, contentDescription = stringResource(R.string.podcast_top))
+    }
     IconButton(onClick = { onOpenPage(Page.PodcastSearch) }) {
         Icon(AppIcons.Search, contentDescription = stringResource(R.string.podcast_search))
     }

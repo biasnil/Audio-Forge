@@ -123,9 +123,7 @@ class MetadataRepository(
             val bytes = PodcastRepository.get(url) { it.readBytes() }
             coversDir.mkdirs()
             val file = coverFile(coversDir, track)
-            val temp = File(coversDir, file.name + ".tmp")
-            temp.writeBytes(bytes)
-            temp.renameTo(file)
+            writeAtomically(file, bytes)
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't save the cover for ${track.album}", e)
             false

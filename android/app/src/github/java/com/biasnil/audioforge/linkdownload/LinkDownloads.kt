@@ -56,7 +56,8 @@ object LinkDownloads {
 
     /**
      * Downloads [entries] of [info]. For an audiobook playlist, [asOneBook]
-     * files the parts as one book named after the playlist.
+     * files the parts as one book named after the playlist. [tags] (by
+     * [LinkEntry.key]) are the reviewed artist and title of songs.
      */
     fun start(
         context: Context,
@@ -66,6 +67,7 @@ object LinkDownloads {
         entries: List<LinkEntry>,
         target: LinkTarget,
         asOneBook: Boolean,
+        tags: Map<String, SongTags> = emptyMap(),
     ) {
         if (isRunning || entries.isEmpty()) return
         val appContext = context.applicationContext
@@ -75,14 +77,15 @@ object LinkDownloads {
             val book = if (target == LinkTarget.Audiobooks && asOneBook) info.playlistTitle else null
             try {
                 for (entry in entries) {
-                    _job.update { it?.copy(current = entry.title, progress = 0f) }
+                    val songTags = if (target == LinkTarget.Songs) tags[entry.key] else null
+                    _job.update { it?.copy(current = songTags?.title ?: entry.title, progress = 0f) }
                     val saved = try {
                         withContext(Dispatchers.IO) {
                             YtDlp.init(appContext)
-                            val file = YtDlp.download(info, entry, target == LinkTarget.Audiobooks, book, workDir) { progress, _ ->
+                            val file = YtDlp.download(info, entry, target == LinkTarget.Audiobooks, book, workDir, songTags) { progress, _ ->
                                 _job.update { it?.copy(progress = progress.coerceIn(0f, 1f)) }
                             }
-                            save(appContext, file, target, book, entry)
+                            save(appContext, file, target, book, entry, songTags)
                         }
                     } catch (e: CancellationException) {
                         throw e
@@ -116,14 +119,16 @@ object LinkDownloads {
     }
 
     /** Copies a finished file into Music/ or Audiobooks/ (a book from a playlist gets its own folder). */
-    private fun save(context: Context, file: File, target: LinkTarget, book: String?, entry: LinkEntry): Boolean {
+    private fun save(context: Context, file: File, target: LinkTarget, book: String?, entry: LinkEntry, tags: SongTags?): Boolean {
         val audiobook = target == LinkTarget.Audiobooks
         val folder = when {
             !audiobook -> "Music/"
             book != null -> "Audiobooks/" + (safeFileName(book).take(100).ifEmpty { "Audiobook" }) + "/"
             else -> "Audiobooks/"
         }
-        val base = file.nameWithoutExtension.ifEmpty { safeFileName(entry.title) }
+        // Named like its tags when they were reviewed: "Artist - Title".
+        val tagged = tags?.let { safeFileName(listOf(it.artist, it.title).filter(String::isNotBlank).joinToString(" - ")).take(150) }
+        val base = tagged?.ifEmpty { null } ?: file.nameWithoutExtension.ifEmpty { safeFileName(entry.title) }
         // A playlist book's parts are numbered, so they sort in order whatever their titles.
         val name = if (book != null && entry.playlistIndex != null) "%03d %s".format(entry.playlistIndex, base) else base
         // .m4b tells other players it's an audiobook (with chapters); it's the same file as .m4a.

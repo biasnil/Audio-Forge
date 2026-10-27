@@ -149,9 +149,7 @@ class RadioRepository(context: Context, private val scope: CoroutineScope) {
         scope.launch(Dispatchers.IO) {
             writeLock.withLock {
                 try {
-                    val temp = File(file.parentFile, "$FILE_NAME.tmp")
-                    temp.writeText(radioListsToJson(favorites, recent))
-                    if (!temp.renameTo(file)) Log.w(TAG, "Couldn't replace $FILE_NAME")
+                    if (!writeAtomically(file, radioListsToJson(favorites, recent))) Log.w(TAG, "Couldn't replace $FILE_NAME")
                 } catch (e: Exception) {
                     Log.w(TAG, "Couldn't save $FILE_NAME", e)
                 }

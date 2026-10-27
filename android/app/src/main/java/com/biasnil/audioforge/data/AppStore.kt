@@ -34,6 +34,9 @@ enum class Appearance { System, Light, Dark }
 /** Settings -> Appearance -> Colours: the app's blue, the wallpaper's (Material You), or a chosen accent. */
 enum class ColourStyle { AudioForge, MaterialYou, Custom }
 
+/** Albums tab: big covers (two across), small covers (three or more across), or a list. */
+enum class AlbumLayout { Grid, SmallGrid, List }
+
 /** Effects page -> 3D Surround: headphone virtualization, sized like the space it imitates. */
 enum class SurroundPreset { Off, Room, Hall, Stadium }
 
@@ -145,6 +148,13 @@ data class AppSettings(
     val podcastFolders: Set<String> = emptySet(),
     /** Folders whose songs are audiobooks (added folders by tree URI, phone folders by folder key); see Audiobooks.kt. */
     val audiobookFolders: Set<String> = emptySet(),
+    val albumLayout: AlbumLayout = AlbumLayout.Grid,
+    /** Download from link: smart title detection and its rules (see TitleCleaner). */
+    val titleRules: TitleRules = TitleRules(),
+    /** Charts tab and Top Podcasts: the country ("" = the phone's), and which chart. */
+    val chartCountry: String = "",
+    val podcastChartCountry: String = "",
+    val chartKind: ChartKind = ChartKind.Songs,
 ) {
     val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
     val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
@@ -247,6 +257,12 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 },
                 podcastFolders = root.optJSONArray("podcastFolders").toStringList().toSet(),
                 audiobookFolders = root.optJSONArray("audiobookFolders").toStringList().toSet(),
+                albumLayout = AlbumLayout.entries.firstOrNull { it.name == root.optString("albumLayout") } ?: AlbumLayout.Grid,
+                titleRules = root.optJSONObject("titleRules")?.let(::readTitleRules) ?: TitleRules(),
+                chartCountry = root.optString("chartCountry", ""),
+                podcastChartCountry = root.optString("podcastChartCountry", ""),
+                chartKind = ChartKind.entries.firstOrNull { it.name == root.optString("chartKind") && it != ChartKind.Podcasts }
+                    ?: ChartKind.Songs,
                 volumePercent = root.optInt("volumePercent", 100).coerceIn(0, AppSettings.MAX_VOLUME_PERCENT),
                 replayGainEnabled = root.optBoolean("replayGainEnabled", true),
                 crossfadeEnabled = root.optBoolean("crossfadeEnabled", false),
@@ -335,6 +351,11 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             }))
             .put("podcastFolders", JSONArray(settings.podcastFolders.toList()))
             .put("audiobookFolders", JSONArray(settings.audiobookFolders.toList()))
+            .put("albumLayout", settings.albumLayout.name)
+            .put("titleRules", writeTitleRules(settings.titleRules))
+            .put("chartCountry", settings.chartCountry)
+            .put("podcastChartCountry", settings.podcastChartCountry)
+            .put("chartKind", settings.chartKind.name)
             .put("includePhoneLibrary", settings.includePhoneLibrary)
             .put("volumePercent", settings.volumePercent)
             .put("folders", JSONArray(settings.folders))
@@ -393,10 +414,7 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             }))
             .put("smartPlaylists", JSONArray(settings.smartPlaylists.map(::writeSmartPlaylist)))
         try {
-            // Write-then-rename so a crash mid-write never leaves a truncated file.
-            val temp = File(file.parentFile, "$FILE_NAME.tmp")
-            temp.writeText(root.toString())
-            if (!temp.renameTo(file)) {
+            if (!writeAtomically(file, root.toString())) {
                 Log.w(TAG, "Couldn't replace $FILE_NAME")
             }
         } catch (e: Exception) {
@@ -436,6 +454,21 @@ private fun writeSmartPlaylist(playlist: SmartPlaylist): JSONObject = JSONObject
     .put("rules", JSONArray(playlist.rules.map { rule ->
         JSONObject().put("field", rule.field.name).put("op", rule.op.name).put("value", rule.value)
     }))
+
+/** Older rule versions read the same way; unknown fields are ignored, so nothing the user chose is lost. */
+private fun readTitleRules(obj: JSONObject) = TitleRules(
+    enabled = obj.optBoolean("enabled", true),
+    order = TitleOrder.entries.firstOrNull { it.name == obj.optString("order") } ?: TitleOrder.Automatic,
+    custom = obj.optJSONArray("custom").toStringList().map(String::trim).filter(String::isNotEmpty).distinct(),
+    disabled = obj.optJSONArray("disabled").toStringList().toSet(),
+)
+
+private fun writeTitleRules(rules: TitleRules): JSONObject = JSONObject()
+    .put("version", TitleRules.VERSION)
+    .put("enabled", rules.enabled)
+    .put("order", rules.order.name)
+    .put("custom", JSONArray(rules.custom))
+    .put("disabled", JSONArray(rules.disabled.sorted()))
 
 private fun JSONArray?.toStringList(): List<String> =
     if (this == null) emptyList() else (0 until length()).mapNotNull { optString(it, null) }

@@ -25,4 +25,28 @@
     <string name="link_look_failed">Couldn\'t open this link. Check it, and your internet connection.</string>
     <string name="link_nothing">Nothing to download at this link.</string>
     <string name="link_rights">Only download what you have the right to. Uses yt-dlp %1$s, which updates itself from GitHub once each time the app starts.</string>
+    <!-- 1.4.4 -->
+    <string name="link_getting_details">Getting song details…</string>
+    <string name="link_clear">Clear</string>
+    <string name="link_unavailable">Unavailable</string>
+    <string name="link_title_edited">Edited</string>
+    <string name="link_title_check">Check artist and title</string>
+    <string name="link_title_suggested">Name cleaned up</string>
+    <string name="link_review">Review</string>
+    <string name="link_review_title">Song details</string>
+    <string name="link_review_original">Original name</string>
+    <string name="link_review_removed">Removed: %1$s</string>
+    <string name="link_review_check_note">We weren\'t sure which part is the artist. Check below, or tap Swap.</string>
+    <string name="link_review_artist">Artist</string>
+    <string name="link_review_song_title">Title</string>
+    <string name="link_review_swap">Swap</string>
+    <string name="link_review_reset">Use the suggestion again</string>
+    <plurals name="link_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="link_select_all_description">
+        <item quantity="one">Select the %d song</item>
+        <item quantity="other">Select all %d songs</item>
+    </plurals>
 </resources>

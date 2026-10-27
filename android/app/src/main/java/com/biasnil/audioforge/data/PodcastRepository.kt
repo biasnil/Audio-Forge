@@ -245,9 +245,7 @@ class PodcastRepository(
 
     private fun write(subscriptions: List<PodcastSubscription>) {
         try {
-            val temp = File(file.parentFile, "$FILE_NAME.tmp")
-            temp.writeText(subscriptionsToJson(subscriptions))
-            if (!temp.renameTo(file)) Log.w(TAG, "Couldn't replace $FILE_NAME")
+            if (!writeAtomically(file, subscriptionsToJson(subscriptions))) Log.w(TAG, "Couldn't replace $FILE_NAME")
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't save $FILE_NAME", e)
         }

@@ -25,4 +25,26 @@
     <string name="link_look_failed">Tidak dapat membuka pautan ini. Semak pautan dan sambungan internet anda.</string>
     <string name="link_nothing">Tiada apa untuk dimuat turun pada pautan ini.</string>
     <string name="link_rights">Muat turun hanya apa yang anda berhak. Menggunakan yt-dlp %1$s, yang mengemas kini dirinya daripada GitHub sekali setiap kali apl dimulakan.</string>
+    <!-- 1.4.4 -->
+    <string name="link_getting_details">Mendapatkan butiran lagu…</string>
+    <string name="link_clear">Kosongkan</string>
+    <string name="link_unavailable">Tidak tersedia</string>
+    <string name="link_title_edited">Disunting</string>
+    <string name="link_title_check">Semak artis dan tajuk</string>
+    <string name="link_title_suggested">Nama dibersihkan</string>
+    <string name="link_review">Semak</string>
+    <string name="link_review_title">Butiran lagu</string>
+    <string name="link_review_original">Nama asal</string>
+    <string name="link_review_removed">Dibuang: %1$s</string>
+    <string name="link_review_check_note">Kami tidak pasti bahagian mana ialah artis. Semak di bawah, atau ketik Tukar.</string>
+    <string name="link_review_artist">Artis</string>
+    <string name="link_review_song_title">Tajuk</string>
+    <string name="link_review_swap">Tukar</string>
+    <string name="link_review_reset">Guna cadangan semula</string>
+    <plurals name="link_item_count">
+        <item quantity="other">%d item</item>
+    </plurals>
+    <plurals name="link_select_all_description">
+        <item quantity="other">Pilih kesemua %d lagu</item>
+    </plurals>
 </resources>

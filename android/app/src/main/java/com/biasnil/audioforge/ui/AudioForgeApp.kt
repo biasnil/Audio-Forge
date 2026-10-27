@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -169,9 +172,10 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
         Page.Widgets -> WidgetsPage(onBack = onBack)
         Page.ListeningStats -> ListeningStatsPage(onBack = onBack)
-        is Page.SettingsSectionPage -> SettingsSectionPage(page.key, onBack = onBack, onOpenPage = onOpenPage)
+        is Page.SettingsSectionPage -> SettingsSectionPage(page.key, page.focus, onBack = onBack, onOpenPage = onOpenPage)
         Page.HeadphonePicker -> HeadphonePickerPage(onBack = onBack)
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)
+        Page.PodcastChart -> PodcastChartPage(onBack = onBack, onOpenPage = onOpenPage)
         Page.FreeBookSearch -> FreeBookSearchPage(onBack = onBack, onOpenPage = onOpenPage)
         is Page.FreeBookPage -> FreeBookPage(page.id, onBack = onBack)
         is Page.LinkDownload -> LinkDownloadFeature.Page(page.target, page.link, onBack = onBack)
@@ -257,6 +261,8 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                 when (tab) {
                     LibraryTab.Songs -> SongsHeaderActions(songsState, shownSongs?.songs.orEmpty(), onOpenPage)
                     LibraryTab.Playlists -> PlaylistsHeaderActions(onOpenPage)
+                    LibraryTab.Albums -> AlbumsHeaderActions()
+                    LibraryTab.Charts -> ChartsHeaderActions()
                     LibraryTab.Podcasts -> PodcastsHeaderActions(onOpenPage)
                     LibraryTab.Audiobooks -> AudiobooksHeaderActions(onOpenPage)
                     else -> Unit
@@ -300,6 +306,7 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
                     LibraryTab.Podcasts -> PodcastsTab(onOpenPage)
                     LibraryTab.Audiobooks -> AudiobooksTab(onOpenPage)
                     LibraryTab.Radio -> RadioTab()
+                    LibraryTab.Charts -> ChartsTab()
                 }
             }
         }
@@ -308,36 +315,45 @@ private fun LibraryScreen(onOpenPage: (Page) -> Unit, onRequestAudioPermission: 
 
 private const val MORE_KEY = "More"
 
-/** The More tab: the tabs that don't fit in the bar. */
+/**
+ * The More tab: the tabs that don't fit in the bar. The rows scroll under
+ * the title (with every tab on, the last ones didn't fit on small phones or
+ * with large text); each row has the card's rounded corners where it ends.
+ */
 @Composable
 private fun MoreList(tabs: List<LibraryTab>, onOpen: (LibraryTab) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         TabHeader(stringResource(R.string.tab_more))
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         ) {
-            tabs.forEachIndexed { index, tab ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpen(tab) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            itemsIndexed(tabs, key = { _, tab -> tab.name }) { index, tab ->
+                Column(
+                    Modifier
+                        .clip(groupedShape(index, tabs.size))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                 ) {
-                    Icon(tab.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(tab.title), modifier = Modifier.weight(1f))
-                    Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (index < tabs.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpen(tab) }
+                            .heightIn(min = 52.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(tab.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(16.dp))
+                        Text(stringResource(tab.title), modifier = Modifier.weight(1f))
+                        Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (index < tabs.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 56.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                    }
                 }
             }
         }

@@ -4,6 +4,7 @@ import android.content.Context
 import com.biasnil.audioforge.audio.GenreAnalyzer
 import com.biasnil.audioforge.audio.LibraryAnalyzer
 import com.biasnil.audioforge.data.AnalysisStore
+import com.biasnil.audioforge.data.AppleChartRepository
 import com.biasnil.audioforge.data.AppStore
 import com.biasnil.audioforge.data.AudiobookStore
 import com.biasnil.audioforge.data.FreeAudiobookRepository
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 
 /** App-wide singletons, created once in [AudioForgeApplication]. */
 class AppContainer(context: Context) {
@@ -87,6 +89,9 @@ class AppContainer(context: Context) {
     val chapters = ChapterRepository(context)
     /** Internet radio (the Radio tab): stations, favorites, recently played. */
     val radio = RadioRepository(context, appScope)
+
+    /** Top Podcasts and the Charts tab; made (and its cache read) the first time a chart is opened. */
+    val charts: AppleChartRepository by lazy { AppleChartRepository(File(context.filesDir, "charts.json"), appScope) }
     /** AutoEq headphone correction profiles (Equalizer -> Effects). */
     val headphoneProfiles = HeadphoneProfileRepository(context)
     val wallpapers = WallpaperRepository(context, store)

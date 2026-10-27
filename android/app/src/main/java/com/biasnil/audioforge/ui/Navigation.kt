@@ -38,8 +38,8 @@ sealed interface Page {
     data class PodcastShow(val name: String) : Page
     data object Widgets : Page
     data object ListeningStats : Page
-    /** Settings -> one category (SettingsSection.key). */
-    data class SettingsSectionPage(val key: String) : Page
+    /** Settings -> one category (SettingsSection.key); [focus] = a search result's setting id. */
+    data class SettingsSectionPage(val key: String, val focus: String? = null) : Page
     /** Effects tab -> Headphone correction: the AutoEq model list. */
     data object HeadphonePicker : Page
     data object PodcastSearch : Page
@@ -47,6 +47,8 @@ sealed interface Page {
     data object BookChapters : Page
     /** A show from its feed; [artworkUrl] is shown until the feed has loaded (from search results). */
     data class PodcastFeed(val feedUrl: String, val artworkUrl: String?) : Page
+    /** Podcasts -> Top podcasts (Apple's chart, cached for the day). */
+    data object PodcastChart : Page
     /** Audiobooks -> Find free audiobooks. */
     data object FreeBookSearch : Page
     /** One free audiobook, by its Internet Archive id. */
@@ -78,9 +80,10 @@ sealed interface Page {
         is PodcastShow -> "show:$name"
         Widgets -> "widgets"
         ListeningStats -> "stats"
-        is SettingsSectionPage -> "settings:$key"
+        is SettingsSectionPage -> "settings:$key" + focus?.let { "|$it" }.orEmpty()
         HeadphonePicker -> "headphones"
         PodcastSearch -> "psearch"
+        PodcastChart -> "pchart"
         BookChapters -> "bookchapters"
         FreeBookSearch -> "fbsearch"
         is FreeBookPage -> "fbook:$id"
@@ -114,9 +117,13 @@ sealed interface Page {
             value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             value == "widgets" -> Widgets
             value == "stats" -> ListeningStats
-            value.startsWith("settings:") -> SettingsSectionPage(value.removePrefix("settings:"))
+            // Saved before 1.4.4 without a focus: "settings:playback".
+            value.startsWith("settings:") -> value.removePrefix("settings:").let {
+                SettingsSectionPage(it.substringBefore('|'), it.substringAfter('|', "").ifEmpty { null })
+            }
             value == "headphones" -> HeadphonePicker
             value == "psearch" -> PodcastSearch
+            value == "pchart" -> PodcastChart
             value == "fbsearch" -> FreeBookSearch
             value.startsWith("fbook:") -> FreeBookPage(value.removePrefix("fbook:"))
             value.startsWith("songedit:") -> SongEditor(value.removePrefix("songedit:"))

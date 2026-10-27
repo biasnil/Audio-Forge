@@ -19,6 +19,8 @@ enum class LibraryTab(@StringRes val title: Int, val icon: ImageVector, val hide
     Podcasts(R.string.tab_podcasts, AppIcons.Podcast),
     Audiobooks(R.string.tab_audiobooks, AppIcons.Book),
     Radio(R.string.tab_radio, AppIcons.Radio),
+    /** Apple's music charts by country (new in 1.4.4, so it starts in More). */
+    Charts(R.string.tab_charts, AppIcons.TrendingUp),
     Equalizer(R.string.tab_equalizer, AppIcons.Equalizer),
     Effects(R.string.effects, AppIcons.SurroundSound),
     Wallpapers(R.string.tab_wallpapers, AppIcons.Movie),

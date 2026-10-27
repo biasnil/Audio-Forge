@@ -25,4 +25,30 @@
     <string name="link_look_failed">Impossible d\'ouvrir ce lien. Vérifiez-le, ainsi que votre connexion Internet.</string>
     <string name="link_nothing">Rien à télécharger à ce lien.</string>
     <string name="link_rights">Ne téléchargez que ce que vous avez le droit de télécharger. Utilise yt-dlp %1$s, qui se met à jour depuis GitHub une fois à chaque démarrage de l\'app.</string>
+    <!-- 1.4.4 -->
+    <string name="link_getting_details">Récupération des infos des titres…</string>
+    <string name="link_clear">Effacer</string>
+    <string name="link_unavailable">Indisponible</string>
+    <string name="link_title_edited">Modifié</string>
+    <string name="link_title_check">Vérifiez l\'artiste et le titre</string>
+    <string name="link_title_suggested">Nom nettoyé</string>
+    <string name="link_review">Vérifier</string>
+    <string name="link_review_title">Infos du titre</string>
+    <string name="link_review_original">Nom d\'origine</string>
+    <string name="link_review_removed">Retiré : %1$s</string>
+    <string name="link_review_check_note">Nous ne savons pas quelle partie est l\'artiste. Vérifiez ci-dessous ou touchez Inverser.</string>
+    <string name="link_review_artist">Artiste</string>
+    <string name="link_review_song_title">Titre</string>
+    <string name="link_review_swap">Inverser</string>
+    <string name="link_review_reset">Reprendre la suggestion</string>
+    <plurals name="link_item_count">
+        <item quantity="one">%d élément</item>
+        <item quantity="many">%d éléments</item>
+        <item quantity="other">%d éléments</item>
+    </plurals>
+    <plurals name="link_select_all_description">
+        <item quantity="one">Sélectionner le titre (%d)</item>
+        <item quantity="many">Sélectionner les %d titres</item>
+        <item quantity="other">Sélectionner les %d titres</item>
+    </plurals>
 </resources>

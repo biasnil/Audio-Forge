@@ -1,5 +1,6 @@
 package com.biasnil.audioforge.playback
 
+import com.biasnil.audioforge.data.writeAtomically
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -68,10 +69,7 @@ class QueueStore(context: Context) {
                     .put("shuffle", saved.shuffleMode.name)
                     .put("repeat", saved.repeatMode.name)
                     .put("context", saved.context.orEmpty())
-                // Write-then-rename so a crash mid-write never leaves a truncated file.
-                val temp = File(file.parentFile, "$FILE_NAME.tmp")
-                temp.writeText(root.toString())
-                if (!temp.renameTo(file)) Log.w(TAG, "Couldn't replace $FILE_NAME")
+                if (!writeAtomically(file, root.toString())) Log.w(TAG, "Couldn't replace $FILE_NAME")
             } catch (e: Exception) {
                 Log.w(TAG, "Couldn't save $FILE_NAME", e)
             }

@@ -22,6 +22,8 @@ GitHub（api.github.com）：一次请求，用于获取 AudioForge 最新版本
 
 Apple（itunes.apple.com）：你搜索播客时输入的文字。搜索结果中的节目封面从 Apple 的服务器加载。
 
+Apple（rss.marketingtools.apple.com 和 itunes.apple.com），用于热门播客和排行榜：在你打开时，发送所选的国家/地区和哪一个排行榜；每个排行榜每天最多一次。从热门播客订阅节目时，会向 Apple 获取其订阅源地址。“在 YouTube 上查找”会用歌曲的艺人和标题打开 YouTube；不会下载任何内容。
+
 Apple（itunes.apple.com），用于补全缺失的标签和封面：在标签编辑器中点击「查找缺失信息」时，发送歌曲的标题和艺人；在设置中使用「查找缺失封面」时，发送每张专辑的名称和艺人，没有专辑的歌曲则发送其标题和艺人。封面从 Apple 的服务器下载。
 
 Deezer（api.deezer.com）：同样的歌曲或专辑信息，仅在 Apple 没有匹配结果时发送。封面从 Deezer 的服务器下载。

@@ -247,9 +247,9 @@ class LibraryRepository(
         val replace: (Track) -> Track = { if (it.uri == updated.uri) updated else it }
         phoneTracks = phoneTracks.map(replace)
         addedFolderTracks = addedFolderTracks.map(replace)
-        tracksByUri = tracksByUri + (updated.uri to updated)
-        _tracks.value = _tracks.value.map(replace)
-        _podcasts.value = _podcasts.value.map(replace)
+        // Through publish(), so music, podcasts, audiobooks and the lookup all
+        // come from the same sources (audiobooks used to keep the old tags).
+        publish()
         return updated
     }
 

@@ -125,10 +125,7 @@ class GenreStore(context: Context, private val scope: CoroutineScope) {
             })
         }
         try {
-            // Write-then-rename so a crash mid-write never leaves a truncated file.
-            val temp = File(file.parentFile, "$FILE_NAME.tmp")
-            temp.writeText(root.toString())
-            if (!temp.renameTo(file)) Log.w(TAG, "Couldn't replace $FILE_NAME")
+            if (!writeAtomically(file, root.toString())) Log.w(TAG, "Couldn't replace $FILE_NAME")
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't save $FILE_NAME", e)
         }

@@ -310,6 +310,36 @@ object AppIcons {
             "c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5" +
             " 14,7.01 14,9.5 11.99,14 9.5,14zM7,9h5v1H7z",
     )
+    // Albums' layouts: big covers, small covers, a list.
+    val GridLarge = icon(
+        "GridLarge",
+        "M3,3v8h8V3H3zM9,9H5V5h4V9zM3,13v8h8v-8H3zM9,19H5v-4h4V19zM13,3v8h8V3H13zM19,9h-4V5h4V9zM13,13v8h8v-8H13zM19,19h-4v-4h4V19z",
+    )
+    val GridSmall = icon(
+        "GridSmall",
+        "M4,11h5V5H4v6zm0,7h5v-6H4v6zm6,0h5v-6h-5v6zm6,0h5v-6h-5v6zm-6,-7h5V5h-5v6zm6,-6v6h5V5h-5z",
+    )
+    val ViewList = icon(
+        "ViewList",
+        "M3,14h4v-4H3v4zm0,5h4v-4H3v4zM3,9h4V5H3v4zm5,5h13v-4H8v4zm0,5h13v-4H8v4zM8,5v4h13V5H8z",
+    )
+    val TrendingUp = icon("TrendingUp", "M16,6l2.29,2.29 -4.88,4.88 -4,-4L2,16.59 3.41,18l6,-6 4,4 6.3,-6.29L22,12V6z")
+    val Bell = icon(
+        "Bell",
+        "M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2zm6,-6v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5" +
+            "s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z",
+    )
+    val BellOutline = icon(
+        "BellOutline",
+        "M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.9,2 2,2zm6,-6v-5c0,-3.07 -1.63,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5" +
+            "s-1.5,0.67 -1.5,1.5v0.68C7.64,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2zm-2,1H8v-6c0,-2.48 1.51,-4.5 4,-4.5s4,2.02 4,4.5v6z",
+    )
+    val OpenInNew = icon(
+        "OpenInNew",
+        "M19,19H5V5h7V3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2v-7h-2v7zM14,3v2h3.59l-9.83,9.83" +
+            " 1.41,1.41L19,6.41V10h2V3h-7z",
+    )
+    val Swap = icon("Swap", "M16,17.01V10h-2v7.01h-3L15,21l4,-3.99h-3zM9,3L5,6.99h3V14h2V6.99h3L9,3z")
 }
 
 private fun icon(name: String, pathData: String): ImageVector =

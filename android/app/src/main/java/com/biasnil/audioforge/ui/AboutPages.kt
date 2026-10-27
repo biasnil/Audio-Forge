@@ -79,71 +79,79 @@ fun AboutSection(onOpenPage: (Page) -> Unit) {
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
     ) {
-        AboutRow(AppIcons.Feedback, stringResource(R.string.about_report), accent = true) {
-            reportProblem(context, describe, emailCopied)
+        SettingAnchor("about.report") {
+            AboutRow(AppIcons.Feedback, stringResource(R.string.about_report), accent = true) {
+                reportProblem(context, describe, emailCopied)
+            }
         }
         AboutDivider()
         AboutRow(AppIcons.Code, stringResource(R.string.about_source), accent = true) {
             openLink(context, AboutLinks.REPO_URL)
         }
         AboutDivider()
-        AboutRow(AppIcons.Description, stringResource(R.string.about_terms)) { onOpenPage(Page.Terms) }
+        SettingAnchor("about.terms") { AboutRow(AppIcons.Description, stringResource(R.string.about_terms)) { onOpenPage(Page.Terms) } }
         AboutDivider()
-        AboutRow(AppIcons.PanTool, stringResource(R.string.about_privacy)) { onOpenPage(Page.Privacy) }
+        SettingAnchor("about.privacy") { AboutRow(AppIcons.PanTool, stringResource(R.string.about_privacy)) { onOpenPage(Page.Privacy) } }
         AboutDivider()
-        AboutRow(AppIcons.HeartOutline, stringResource(R.string.about_acknowledgements)) { onOpenPage(Page.Acknowledgements) }
+        SettingAnchor("about.acknowledgements") {
+            AboutRow(AppIcons.HeartOutline, stringResource(R.string.about_acknowledgements)) { onOpenPage(Page.Acknowledgements) }
+        }
         AboutDivider()
 
         val available = update as? UpdateState.Available
         val version = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = BuildConfig.UPDATE_CHECK_ENABLED && update != UpdateState.Checking) {
-                    if (available != null) {
-                        openLink(context, available.url)
-                    } else {
-                        scope.launch {
-                            when (container.updates.check()) {
-                                UpdateState.UpToDate -> Toast.makeText(context, upToDate, Toast.LENGTH_SHORT).show()
-                                UpdateState.Failed -> Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
-                                else -> Unit // an update: the row itself says so
+        SettingAnchor("about.version") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = BuildConfig.UPDATE_CHECK_ENABLED && update != UpdateState.Checking) {
+                        if (available != null) {
+                            openLink(context, available.url)
+                        } else {
+                            scope.launch {
+                                when (container.updates.check()) {
+                                    UpdateState.UpToDate -> Toast.makeText(context, upToDate, Toast.LENGTH_SHORT).show()
+                                    UpdateState.Failed -> Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
+                                    else -> Unit // an update: the row itself says so
+                                }
                             }
                         }
                     }
-                }
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.about_version), modifier = Modifier.weight(1f))
-            Text(
-                text = when {
-                    update == UpdateState.Checking -> stringResource(R.string.update_checking)
-                    available != null -> stringResource(R.string.update_available, available.version)
-                    else -> version
-                },
-                color = if (available != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.about_version), modifier = Modifier.weight(1f))
+                Text(
+                    text = when {
+                        update == UpdateState.Checking -> stringResource(R.string.update_checking)
+                        available != null -> stringResource(R.string.update_available, available.version)
+                        else -> version
+                    },
+                    color = if (available != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 
     if (BuildConfig.UPDATE_CHECK_ENABLED) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.update_auto))
-            InfoButton(stringResource(R.string.update_auto_explanation), title = stringResource(R.string.update_auto))
-            Spacer(Modifier.weight(1f))
-            Switch(
-                checked = settings.autoUpdateCheck,
-                onCheckedChange = { on -> container.store.update { it.copy(autoUpdateCheck = on) } },
-            )
+        SettingAnchor("about.auto_update") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.update_auto))
+                InfoButton(stringResource(R.string.update_auto_explanation), title = stringResource(R.string.update_auto))
+                Spacer(Modifier.weight(1f))
+                Switch(
+                    checked = settings.autoUpdateCheck,
+                    onCheckedChange = { on -> container.store.update { it.copy(autoUpdateCheck = on) } },
+                )
+            }
         }
     }
 }

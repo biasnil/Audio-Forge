@@ -1,5 +1,51 @@
 # AudioForge for Android: changelog
 
+## 1.4.4
+
+### New
+
+- **Albums: three layouts.** The button next to the Albums title switches
+  between large covers (as before), small covers (three or more across, so
+  big libraries fit) and a list with the artist and number of songs.
+- **Search settings.** Type a word at the top of Settings (volume, dark
+  mode, lyrics, tabs, covers...) and tap a result to go straight to that
+  setting; it's scrolled into view and briefly highlighted. Back comes back
+  to the results. Everything stays on the phone.
+- **Top podcasts.** Podcasts → the chart button shows Apple's top shows for
+  your country (Change country to see another). Subscribe straight from the
+  list, or tap a show for its episodes. Apple is asked at most once a day,
+  and only when you open the page; a failed try doesn't count.
+- **Charts (in More).** Apple Music's Top songs and Top albums by country,
+  loaded the same way (when opened, at most once a day). Tap a song to open
+  it in Apple Music or to search for it on YouTube -- both open the other
+  app; nothing is downloaded. The bell follows a chart: songs new to it are
+  marked New the next time you open it.
+- **Download from link (GitHub version): big playlists and smarter names.**
+  - Playlists of any size: numbered from 1 to the end, with small pictures
+    that load as you scroll, and what you picked stays picked. Deleted or
+    private videos are shown but can't be picked. Select all / Clear.
+  - Smart title detection recognises "Artist - Title" and "Title -
+    Artist" (using the channel name to tell which is which) and removes
+    phrases like (Official Video) only when they're all that's inside the
+    brackets -- remixes, live versions and featured artists stay. Each song
+    shows its suggested name; **Review** shows the original, lets you edit
+    the artist and title or Swap them, and that's exactly what's saved.
+  - Settings → Download from link: turn it off, choose which part is the
+    artist, and pick the phrases to remove (or add your own).
+
+### Fixed and improved
+
+- More scrolls, so every tab (Wallpapers included) can be reached on small
+  screens and with large text.
+- Audiobooks show tag edits straight away (they kept the old title until
+  the next rescan).
+- Less work while nothing plays: playback's 10-times-a-second update now
+  only runs while something is playing, fading or about to stop.
+- Every saved file goes through one write-then-replace helper, which also
+  cleans up after a failed write.
+- Pictures from the web (podcasts, charts, playlists) load a few at a time;
+  ones that fail are tried again after a while instead of never.
+
 ## 1.4.3
 
 Everything here is free. AudioForge is now open source under the GPL-3.0

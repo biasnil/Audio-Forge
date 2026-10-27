@@ -82,9 +82,7 @@ class FolderTagCache(context: Context) {
             )
         }
         try {
-            val temp = File(file.parentFile, "$FILE_NAME.tmp")
-            temp.writeText(root.toString())
-            if (temp.renameTo(file)) changed = false
+            if (writeAtomically(file, root.toString())) changed = false
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't save $FILE_NAME", e)
         }

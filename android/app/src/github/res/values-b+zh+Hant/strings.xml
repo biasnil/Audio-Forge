@@ -25,4 +25,26 @@
     <string name="link_look_failed">無法開啟這個連結。請檢查連結和網路連線。</string>
     <string name="link_nothing">這個連結沒有可下載的內容。</string>
     <string name="link_rights">只下載你有權下載的內容。使用 yt-dlp %1$s，每次啟動 App 時會從 GitHub 更新一次。</string>
+    <!-- 1.4.4 -->
+    <string name="link_getting_details">正在取得歌曲資訊…</string>
+    <string name="link_clear">清除</string>
+    <string name="link_unavailable">無法使用</string>
+    <string name="link_title_edited">已編輯</string>
+    <string name="link_title_check">請檢查演出者和標題</string>
+    <string name="link_title_suggested">名稱已整理</string>
+    <string name="link_review">檢查</string>
+    <string name="link_review_title">歌曲資訊</string>
+    <string name="link_review_original">原始名稱</string>
+    <string name="link_review_removed">已移除：%1$s</string>
+    <string name="link_review_check_note">我們不確定哪一部分是演出者。請在下方檢查，或點按「互換」。</string>
+    <string name="link_review_artist">演出者</string>
+    <string name="link_review_song_title">標題</string>
+    <string name="link_review_swap">互換</string>
+    <string name="link_review_reset">重新使用建議</string>
+    <plurals name="link_item_count">
+        <item quantity="other">%d 項</item>
+    </plurals>
+    <plurals name="link_select_all_description">
+        <item quantity="other">全選 %d 首歌曲</item>
+    </plurals>
 </resources>

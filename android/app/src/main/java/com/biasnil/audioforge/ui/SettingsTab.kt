@@ -62,6 +62,9 @@ import com.biasnil.audioforge.data.AppSettings
 import com.biasnil.audioforge.data.Appearance
 import com.biasnil.audioforge.data.SecretBox
 import com.biasnil.audioforge.data.libraryStats
+import com.biasnil.audioforge.linkdownload.LinkDownloadFeature
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlin.math.roundToInt
 
 /** Settings' categories, in order; each opens a [SettingsSectionPage] (Language opens its picker). */
@@ -73,19 +76,30 @@ enum class SettingsSection(val key: String, @StringRes val title: Int, val icon:
     Wallpaper("wallpaper", R.string.settings_wallpaper, AppIcons.Movie),
     Lyrics("lyrics", R.string.settings_lyrics, AppIcons.Lyrics),
     Library("library", R.string.settings_library, AppIcons.LibraryMusic),
+    /** Download from link's smart title detection (the GitHub version only). */
+    Downloads("downloads", R.string.settings_downloads, AppIcons.Download),
     Tabs("tabs", R.string.tabbar_section, AppIcons.Tab),
     About("about", R.string.settings_about, AppIcons.Info),
+    ;
+
+    /** False for a category this version of the app doesn't have. */
+    val available: Boolean get() = this != Downloads || LinkDownloadFeature.AVAILABLE
 }
 
 /**
- * The Settings tab: a short list of categories, like the phone's own
- * Settings -- an icon, a name and what's inside -- with Language first.
- * Each category opens its own page, so no page is crowded.
+ * The Settings tab: Search settings, then a short list of categories, like
+ * the phone's own Settings -- an icon, a name and what's inside -- with
+ * Language first. Each category opens its own page, so no page is crowded.
+ * Typing in the search shows matching settings instead; tapping one opens
+ * its category at that setting, and Back comes back to the results.
  */
 @Composable
 fun SettingsTab(onOpenPage: (Page) -> Unit) {
     val container = LocalAppContainer.current
     val tracks by container.library.tracks.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    /** A search result was Language: it's highlighted on this page. */
+    var focusLanguage by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -93,11 +107,28 @@ fun SettingsTab(onOpenPage: (Page) -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 16.dp)
     ) {
-        SettingsGroup {
-            LanguageRow()
+        SettingsSearchField(query, onQueryChange = {
+            query = it
+            focusLanguage = false
+        })
+        if (query.isNotBlank()) {
+            SettingsSearchResults(query) { result ->
+                if (result.sectionKey.isEmpty()) {
+                    query = ""
+                    focusLanguage = true
+                } else {
+                    onOpenPage(Page.SettingsSectionPage(result.sectionKey, result.id))
+                }
+            }
+            return@Column
         }
         SettingsGroup {
-            SettingsSection.entries.forEachIndexed { index, section ->
+            CompositionLocalProvider(LocalSettingFocus provides if (focusLanguage) "language" else null) {
+                SettingAnchor("language") { LanguageRow() }
+            }
+        }
+        SettingsGroup {
+            SettingsSection.entries.filter { it.available }.forEachIndexed { index, section ->
                 if (index > 0) SettingsGroupDivider()
                 SettingsCategoryRow(
                     icon = section.icon,
@@ -120,14 +151,26 @@ private fun sectionSummary(section: SettingsSection, songs: Int): String = when 
     SettingsSection.Lyrics -> stringResource(R.string.settings_lyrics_summary)
     SettingsSection.Library ->
         pluralStringResource(R.plurals.track_count, songs, songs) + " · " + stringResource(R.string.settings_library_summary)
+    SettingsSection.Downloads -> stringResource(R.string.settings_downloads_summary)
     SettingsSection.Tabs -> stringResource(R.string.settings_tabs_summary)
     SettingsSection.About -> stringResource(R.string.settings_about_summary)
 }
 
-/** One category's settings, under its own title. */
+/**
+ * One category's settings, under its own title. [focus] is the setting a
+ * search result points at (see SettingAnchor); an id that no longer exists
+ * just opens the category.
+ */
 @Composable
-fun SettingsSectionPage(key: String, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
-    val section = SettingsSection.entries.firstOrNull { it.key == key } ?: SettingsSection.Appearance
+fun SettingsSectionPage(key: String, focus: String? = null, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
+    val section = SettingsSection.entries.firstOrNull { it.key == key && it.available } ?: SettingsSection.Appearance
+    CompositionLocalProvider(LocalSettingFocus provides focus) {
+        SettingsSectionContent(section, onBack, onOpenPage)
+    }
+}
+
+@Composable
+private fun SettingsSectionContent(section: SettingsSection, onBack: () -> Unit, onOpenPage: (Page) -> Unit) {
     Scaffold(topBar = { DetailTopBar(stringResource(section.title), onBack) }) { innerPadding ->
         // The tab bar editor is a drag list of its own (it scrolls itself).
         if (section == SettingsSection.Tabs) {
@@ -149,6 +192,7 @@ fun SettingsSectionPage(key: String, onBack: () -> Unit, onOpenPage: (Page) -> U
                 SettingsSection.Wallpaper -> WallpaperSettings()
                 SettingsSection.Lyrics -> LyricsSettings()
                 SettingsSection.Library -> LibrarySettings(onOpenPage)
+                SettingsSection.Downloads -> DownloadSettings()
                 SettingsSection.Tabs -> Unit // above
                 SettingsSection.About -> AboutSection(onOpenPage)
             }
@@ -213,7 +257,7 @@ private fun SettingsCategoryRow(icon: ImageVector, title: String, summary: Strin
 
 /** An explanation under a setting: readable size, not the smallest text. */
 @Composable
-private fun SettingsNote(text: String, modifier: Modifier = Modifier) {
+internal fun SettingsNote(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
@@ -240,27 +284,33 @@ private fun LibrarySettings(onOpenPage: (Page) -> Unit) {
         modifier = Modifier.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedButton(
-            onClick = {
-                // Files may have been changed elsewhere: covers are read again too.
-                container.coverArt.clearAll()
-                container.library.refresh()
-            },
-            enabled = !scanning,
-        ) {
-            Text(stringResource(R.string.refresh_library))
+        SettingAnchor("library.refresh") {
+            OutlinedButton(
+                onClick = {
+                    // Files may have been changed elsewhere: covers are read again too.
+                    container.coverArt.clearAll()
+                    container.library.refresh()
+                },
+                enabled = !scanning,
+            ) {
+                Text(stringResource(R.string.refresh_library))
+            }
         }
         Spacer(Modifier.width(12.dp))
-        OutlinedButton(onClick = { onOpenPage(Page.Duplicates) }) {
-            Text(stringResource(R.string.duplicates_find))
+        SettingAnchor("library.duplicates") {
+            OutlinedButton(onClick = { onOpenPage(Page.Duplicates) }) {
+                Text(stringResource(R.string.duplicates_find))
+            }
         }
         if (scanning) {
             Spacer(Modifier.width(16.dp))
             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
         }
     }
-    SettingsLinkRow(stringResource(R.string.listening_stats)) { onOpenPage(Page.ListeningStats) }
-    FindMissingCoversRow()
+    SettingAnchor("library.stats") {
+        SettingsLinkRow(stringResource(R.string.listening_stats)) { onOpenPage(Page.ListeningStats) }
+    }
+    SettingAnchor("library.covers") { FindMissingCoversRow() }
 }
 
 /** Light / dark, and the home-screen widgets. */
@@ -269,32 +319,36 @@ private fun AppearanceSettings(onOpenPage: (Page) -> Unit) {
     val store = LocalAppContainer.current.store
     val settings by store.settings.collectAsStateWithLifecycle()
 
-    SingleChoiceSegmentedButtonRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        val options = Appearance.entries
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = settings.appearance == option,
-                onClick = { store.update { it.copy(appearance = option) } },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) {
-                Text(
-                    stringResource(
-                        when (option) {
-                            Appearance.System -> R.string.settings_appearance_system
-                            Appearance.Light -> R.string.settings_appearance_light
-                            Appearance.Dark -> R.string.settings_appearance_dark
-                        }
+    SettingAnchor("appearance.mode") {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            val options = Appearance.entries
+            options.forEachIndexed { index, option ->
+                SegmentedButton(
+                    selected = settings.appearance == option,
+                    onClick = { store.update { it.copy(appearance = option) } },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                ) {
+                    Text(
+                        stringResource(
+                            when (option) {
+                                Appearance.System -> R.string.settings_appearance_system
+                                Appearance.Light -> R.string.settings_appearance_light
+                                Appearance.Dark -> R.string.settings_appearance_dark
+                            }
+                        )
                     )
-                )
+                }
             }
         }
     }
     ThemeSettings()
-    SettingsLinkRow(stringResource(R.string.widgets_settings_row)) { onOpenPage(Page.Widgets) }
+    SettingAnchor("appearance.widgets") {
+        SettingsLinkRow(stringResource(R.string.widgets_settings_row)) { onOpenPage(Page.Widgets) }
+    }
 }
 
 /**
@@ -361,17 +415,21 @@ private fun PlaybackSettings() {
     val store = LocalAppContainer.current.store
     val settings by store.settings.collectAsStateWithLifecycle()
 
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_replaygain),
-        info = stringResource(R.string.settings_replaygain_explanation),
-        checked = settings.replayGainEnabled,
-        onCheckedChange = { on -> store.update { it.copy(replayGainEnabled = on) } },
-    )
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_crossfade),
-        checked = settings.crossfadeEnabled,
-        onCheckedChange = { on -> store.update { it.copy(crossfadeEnabled = on) } },
-    )
+    SettingAnchor("playback.replaygain") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_replaygain),
+            info = stringResource(R.string.settings_replaygain_explanation),
+            checked = settings.replayGainEnabled,
+            onCheckedChange = { on -> store.update { it.copy(replayGainEnabled = on) } },
+        )
+    }
+    SettingAnchor("playback.crossfade") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_crossfade),
+            checked = settings.crossfadeEnabled,
+            onCheckedChange = { on -> store.update { it.copy(crossfadeEnabled = on) } },
+        )
+    }
     val range = AppSettings.CROSSFADE_SECONDS_RANGE
     Text(
         text = stringResource(R.string.settings_crossfade_duration, settings.crossfadeSeconds),
@@ -385,17 +443,21 @@ private fun PlaybackSettings() {
         enabled = settings.crossfadeEnabled,
         modifier = Modifier.padding(horizontal = 16.dp),
     )
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_sleep_fade),
-        checked = settings.sleepFadeOut,
-        onCheckedChange = { on -> store.update { it.copy(sleepFadeOut = on) } },
-    )
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_resume_long),
-        info = stringResource(R.string.settings_resume_long_explanation),
-        checked = settings.rememberLongTrackPosition,
-        onCheckedChange = { on -> store.update { it.copy(rememberLongTrackPosition = on) } },
-    )
+    SettingAnchor("playback.sleep_fade") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_sleep_fade),
+            checked = settings.sleepFadeOut,
+            onCheckedChange = { on -> store.update { it.copy(sleepFadeOut = on) } },
+        )
+    }
+    SettingAnchor("playback.resume_long") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_resume_long),
+            info = stringResource(R.string.settings_resume_long_explanation),
+            checked = settings.rememberLongTrackPosition,
+            onCheckedChange = { on -> store.update { it.copy(rememberLongTrackPosition = on) } },
+        )
+    }
 }
 
 /**
@@ -415,36 +477,38 @@ private fun SmartSettings() {
     val analyzed = remember(tracks, analysis) { container.analysis.analyzedCount(tracks) }
 
     val running = progress
-    if (running != null) {
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.analysis_running, running.done, running.total), modifier = Modifier.weight(1f))
-                InfoButton(stringResource(R.string.analysis_background_note))
-                TextButton(onClick = container.analyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
+    SettingAnchor("smart.analysis") {
+        if (running != null) {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.analysis_running, running.done, running.total), modifier = Modifier.weight(1f))
+                    InfoButton(stringResource(R.string.analysis_background_note))
+                    TextButton(onClick = container.analyzer::cancel) { Text(stringResource(R.string.analysis_stop)) }
+                }
+                LinearProgressIndicator(
+                    progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-            LinearProgressIndicator(
-                progress = { running.done.toFloat() / running.total.coerceAtLeast(1) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    } else {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clickable(enabled = tracks.isNotEmpty() && !scanning) { container.analyzer.start(tracks) }
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Text(stringResource(R.string.analysis_start), color = MaterialTheme.colorScheme.primary)
-            Text(
-                text = if (analyzed == tracks.size) stringResource(R.string.analysis_all_done, tracks.size)
-                else stringResource(R.string.analysis_some_done, analyzed, tracks.size),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        } else {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = tracks.isNotEmpty() && !scanning) { container.analyzer.start(tracks) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(stringResource(R.string.analysis_start), color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = if (analyzed == tracks.size) stringResource(R.string.analysis_all_done, tracks.size)
+                    else stringResource(R.string.analysis_some_done, analyzed, tracks.size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 
-    GenreDetectionRow()
+    SettingAnchor("smart.genres") { GenreDetectionRow() }
 
     val locked = !settings.analysisCompleted
     if (locked) {
@@ -455,24 +519,30 @@ private fun SmartSettings() {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     }
-    SettingsSwitchRow(
-        label = stringResource(R.string.smart_transitions),
-        checked = settings.smartTransitions,
-        enabled = !locked,
-        onCheckedChange = { on -> store.update { it.copy(smartTransitions = on) } },
-    )
-    SettingsSwitchRow(
-        label = stringResource(R.string.smart_beat_matched),
-        checked = settings.beatMatchedCrossfade,
-        enabled = !locked && settings.crossfadeEnabled,
-        onCheckedChange = { on -> store.update { it.copy(beatMatchedCrossfade = on) } },
-    )
-    SettingsSwitchRow(
-        label = stringResource(R.string.smart_harmonic),
-        checked = settings.harmonicShuffle,
-        enabled = !locked,
-        onCheckedChange = { on -> store.update { it.copy(harmonicShuffle = on) } },
-    )
+    SettingAnchor("smart.transitions") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.smart_transitions),
+            checked = settings.smartTransitions,
+            enabled = !locked,
+            onCheckedChange = { on -> store.update { it.copy(smartTransitions = on) } },
+        )
+    }
+    SettingAnchor("smart.beat_match") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.smart_beat_matched),
+            checked = settings.beatMatchedCrossfade,
+            enabled = !locked && settings.crossfadeEnabled,
+            onCheckedChange = { on -> store.update { it.copy(beatMatchedCrossfade = on) } },
+        )
+    }
+    SettingAnchor("smart.harmonic") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.smart_harmonic),
+            checked = settings.harmonicShuffle,
+            enabled = !locked,
+            onCheckedChange = { on -> store.update { it.copy(harmonicShuffle = on) } },
+        )
+    }
     Text(
         text = stringResource(R.string.smart_options_footer),
         style = MaterialTheme.typography.bodyMedium,
@@ -532,22 +602,26 @@ private fun WallpaperSettings() {
     val store = LocalAppContainer.current.store
     val settings by store.settings.collectAsStateWithLifecycle()
 
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_wallpaper_enabled),
-        checked = settings.videoWallpaperEnabled,
-        onCheckedChange = { on -> store.update { it.copy(videoWallpaperEnabled = on) } },
-    )
-    Text(
-        text = stringResource(R.string.settings_wallpaper_opacity, settings.videoWallpaperOpacityPercent),
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
-    Slider(
-        value = settings.videoWallpaperOpacityPercent.toFloat(),
-        onValueChange = { value -> store.update { it.copy(videoWallpaperOpacityPercent = value.roundToInt().coerceIn(0, 100)) } },
-        valueRange = 0f..100f,
-        enabled = settings.videoWallpaperEnabled, // dimming a wallpaper that's off is meaningless
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
+    SettingAnchor("wallpaper.enabled") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_wallpaper_enabled),
+            checked = settings.videoWallpaperEnabled,
+            onCheckedChange = { on -> store.update { it.copy(videoWallpaperEnabled = on) } },
+        )
+    }
+    SettingAnchor("wallpaper.opacity") {
+        Text(
+            text = stringResource(R.string.settings_wallpaper_opacity, settings.videoWallpaperOpacityPercent),
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Slider(
+            value = settings.videoWallpaperOpacityPercent.toFloat(),
+            onValueChange = { value -> store.update { it.copy(videoWallpaperOpacityPercent = value.roundToInt().coerceIn(0, 100)) } },
+            valueRange = 0f..100f,
+            enabled = settings.videoWallpaperEnabled, // dimming a wallpaper that's off is meaningless
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
 }
 
 /**
@@ -561,35 +635,39 @@ private fun LyricsSettings() {
     val savedKey = remember(settings.musixmatchKeyEncrypted) { SecretBox.decrypt(settings.musixmatchKeyEncrypted) }
     var keyText by remember(savedKey) { mutableStateOf(savedKey) }
 
-    SettingsSwitchRow(
-        label = stringResource(R.string.settings_lyrics_lock_screen),
-        info = stringResource(R.string.settings_lyrics_lock_screen_explanation),
-        checked = settings.lyricsOnNowPlaying,
-        onCheckedChange = { on -> store.update { it.copy(lyricsOnNowPlaying = on) } },
-    )
-    OutlinedTextField(
-        value = keyText,
-        onValueChange = { keyText = it },
-        placeholder = { Text(stringResource(R.string.settings_musixmatch_key_hint)) },
-        // Where lyrics come from, and what the key is for.
-        trailingIcon = { InfoButton(stringResource(R.string.settings_lyrics_explanation)) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-    Row(Modifier.padding(horizontal = 8.dp)) {
-        TextButton(
-            enabled = keyText.trim() != savedKey,
-            onClick = {
-                val encrypted = SecretBox.encrypt(keyText.trim())
-                store.update { it.copy(musixmatchKeyEncrypted = encrypted) }
-            },
-        ) { Text(stringResource(R.string.save)) }
-        if (savedKey.isNotEmpty()) {
-            TextButton(onClick = { store.update { it.copy(musixmatchKeyEncrypted = "") } }) {
-                Text(stringResource(R.string.settings_musixmatch_key_clear))
+    SettingAnchor("lyrics.lock_screen") {
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_lyrics_lock_screen),
+            info = stringResource(R.string.settings_lyrics_lock_screen_explanation),
+            checked = settings.lyricsOnNowPlaying,
+            onCheckedChange = { on -> store.update { it.copy(lyricsOnNowPlaying = on) } },
+        )
+    }
+    SettingAnchor("lyrics.musixmatch") {
+        OutlinedTextField(
+            value = keyText,
+            onValueChange = { keyText = it },
+            placeholder = { Text(stringResource(R.string.settings_musixmatch_key_hint)) },
+            // Where lyrics come from, and what the key is for.
+            trailingIcon = { InfoButton(stringResource(R.string.settings_lyrics_explanation)) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        Row(Modifier.padding(horizontal = 8.dp)) {
+            TextButton(
+                enabled = keyText.trim() != savedKey,
+                onClick = {
+                    val encrypted = SecretBox.encrypt(keyText.trim())
+                    store.update { it.copy(musixmatchKeyEncrypted = encrypted) }
+                },
+            ) { Text(stringResource(R.string.save)) }
+            if (savedKey.isNotEmpty()) {
+                TextButton(onClick = { store.update { it.copy(musixmatchKeyEncrypted = "") } }) {
+                    Text(stringResource(R.string.settings_musixmatch_key_clear))
+                }
             }
         }
     }
@@ -612,7 +690,7 @@ private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsSwitchRow(
+internal fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
     enabled: Boolean = true,
@@ -626,14 +704,15 @@ private fun SettingsSwitchRow(
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f, fill = info == null),
-        )
-        if (info != null) {
-            InfoButton(info, title = label)
-            Spacer(Modifier.weight(1f))
+        // The label (with its (i) right after it) takes all the room the switch doesn't,
+        // so every switch lines up at the end and labels only wrap when they must.
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f, fill = info == null),
+            )
+            if (info != null) InfoButton(info, title = label)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }

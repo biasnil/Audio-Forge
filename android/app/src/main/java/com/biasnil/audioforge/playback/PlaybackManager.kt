@@ -56,6 +56,7 @@ import com.biasnil.audioforge.data.harmonicOrder
 import com.biasnil.audioforge.data.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -255,6 +257,9 @@ class PlaybackManager(
     private val _sessionPlayer = MutableStateFlow<Player>(QueueForwardingPlayer(active.player, this))
     val sessionPlayer: StateFlow<Player> = _sessionPlayer.asStateFlow()
 
+    /** Wakes the idle tick at once (playback started, a fade or timer began). Declared before init, which starts the tick. */
+    private val tickWake = Channel<Unit>(Channel.CONFLATED)
+
     init {
         active.player.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
         active.effects.visualizer = visualizer
@@ -262,14 +267,25 @@ class PlaybackManager(
         scope.launch {
             store.settings.collect { settings -> applyAudioSettings(settings) }
         }
-        // The desktop's 200 ms update tick, at 100 ms for smoother fades.
+        // The desktop's 200 ms update tick, at 100 ms for smoother fades -- but
+        // only while something needs it. Idle (paused, nothing fading), it
+        // ticks once a second (enough for the sleep timer) or when woken.
         scope.launch {
             while (isActive) {
                 tick()
-                delay(100)
+                if (needsFastTick()) delay(FAST_TICK_MS)
+                else withTimeoutOrNull(IDLE_TICK_MS) { tickWake.receive() }
             }
         }
     }
+
+    private fun wakeTick() {
+        tickWake.trySend(Unit)
+    }
+
+    private fun needsFastTick(): Boolean =
+        slots.any { it.player.isPlaying || it.player.playWhenReady && it.player.playbackState == Player.STATE_BUFFERING } ||
+            crossfading || active.rateFactor != 1f || beatStartJob?.isActive == true || sleepVolume != 1f
 
     // --- Transport ---------------------------------------------------------
 
@@ -366,6 +382,7 @@ class PlaybackManager(
         sleepTimer = timer
         sleepEndsAtMs = (timer as? SleepTimer.Minutes)?.let { System.currentTimeMillis() + it.minutes * 60_000L }
         setSleepVolume(1f)
+        wakeTick()
         if (timer == SleepTimer.EndOfTrack && crossfading) {
             // Stop after the song that's playing: don't hand over to the next one.
             abortHandOff()
@@ -1138,6 +1155,7 @@ class PlaybackManager(
     private inner class SlotListener(private val slot: Slot) : Player.Listener {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            wakeTick()
             if (slot !== active) return
             if (isPlaying) consecutiveFailures = 0
             // Paused (or stopped): where to resume next launch.
@@ -1149,6 +1167,7 @@ class PlaybackManager(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            wakeTick()
             if (slot !== active) return
             if (playbackState == Player.STATE_ENDED) {
                 // Crossfade-off path, or a fade that couldn't start (end of queue).
@@ -1224,6 +1243,9 @@ class PlaybackManager(
         /** A podcast episode counts as played once this close to its end (outros, ads). */
         const val PODCAST_PLAYED_WITHIN_MS = 30_000L
         private const val TAG = "PlaybackManager"
+        private const val FAST_TICK_MS = 100L
+        /** Paused / stopped: the sleep timer is still checked this often. */
+        private const val IDLE_TICK_MS = 1_000L
         private const val POSITION_SAVE_INTERVAL_MS = 5_000L
         /** How often the play in progress is saved (in case the app is killed). */
         private const val LISTEN_CHECKPOINT_MS = 10_000L
