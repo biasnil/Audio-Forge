@@ -49,11 +49,19 @@ public:
     // (the subgenre, else the broad genre) into the GENRE field.
     void setDetectedGenre(const QString& label, const QString& fillValue);
 
+    // "Find missing info": the field's current (unsaved) value, and filling
+    // only the fields that are still empty. Returns how many it filled; the
+    // file changes only if the user then clicks Save.
+    QString tagValue(const QString& key) const;
+    int fillMissing(const QMap<QString, QString>& found);
+    void setFindStatus(const QString& text); // "Looking..." / "Filled 3 fields from Deezer."
+
 signals:
     // Emitted when the user clicks "Fill from internet". PlayerWindow
     // connects this to its existing lookupSelectedTrackOnMusicBrainz()
     // flow and calls applyLookupResult() once a candidate is chosen.
     void fillFromInternetRequested();
+    void findMissingInfoRequested(); // Apple, then Deezer (PlayerWindow does the lookup)
 
 private:
     struct TagRow
@@ -78,6 +86,7 @@ private:
     QVBoxLayout* m_rowsLayout = nullptr;
     QVBoxLayout* m_outerLayout = nullptr;
     QVector<TagRow> m_rows;
+    QLabel* m_findStatus = nullptr;
 };
 
 } // namespace audioforge

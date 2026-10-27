@@ -11,10 +11,29 @@
 
 namespace audioforge::theme {
 
+namespace {
+
+QColor Mix(const QColor& a, const QColor& b, qreal amountOfA)
+{
+    return QColor::fromRgbF(a.redF() * amountOfA + b.redF() * (1 - amountOfA),
+                            a.greenF() * amountOfA + b.greenF() * (1 - amountOfA),
+                            a.blueF() * amountOfA + b.blueF() * (1 - amountOfA));
+}
+
+// The two in-between text tones come from text and muted.
+Tokens WithMixes(Tokens t)
+{
+    t.textSoft = Mix(t.text, t.muted, 0.35);
+    t.textStrong = Mix(t.text, t.muted, 0.75);
+    return t;
+}
+
+} // namespace
+
 const Tokens& tokens(bool dark)
 {
     // "Midnight" -- near-black warm neutrals with a soft peach accent.
-    static const Tokens darkTokens{
+    static const Tokens darkTokens = WithMixes({
         QColor(15, 12, 13),    // bg
         QColor(11, 9, 10),     // sidebar
         QColor(24, 20, 21),    // surface
@@ -25,9 +44,10 @@ const Tokens& tokens(bool dark)
         QColor(240, 195, 164), // accent
         QColor(246, 211, 186), // accentHover
         QColor(27, 18, 16),    // accentText
-    };
+        {}, {},
+    });
     // Warm cream counterpart -- accent darkened so it still reads on white.
-    static const Tokens lightTokens{
+    static const Tokens lightTokens = WithMixes({
         QColor(248, 243, 239),
         QColor(240, 233, 227),
         QColor(255, 255, 255),
@@ -38,7 +58,8 @@ const Tokens& tokens(bool dark)
         QColor(196, 122, 84),
         QColor(178, 106, 70),
         QColor(255, 255, 255),
-    };
+        {}, {},
+    });
     return dark ? darkTokens : lightTokens;
 }
 
@@ -76,17 +97,30 @@ QString styleSheet(bool dark)
 QToolTip { color: @text; background: @surfaceHi; border: 1px solid @border; padding: 4px 8px; border-radius: 6px; }
 
 QFrame#Sidebar { background: @sidebar; border: none; border-right: 1px solid @border; }
-QLabel#BrandLabel { color: @text; font-size: 15px; font-weight: 600; }
-QLabel#SectionCaption { color: @muted; font-size: 10px; font-weight: 600; }
+QLabel#BrandLabel { color: @text; font-size: 13px; font-weight: 500; }
+QLabel#SectionCaption { color: @muted; font-size: 10px; font-weight: 500; }
+QPushButton#CaptionButton { color: @muted; font-size: 10px; font-weight: 500; background: transparent; border: none; border-radius: 0; padding: 0; text-align: left; }
+QPushButton#CaptionButton:hover, QPushButton#CaptionButton:checked { color: @text; }
 QLabel#SectionHeading { color: @text; font-size: 17px; font-weight: 600; padding: 10px 2px 4px 6px; }
 QListWidget#CardList { background: transparent; }
 QListWidget#CardList::item { padding: 8px 6px; border-radius: 12px; color: @text; }
 QListWidget#CardList::item:hover { background: @surface; }
 QListWidget#CardList::item:selected { background: @surfaceHi; color: @accent; }
-QLabel#PageTitle { color: @text; font-family: "Playfair Display", Georgia, serif; font-size: 30px; font-weight: 500; }
+QLabel#PageTitle { color: @text; font-size: 28px; font-weight: 500; }
+QLabel#PageSubtitle { color: @muted; font-size: 12px; }
+QLabel#SoftLabel { color: @textSoft; }
+QLabel#Caption { color: @muted; font-size: 10px; font-weight: 500; }
+QLabel#MiniSubtitle { color: @muted; font-size: 12px; }
+QLabel#NavCount { color: @muted; font-size: 11px; background: transparent; }
+QLabel#EmptyTile { background: @surfaceHi; border-radius: 14px; }
+QLabel#EmptyTitle { color: @text; font-size: 21px; font-weight: 500; }
+QLabel#EmptyBody { color: @textSoft; font-size: 14px; }
+QLabel#ScanLabel { color: @textSoft; font-size: 12px; }
+QLabel#ArtistName { color: @text; font-size: 34px; font-weight: 500; }
+QLabel#ArtistMeta { color: @textSoft; font-size: 13px; }
 QLabel#MutedLabel { color: @muted; }
 QLabel#TimeLabel { color: @muted; font-size: 11px; }
-QLabel#MiniTitle { color: @text; font-weight: 600; }
+QLabel#MiniTitle { color: @text; font-size: 13px; font-weight: 500; }
 QLabel#CoverArt { background: @surfaceHi; border-radius: 8px; }
 QLabel#NowPlayingCaption { color: @accent; font-size: 11px; font-weight: 600; }
 
@@ -95,9 +129,13 @@ QPushButton:hover { border-color: @accent; }
 QPushButton:pressed { background: @surface; }
 QPushButton:disabled { color: @muted; background: @surface; border-color: @border; }
 
-QPushButton#NavButton { text-align: left; padding: 9px 12px; border: none; border-radius: 10px; color: @muted; background: transparent; font-size: 13px; }
+QPushButton#NavButton { text-align: left; padding: 0 10px; min-height: 34px; max-height: 34px; border: none; border-radius: 8px; color: @textSoft; background: transparent; font-size: 13px; }
 QPushButton#NavButton:hover { color: @text; background: @surface; }
 QPushButton#NavButton:checked { color: @text; background: @surfaceHi; }
+QPushButton#ToolButton { background: transparent; border: none; border-radius: 8px; padding: 0; }
+QPushButton#ToolButton:hover { background: @surfaceHi; }
+QPushButton#ToolButton:checked { background: @surfaceHi; }
+QFrame#ToolRow { border: none; border-top: 1px solid @border; }
 
 QPushButton#IconButton { background: transparent; border: none; border-radius: 18px; padding: 0; }
 QPushButton#IconButton:hover { background: @surfaceHi; }
@@ -105,8 +143,8 @@ QPushButton#IconButton:pressed { background: @surface; }
 QPushButton#IconButton:disabled { background: transparent; }
 
 QPushButton#PlayButton, QPushButton#BigPlayButton { background: @accent; border: none; padding: 0; }
-QPushButton#PlayButton { border-radius: 22px; }
-QPushButton#BigPlayButton { border-radius: 32px; }
+QPushButton#PlayButton { border-radius: 18px; }
+QPushButton#BigPlayButton { border-radius: 30px; }
 QPushButton#PlayButton:hover, QPushButton#BigPlayButton:hover { background: @accentHover; }
 QPushButton#PlayButton:disabled, QPushButton#BigPlayButton:disabled { background: @surfaceHi; }
 
@@ -117,12 +155,23 @@ QPushButton#PillToggle:checked { color: @accentText; background: @accent; border
 QPushButton#PrimaryButton { background: @accent; color: @accentText; border: none; font-weight: 600; }
 QPushButton#PrimaryButton:hover { background: @accentHover; }
 QPushButton#PrimaryButton:disabled { background: @surfaceHi; color: @muted; }
+QPushButton#FilterPill, QPushButton#SortPill { background: transparent; color: @textSoft; border: 1px solid @border; border-radius: 8px; padding: 0 12px; font-size: 12px; min-height: 26px; max-height: 26px; }
+QPushButton#SortPill { min-height: 28px; max-height: 28px; }
+QPushButton#FilterPill:hover, QPushButton#SortPill:hover { color: @text; border-color: @accent; }
+QPushButton#FilterPill:checked { color: @accentText; background: @accent; border-color: @accent; }
+QPushButton#FilterPill::menu-indicator, QPushButton#SortPill::menu-indicator { width: 0; image: none; }
+QPushButton#FlatButton { background: transparent; color: @text; border: none; border-radius: 6px; padding: 5px 10px; }
+QPushButton#FlatButton:hover { background: @surfaceHi; }
+QPushButton#SelectionPrimary { background: @accent; color: @accentText; border: none; border-radius: 6px; padding: 5px 10px; font-weight: 600; }
+QPushButton#SelectionPrimary:hover { background: @accentHover; }
+QFrame#SelectionBar { background: @surface; border: 1px solid @border; border-radius: 8px; }
+QFrame#VDivider { background: @border; border: none; min-width: 1px; max-width: 1px; }
 
-QFrame#PlayerBar { background: @surface; border: 1px solid @border; border-radius: 16px; }
+QFrame#PlayerBar { background: @surface; border: none; border-top: 1px solid @border; border-radius: 0; }
 
 QLineEdit { background: @surface; color: @text; border: 1px solid @border; border-radius: 10px; padding: 7px 12px; selection-background-color: @accent; selection-color: @accentText; }
 QLineEdit:focus { border-color: @accent; }
-QLineEdit#SearchBar { border-radius: 16px; padding: 6px 14px 6px 6px; }
+QLineEdit#SearchBar { background: transparent; border-radius: 8px; padding: 0 8px 0 2px; min-height: 30px; max-height: 30px; font-size: 13px; }
 
 QTableView, QListView { background: transparent; color: @text; border: none; outline: 0; selection-background-color: @surfaceHi; selection-color: @accent; }
 QTableView::item { padding: 6px 8px; border: none; border-bottom: 1px solid @border; }
@@ -131,9 +180,14 @@ QTableView::item:selected { background: @surfaceHi; color: @accent; }
 QListView::item { padding: 9px 12px; border-radius: 8px; }
 QListView::item:hover { background: @surface; }
 QListView::item:selected { background: @surfaceHi; color: @accent; }
-QListWidget#SidebarList::item { padding: 6px 10px; color: @muted; }
+QListWidget#SidebarList { background: transparent; }
+QListWidget#SidebarList::item { padding: 0 10px; height: 32px; color: @textSoft; border-radius: 8px; }
 QListWidget#FoldersList::item { padding: 0; } /* rows are widgets: item padding would squash them */
 QListWidget#SidebarList::item:hover { color: @text; background: @surface; }
+QTableView#TracksTable QHeaderView::section { color: @muted; border: none; border-bottom: 1px solid @border; padding: 0 6px; font-size: 10px; font-weight: 500; min-height: 31px; }
+QTableView#TracksTable QHeaderView::up-arrow, QTableView#TracksTable QHeaderView::down-arrow { image: none; width: 0; height: 0; }
+QListWidget#ArtistList::item, QListWidget#ArtistList::item:hover, QListWidget#ArtistList::item:selected { background: transparent; padding: 0; }
+QFrame#ArtistListPane { border: none; border-right: 1px solid @border; }
 
 QHeaderView { background: transparent; border: none; }
 QHeaderView::section { background: transparent; color: @muted; border: none; border-bottom: 1px solid @border; padding: 6px 8px; font-size: 11px; font-weight: 600; }
@@ -199,7 +253,8 @@ QMenu::item:selected { background: @accent; color: @accentText; }
     const std::initializer_list<std::pair<const char*, QColor>> replacements = {
         {"@accentHover", t.accentHover}, {"@accentText", t.accentText}, {"@accent", t.accent},
         {"@surfaceHi", t.surfaceHi},     {"@surface", t.surface},       {"@sidebar", t.sidebar},
-        {"@border", t.border},           {"@muted", t.muted},           {"@text", t.text},
+        {"@border", t.border},           {"@muted", t.muted},           {"@textSoft", t.textSoft},
+        {"@textStrong", t.textStrong},   {"@text", t.text},
         {"@bg", t.bg},
     };
     // Qt stylesheets can't recolour an image, so each theme has its own arrow.
@@ -259,6 +314,12 @@ QString IconFileName(Icon kind)
         case Icon::Podcast:      return "podcast";
         case Icon::Trash:        return "trash";
         case Icon::CheckCircle:  return "check-circle";
+        case Icon::Radio:        return "radio";
+        case Icon::Book:         return "book";
+        case Icon::Download:     return "download";
+        case Icon::Star:         return "star";
+        case Icon::StarFilled:   return "star-filled";
+        case Icon::Chapters:     return "chapters";
     }
     return QString();
 }

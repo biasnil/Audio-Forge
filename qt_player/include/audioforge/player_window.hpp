@@ -11,6 +11,8 @@
 #include "audioforge/smart_playlists.hpp"
 #include "audioforge/theme.hpp"
 #include "audioforge/visualizer_media.hpp"
+#include "audioforge/radio_page.hpp"
+#include "audioforge/media_mux.hpp"
 #include <QFont>
 #include <QPointer>
 #include <functional>
@@ -43,6 +45,8 @@ class QFrame;
 class QVBoxLayout;
 class QListWidgetItem;
 class QMenu;
+class QButtonGroup;
+class QBoxLayout;
 
 namespace audioforge {
 
@@ -54,6 +58,18 @@ class VisualizerWidget;
 class VisualizerStyleGrid;
 class CardListWidget;
 class WindowsMediaControls;
+class CoverCache;
+class TracksTableDelegate;
+class SelectionActionBar;
+class AlphabetIndex;
+class AlbumGrid;
+class AlbumPanel;
+class MostPlayedList;
+class ClickableWidget;
+class WebImageCache;
+class PodcastDirectoryPage;
+class AudiobooksPage;
+class LinkDownloadDialog;
 
 class PlayerWindow : public QWidget
 {
@@ -92,6 +108,7 @@ private:
     void setSidebarCompact(bool compact); // icon-only rail for small windows
     QWidget* buildPlayerBar();
     QWidget* buildNowPlayingPage();
+    QWidget* wrapPage(const QString& title, QWidget* content); // a page title above a tool page (Folders, Settings...)
     static QLabel* sectionHeader(const QString& text);
     void toggleFullScreen();
 
@@ -115,7 +132,30 @@ private:
     void onLibraryScanFinished(const QVector<TrackInfo>& tracks);
     void refreshFoldersList();
     void refreshTracksTable();
-    void fitTracksColumnsOnce(); // first run: the columns share the list's width
+    void fitTracksColumns(); // Title and Album share what the fixed columns leave
+
+    // --- Tracks page: header, filters, A-Z index, selection bar, empty / scanning states ---
+    void applyTracksFilter();     // search + filter pill + Genre / Year, then renumbers the rows
+    void renumberTracks();        // the # column counts the rows shown, in their order
+    void updateTracksHeader();    // counts line, and which state shows (songs / empty / scanning)
+    void updateSelectionBar();
+    void layoutTracksOverlays();  // the selection bar and the A-Z index float over the page
+    void sortTracksBy(int column);
+    void updateSortLabel();
+    void showTracksSortMenu(const QPoint& globalPos);
+    void showTracksValueFilterMenu(bool genre); // the Genre / Year dropdowns
+    void updateAlphabetIndex();
+    void jumpToLetter(QChar letter);
+    QString tracksRowPath(int row) const;
+    QVector<TrackInfo> visibleTracks() const; // the rows shown, in order
+    void shuffleTracks(const QVector<TrackInfo>& tracks, const QString& context);
+
+    // --- Albums (grid with an inline panel) / Artists (list and detail) ------------
+    void openAlbum(int index); // -1 closes the panel
+    void showAlbumsSortMenu();
+    void showArtist(const QString& name);
+    void updateNavCounts();       // the sidebar's counts beside Tracks / Albums / Artists / Podcasts
+    void updatePlayingMarks();    // the playing song's accent in the library views
 
     void refreshAlbumsAndArtists();
     void applySearchFilter(const QString& text);
@@ -205,6 +245,8 @@ private:
     void addTracksToQueue(const QVector<TrackInfo>& tracks);
     void settleHandOff(); // before what plays next changes: finish an audible crossfade, drop an unheard one
     void setUpNextVisible(bool visible);
+    void updateUpNextCard();  // Now Playing's "Up next" card: the track after this one
+    void updatePlayingFrom(); // Now Playing's "Playing from album / X" line
     void refreshUpNext(); // no-op while the panel is hidden
     void saveQueueAsPlaylist();
     void showToast(const QString& message);
@@ -231,7 +273,8 @@ private:
     void fetchFromLrclib(const TrackInfo& info, const QString& path);
     void fetchFromMusixmatch(const TrackInfo& info, const QString& path);
     void applyFallbackOrClearLyrics(const QString& path);
-    void setLyricsContent(const QString& rawText, bool synced); // populates m_lyricsList, and m_syncedLyrics if synced
+    // Populates m_lyricsList, and m_syncedLyrics if synced; `source` ("LRCLIB"...) labels it.
+    void setLyricsContent(const QString& rawText, bool synced, const QString& source = QString());
     void setLyricsPlaceholder(const QString& text); // "Loading lyrics..." / "No lyrics found."
     void updateSyncedLyricsHighlight(float cursorSeconds); // called every tick while m_syncedLyrics isn't empty
     void resetTitleMarquee(const QString& title); // called once per track load -- decides if scrolling is needed at all
@@ -261,7 +304,16 @@ private:
     // Hard cut via AudioEngine + UI update. autoplay = false loads it paused;
     // startAt >= 0 starts there (instead of a long track's resume point / Smart
     // Transitions' trimmed start).
-    void loadTrack(const TrackInfo& info, bool autoplay = true, float startAt = -1.0f);
+    // An internet radio station (an http URL) connects on a worker thread
+    // first (openStreamAndPlay), then comes back here with the opened stream.
+    void loadTrack(const TrackInfo& info, bool autoplay = true, float startAt = -1.0f, ma_data_source* preopened = nullptr);
+    void openStreamAndPlay(const TrackInfo& info, bool autoplay);
+
+    // --- Internet radio ---------------------------------------------------------
+    void playStation(const RadioStation& station);
+    void showStreamTitle(); // the station's current song, on the player bar, Now Playing and Windows' controls
+    void openLinkDownload(); // Download from link
+    void openMissingCovers(); // Settings > Library > Find missing covers
     void updateNowPlayingUi(const TrackInfo& info);
     void play();
     void pause();
@@ -372,7 +424,11 @@ private:
     bool m_lyricsCentered = false; // synced lyrics or the "No lyrics" note: the line in the middle
     int m_lyricsLead = 0; // padding rows before the first lyric line (synced lyrics: 1, so any line can sit in the middle)
 
-    QStackedWidget* m_podcastsStack = nullptr;  // the shows (0) or one show's episodes (1)
+    QStackedWidget* m_podcastsStack = nullptr;  // the shows (0), one show's episodes (1), or the online directory (2)
+    PodcastDirectoryPage* m_podcastDirectory = nullptr;
+    QButtonGroup* m_podcastModes = nullptr;     // On this PC / Subscriptions
+    QLineEdit* m_podcastSearch = nullptr;
+    bool m_podcastsShownOnce = false; // the first visit with nothing yet shows Top podcasts
     QListWidget* m_podcastShowsList = nullptr;
     QLabel* m_podcastsEmptyLabel = nullptr;
     QListWidget* m_podcastEpisodesList = nullptr;
@@ -397,16 +453,88 @@ private:
     QThread* m_scanThread = nullptr;
     std::shared_ptr<std::atomic<bool>> m_scanCancel;
     bool m_scanPending = false;
-    QWidget* m_scanBar = nullptr;       // "Loading library... N of M" under the title bar
+    QWidget* m_scanBar = nullptr;       // "Loading library... N of M" under the Tracks header
     QLabel* m_scanLabel = nullptr;
     QProgressBar* m_scanProgress = nullptr;
+    QLabel* m_scanPercentLabel = nullptr;
+
+    // --- Library pages (drawn by widgets/library_views) ---
+    CoverCache* m_covers = nullptr;
+    WebImageCache* m_webImages = nullptr; // logos and covers from the web (Radio, podcasts, audiobooks)
+    RadioPage* m_radioPage = nullptr;
+    AudiobooksPage* m_audiobooksPage = nullptr;
+    QVector<ChapterMark> m_chapters; // the playing file's (audiobooks); Now Playing's Chapters menu
+    int m_currentChapter = -1;
+    QPushButton* m_chaptersButton = nullptr;
+    QPushButton* m_downloadLinkButton = nullptr; // sidebar tool row
+    LinkDownloadDialog* m_linkDialog = nullptr;  // made on first use, kept (downloads carry on while it's closed)
+    RadioStation m_currentStation;
+    QString m_lastStreamTitle;
+    int m_streamOpenGeneration = 0; // a station still connecting is dropped once something else is picked
+    QWidget* m_tracksPage = nullptr;
+    TracksTableDelegate* m_tracksDelegate = nullptr;
+    QStackedWidget* m_tracksStack = nullptr; // the table (0) or the empty library (1)
+    QLabel* m_tracksSubtitle = nullptr;
+    QPushButton* m_shuffleAllButton = nullptr;
+    QPushButton* m_playAllButton = nullptr;
+    QWidget* m_filterRow = nullptr;
+    QButtonGroup* m_filterGroup = nullptr;
+    QPushButton* m_genreFilterButton = nullptr;
+    QPushButton* m_yearFilterButton = nullptr;
+    QLabel* m_sortLabel = nullptr;
+    AlphabetIndex* m_alphabetIndex = nullptr;
+    SelectionActionBar* m_selectionBar = nullptr;
+    QLabel* m_emptyTile = nullptr;
+    QPushButton* m_emptyAddFolderButton = nullptr;
+    QPushButton* m_emptyOpenFileButton = nullptr;
+    enum class TracksFilter { All, Loved, NeverPlayed, RecentlyAdded };
+    TracksFilter m_tracksFilter = TracksFilter::All;
+    QString m_genreFilter; // empty = every genre
+    int m_yearFilter = 0;  // 0 = every year
+
+    struct AlbumInfo
+    {
+        QString name;
+        QString artist;   // the most common one among its songs
+        int year = 0;
+        qint64 addedMs = 0;
+        double seconds = 0.0;
+        QStringList paths; // in file order
+    };
+    QVector<AlbumInfo> m_albums; // as the grid shows them
+    AlbumGrid* m_albumGrid = nullptr;
+    AlbumPanel* m_albumPanel = nullptr;
+    QScrollArea* m_albumsScroll = nullptr;
+    QLabel* m_albumsSubtitle = nullptr;
+    QPushButton* m_albumSortButton = nullptr;
+    int m_albumSort = 0; // 0 = Recently added, 1 = Title, 2 = Artist, 3 = Year
+
+    QMap<QString, QStringList> m_artistPaths;
+    QLabel* m_artistsSubtitle = nullptr;
+    QString m_selectedArtist;
+    QLabel* m_artistAvatar = nullptr;
+    QLabel* m_artistName = nullptr;
+    QLabel* m_artistMeta = nullptr;
+    QPushButton* m_artistPlayButton = nullptr;
+    QPushButton* m_artistShuffleButton = nullptr;
+    QLabel* m_mostPlayedCaption = nullptr;
+    MostPlayedList* m_mostPlayed = nullptr;
+    AlbumGrid* m_artistAlbums = nullptr;
+    QVector<AlbumInfo> m_artistAlbumInfos;
+    QVector<TrackInfo> m_artistTopTracks; // what Most Played shows
     QPushButton* m_refreshLibraryButton = nullptr;
 
     QString m_queueContext;            // "Next From ..." in Up Next
     QVector<TrackInfo> m_playHistory;  // played tracks, oldest first, current last (capped)
     UpNextPanel* m_upNextPanel = nullptr;
     QPushButton* m_queueButton = nullptr;    // player bar: shows/hides Up Next
-    QPushButton* m_bigQueueButton = nullptr; // Now Playing: back to the library with Up Next open
+    ClickableWidget* m_upNextCard = nullptr; // Now Playing: the next track; opens Up Next
+    QLabel* m_upNextCover = nullptr;
+    QLabel* m_upNextText = nullptr;
+    QLabel* m_upNextIcon = nullptr;
+    QLabel* m_playingFromCaption = nullptr;  // Now Playing: "PLAYING FROM ALBUM"
+    QLabel* m_playingFromName = nullptr;     // ...over the album / playlist name
+    QLabel* m_lyricsSourceTag = nullptr;     // "Synced · LRCLIB"
     QLabel* m_toast = nullptr;               // "X plays next." confirmation
     QTimer* m_toastTimer = nullptr;
     int m_videoWallpaperOpacityPercent = 100; // 0-100; 100 = fully visible (current behavior), lower fades the video
@@ -428,14 +556,17 @@ private:
     bool m_musicBrainzLookupInFlight = false; // one lookup at a time (MusicBrainz rate-limits to ~1 req/s anyway)
 
     QTabWidget* m_tabs = nullptr; // tab bar hidden -- the sidebar's nav buttons switch pages instead
-    QVector<QPushButton*> m_navButtons; // indexed by tab index, same as m_tabs
+    QVector<QPushButton*> m_navButtons; // indexed by tab index, same as m_tabs (nav, tool row, or the Playlists caption)
+    QVector<QLabel*> m_navCounts;       // ...the count beside a checked nav button (null where there's none)
+    QLabel* m_libraryCaption = nullptr;
+    QFrame* m_toolRow = nullptr;        // Folders / Equalizer / Wallpapers / Settings / Open File, pinned at the bottom
+    QBoxLayout* m_toolRowLayout = nullptr;
     QFrame* m_sidebar = nullptr;
     QVBoxLayout* m_sidebarLayout = nullptr;
     int m_sidebarSpacerIndex = -1;
     QLabel* m_brandLabel = nullptr;
     QWidget* m_playlistsSection = nullptr;
     bool m_sidebarCompact = false;
-    QLabel* m_pageTitleLabel = nullptr;
     QListWidget* m_sidebarPlaylistsList = nullptr;
     QPushButton* m_newPlaylistButton = nullptr;
     QAction* m_searchIconAction = nullptr;
@@ -445,9 +576,6 @@ private:
     QLabel* m_ambientBackground = nullptr; // Now Playing's backdrop: the cover blurred and darkened, or generated art
     QLineEdit* m_searchBar = nullptr;
     QTableWidget* m_tracksTable = nullptr;
-    QPushButton* m_musicBrainzButton = nullptr;
-    QPushButton* m_changeCoverButton = nullptr;
-    QListWidget* m_albumsList = nullptr;
     QListWidget* m_artistsList = nullptr;
     QListWidget* m_foldersList = nullptr;
     CardListWidget* m_playlistsList = nullptr;      // Playlists tab: the user's playlists (cards)
@@ -465,7 +593,6 @@ private:
     bool m_savedForExit = false;
     bool m_startupSettled = false; // no notification for the song restored at start
     QString m_lastNotifiedPath;
-    bool m_tracksColumnsFitted = false; // the Tracks list has widths (the user's, or fitted once)  // cover mosaics, by the paths they're made from
     QLabel* m_globalWallpaperLabel = nullptr;
     QListWidget* m_wallpaperEntriesList = nullptr;
     QVector<QAbstractButton*> m_tabVisibilityCheckboxes; // Settings > Visible Tabs, indexed by tab index (0-4)
@@ -492,6 +619,7 @@ private:
     QAbstractButton* m_resumeLongSwitch = nullptr;
     QPushButton* m_sleepButton = nullptr; // Now Playing: sleep timer menu
     QPushButton* m_loveButton = nullptr;  // Now Playing: Loved heart
+    QPushButton* m_miniLoveButton = nullptr; // the player bar's heart
     QString m_countedPath;                // the playing track, once its play has been counted
 
     QAbstractButton* m_crossfadeCheckbox = nullptr;
@@ -510,7 +638,7 @@ private:
 
     QLabel* m_coverArtLabel = nullptr;
     QLabel* m_titleLabel = nullptr;
-    QLabel* m_formatLabel = nullptr;
+    QLabel* m_formatLabel = nullptr;   // the player bar's "Artist · Album" line
     QSlider* m_seekSlider = nullptr;
     QLabel* m_timeLabel = nullptr;     // elapsed, left of the seek bar
     QLabel* m_durationLabel = nullptr; // total, right of the seek bar
@@ -543,13 +671,13 @@ private:
     QPushButton* m_prevButton = nullptr;
     QPushButton* m_playButton = nullptr; // play/pause toggle -- icon follows the engine state
     int m_shownPlayingState = -1;        // what the play buttons currently show (-1 = not set yet)
-    QPushButton* m_stopButton = nullptr;
     QPushButton* m_nextButton = nullptr;
     QPushButton* m_repeatButton = nullptr;
     QSlider* m_bigVolumeSlider = nullptr;
     QPushButton* m_openButton = nullptr;
     QPushButton* m_replayGainButton = nullptr;
-    QPushButton* m_themeButton = nullptr;
+    QPushButton* m_bigReplayGainButton = nullptr; // Now Playing's copy
+    QPushButton* m_openNowPlayingButton = nullptr;
     QSlider* m_volumeSlider = nullptr;
     QTimer* m_updateTimer = nullptr;
 };

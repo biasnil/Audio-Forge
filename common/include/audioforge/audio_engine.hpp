@@ -29,7 +29,11 @@ public:
     // and loads+starts this file (or just loads it, paused, with start =
     // false). Returns false if the file couldn't be opened (bad path,
     // unsupported/corrupt file, etc.).
-    bool loadAndPlay(const QString& path, bool start = true);
+    // `path` can be an http(s) stream (internet radio). Connecting can take
+    // seconds, so callers on the UI thread open it first with
+    // OpenFfmpegAudio() on another thread and pass it as `preopened` (the
+    // engine then owns it, also if loading fails).
+    bool loadAndPlay(const QString& path, bool start = true, ma_data_source* preopened = nullptr);
 
     // play()/pause() act on BOTH slots while a crossfade is in progress, so
     // pausing mid-fade doesn't leave the incoming track playing on its own.
@@ -44,6 +48,8 @@ public:
     bool isLoaded() const;
     bool isAtEnd() const;
     bool isPlaying() const; // false if loaded but paused, or nothing loaded
+    bool isLive() const;    // an internet radio stream: no length, no seeking
+    QString streamTitle() const; // a live stream's current song ("Artist - Title"), if it sends one
     float cursorSeconds() const;
     float lengthSeconds() const;
 
@@ -130,7 +136,7 @@ private:
 
     // Loads `path` into a slot's sound (an AAC/M4A file through FFmpeg, see
     // ffmpeg_audio.hpp); uninitSlot releases the sound and that source.
-    ma_result initSlot(int slot, const QString& path);
+    ma_result initSlot(int slot, const QString& path, ma_data_source* preopened = nullptr);
     void uninitSlot(int slot);
 
     void initEqualizerChain(); // builds the 10-node peak-filter chain; sets m_eqBandsInitialized

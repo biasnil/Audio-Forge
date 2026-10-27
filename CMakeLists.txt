@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 # The app's version: shown in Settings > About, compared with GitHub releases
 # by the update check, and sent in the User-Agent. Desktop releases are tagged
 # with this plain number (e.g. "1.4.0").
-project(audioforge VERSION 1.4.0 LANGUAGES CXX)
+project(audioforge VERSION 1.4.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -87,6 +87,15 @@ add_executable(audioforge WIN32
     qt_player/src/widgets/visualizer_widget.cpp
     qt_player/src/widgets/visualizer_style_grid.cpp
     qt_player/src/widgets/card_list_widget.cpp
+    qt_player/src/widgets/library_views.cpp
+    qt_player/src/widgets/online_views.cpp
+    qt_player/src/media_mux.cpp
+    qt_player/src/radio_page.cpp
+    qt_player/src/podcast_directory.cpp
+    qt_player/src/audiobooks_page.cpp
+    qt_player/src/link_download.cpp
+    qt_player/src/online_lookup.cpp
+    qt_player/src/dialogs/missing_covers_dialog.cpp
     qt_player/src/windows_integration.cpp
 
     # Headers containing Q_OBJECT are listed explicitly so AUTOMOC reliably
@@ -111,6 +120,13 @@ add_executable(audioforge WIN32
     common/include/audioforge/update_checker.hpp
     qt_player/include/audioforge/widgets/visualizer_widget.hpp
     qt_player/include/audioforge/widgets/visualizer_style_grid.hpp
+    qt_player/include/audioforge/widgets/library_views.hpp
+    qt_player/include/audioforge/widgets/online_views.hpp
+    qt_player/include/audioforge/radio_page.hpp
+    qt_player/include/audioforge/podcast_directory.hpp
+    qt_player/include/audioforge/audiobooks_page.hpp
+    qt_player/include/audioforge/link_download.hpp
+    qt_player/include/audioforge/dialogs/missing_covers_dialog.hpp
     qt_player/include/audioforge/windows_integration.hpp
 
     # App icon (see resources/README) -- icons.qrc bundles the PNG so

@@ -22,8 +22,18 @@ class ClickSeekSlider : public QSlider
 public:
     explicit ClickSeekSlider(Qt::Orientation orientation, QWidget* parent = nullptr);
 
+    // A-B repeat (horizontal only): ticks at slider values `a` and `b` (b < 0:
+    // only A so far), the span between them tinted. a < 0 clears them.
+    void setRangeMarkers(int a, int b, const QColor& color);
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    int m_markerA = -1;
+    int m_markerB = -1;
+    QColor m_markerColor;
 };
 
 } // namespace audioforge

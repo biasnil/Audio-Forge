@@ -1,6 +1,7 @@
 #include "audioforge/widgets/click_seek_slider.hpp"
 
 #include <QMouseEvent>
+#include <QPainter>
 #include <QStyle>
 #include <QStyleOptionSlider>
 
@@ -45,6 +46,54 @@ void ClickSeekSlider::mousePressEvent(QMouseEvent* event)
         }
     }
     QSlider::mousePressEvent(event);
+}
+
+void ClickSeekSlider::setRangeMarkers(int a, int b, const QColor& color)
+{
+    if (a == m_markerA && b == m_markerB && color == m_markerColor)
+    {
+        return;
+    }
+    m_markerA = a;
+    m_markerB = b;
+    m_markerColor = color;
+    update();
+}
+
+void ClickSeekSlider::paintEvent(QPaintEvent* event)
+{
+    QSlider::paintEvent(event);
+    if (m_markerA < 0 || orientation() != Qt::Horizontal || maximum() <= minimum())
+    {
+        return;
+    }
+    QStyleOptionSlider opt;
+    initStyleOption(&opt);
+    const QRect groove = style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove, this);
+    const QRect handle = style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderHandle, this);
+    // Same mapping the style uses for the handle's center.
+    const int span = qMax(1, groove.width() - handle.width());
+    auto xOf = [&](int value) {
+        return groove.x() + handle.width() / 2
+            + QStyle::sliderPositionFromValue(minimum(), maximum(), value, span, opt.upsideDown);
+    };
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(Qt::NoPen);
+    const int centerY = groove.center().y();
+    const int a = xOf(m_markerA);
+    if (m_markerB >= 0)
+    {
+        const int b = xOf(m_markerB);
+        QColor span = m_markerColor;
+        span.setAlphaF(0.45);
+        p.setBrush(span);
+        p.drawRoundedRect(QRectF(a, centerY - 2, b - a, 4), 2, 2);
+        p.setBrush(m_markerColor);
+        p.drawRect(QRectF(b - 1, centerY - 6, 2, 12));
+    }
+    p.setBrush(m_markerColor);
+    p.drawRect(QRectF(a - 1, centerY - 6, 2, 12));
 }
 
 } // namespace audioforge

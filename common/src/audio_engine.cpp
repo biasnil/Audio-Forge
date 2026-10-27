@@ -47,12 +47,12 @@ bool AudioEngine::init()
     return m_engineInitialized;
 }
 
-ma_result AudioEngine::initSlot(int slot, const QString& path)
+ma_result AudioEngine::initSlot(int slot, const QString& path, ma_data_source* preopened)
 {
-    if (IsFfmpegAudioFile(path))
+    if (preopened || IsFfmpegAudioFile(path) || IsStreamUrl(path))
     {
-        // AAC / M4A: miniaudio can't decode it -- FFmpeg does, as a data source.
-        ma_data_source* source = OpenFfmpegAudio(path);
+        // AAC / M4A and internet radio: miniaudio can't decode them -- FFmpeg does, as a data source.
+        ma_data_source* source = preopened ? preopened : OpenFfmpegAudio(path);
         if (!source)
         {
             return MA_INVALID_FILE;
@@ -125,10 +125,11 @@ void AudioEngine::initEqualizerChain()
     m_eqBandsInitialized = true;
 }
 
-bool AudioEngine::loadAndPlay(const QString& path, bool start)
+bool AudioEngine::loadAndPlay(const QString& path, bool start, ma_data_source* preopened)
 {
     if (!m_engineInitialized)
     {
+        CloseFfmpegAudio(preopened);
         return false; // no audio device -- init() already reported it; a sound can't exist without the engine
     }
     if (m_slotLoaded[m_activeSlot])
@@ -136,7 +137,7 @@ bool AudioEngine::loadAndPlay(const QString& path, bool start)
         uninitSlot(m_activeSlot);
     }
 
-    ma_result result = initSlot(m_activeSlot, path);
+    ma_result result = initSlot(m_activeSlot, path, preopened);
 
     if (result != MA_SUCCESS)
     {
@@ -151,6 +152,16 @@ bool AudioEngine::loadAndPlay(const QString& path, bool start)
         ma_sound_start(&ActiveSound());
     }
     return true;
+}
+
+bool AudioEngine::isLive() const
+{
+    return isLoaded() && IsFfmpegLive(m_slotSource[m_activeSlot]);
+}
+
+QString AudioEngine::streamTitle() const
+{
+    return isLoaded() ? FfmpegStreamTitle(m_slotSource[m_activeSlot]) : QString();
 }
 
 void AudioEngine::play()

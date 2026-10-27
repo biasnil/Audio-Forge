@@ -5,7 +5,8 @@
 
 namespace audioforge {
 
-// Replaces a track's embedded cover art (ID3v2 APIC frame) with
+// Replaces a track's embedded cover art (MP3: the ID3v2 APIC frame; M4A /
+// M4B: the "covr" atom; FLAC: the front-cover picture) with
 // `imageData`, dropping whatever picture (if any) was there before -- a
 // full replace, not an add, so the file doesn't end up with two "front
 // cover" pictures. `mimeType` should describe imageData's actual format

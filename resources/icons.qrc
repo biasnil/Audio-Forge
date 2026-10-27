@@ -10,6 +10,12 @@
     <qresource prefix="/icons">
         <file>audioforge.png</file>
         <file>ui/album.svg</file>
+        <file>ui/radio.svg</file>
+        <file>ui/book.svg</file>
+        <file>ui/download.svg</file>
+        <file>ui/star.svg</file>
+        <file>ui/star-filled.svg</file>
+        <file>ui/chapters.svg</file>
         <file>ui/artist.svg</file>
         <file>ui/back.svg</file>
         <file>ui/equalizer.svg</file>

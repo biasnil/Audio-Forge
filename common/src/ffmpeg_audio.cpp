@@ -1,18 +1,26 @@
 #include "audioforge/ffmpeg_audio.hpp"
+#include "audioforge/app_info.hpp"
 #include "audioforge/warnings.hpp"
 
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QStringList>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
+#include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 }
 
 #include <algorithm>
+#include <atomic>
+#include <condition_variable>
 #include <cstring>
+#include <deque>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace audioforge {
@@ -38,7 +46,30 @@ struct FfmpegSource
     bool aligning = false;
     bool flushed = false;       // the decoder was told the file ended
     bool finished = false;
+
+    // Live streams (internet radio): a thread decodes ahead into `buffer`;
+    // read() only ever takes from it, so a slow network can't stall the audio thread.
+    bool live = false;
+    std::atomic<bool> stop{false};  // also interrupts FFmpeg's network waits
+    std::thread decoder;
+    std::mutex mutex;               // guards everything below
+    std::condition_variable spaceFree;
+    std::deque<float> buffer;       // interleaved
+    bool primed = false;            // enough buffered to (re)start
+    bool streamEnded = false;
+    QString title;                  // ICY StreamTitle
+    QByteArray lastIcyPacket;       // (decoder thread only)
 };
+
+// Seconds of audio held ahead, and what's needed before playback starts or
+// resumes after the buffer ran dry.
+constexpr double kLiveBufferSeconds = 20.0;
+constexpr double kLivePrebufferSeconds = 1.5;
+
+int Interrupted(void* opaque)
+{
+    return static_cast<FfmpegSource*>(opaque)->stop.load() ? 1 : 0;
+}
 
 void Release(FfmpegSource* s)
 {
@@ -120,10 +151,106 @@ bool DecodeMore(FfmpegSource* s)
     }
 }
 
+// Live: whatever's buffered, silence while (re)buffering -- the sound keeps
+// running, so a network hiccup is a gap, not the end of the station.
+ma_result ReadLive(FfmpegSource* s, float* out, ma_uint64 frameCount, ma_uint64* framesRead)
+{
+    std::lock_guard<std::mutex> lock(s->mutex);
+    const size_t available = s->buffer.size() / s->channels;
+    if (!s->primed && (available >= static_cast<size_t>(kLivePrebufferSeconds * s->sampleRate) || s->streamEnded))
+    {
+        s->primed = true;
+    }
+    size_t take = 0;
+    if (s->primed)
+    {
+        take = static_cast<size_t>(std::min<ma_uint64>(available, frameCount));
+        const auto samples = static_cast<std::ptrdiff_t>(take * s->channels);
+        std::copy(s->buffer.begin(), s->buffer.begin() + samples, out);
+        s->buffer.erase(s->buffer.begin(), s->buffer.begin() + samples);
+        s->spaceFree.notify_one();
+    }
+    if (take == 0 && s->streamEnded)
+    {
+        if (framesRead)
+        {
+            *framesRead = 0;
+        }
+        return MA_AT_END; // the station hung up for good
+    }
+    if (take < frameCount)
+    {
+        std::memset(out + take * s->channels, 0, static_cast<size_t>(frameCount - take) * s->channels * sizeof(float));
+        if (!s->streamEnded)
+        {
+            s->primed = false; // ran dry: wait for a little to build up again
+        }
+    }
+    s->cursor += take;
+    if (framesRead)
+    {
+        *framesRead = frameCount;
+    }
+    return MA_SUCCESS;
+}
+
+// "StreamTitle='Artist - Song';StreamUrl='...';" -> "Artist - Song".
+QString ParseIcyTitle(const QByteArray& packet)
+{
+    QString text = QString::fromUtf8(packet);
+    if (text.contains(QChar::ReplacementCharacter))
+    {
+        text = QString::fromLatin1(packet); // older Shoutcast servers send Latin-1
+    }
+    static const QRegularExpression kTitle(QStringLiteral("StreamTitle='(.*?)';"));
+    const QRegularExpressionMatch match = kTitle.match(text);
+    return match.hasMatch() ? match.captured(1).trimmed() : QString();
+}
+
+void DecodeLive(FfmpegSource* s)
+{
+    const size_t capacity = static_cast<size_t>(kLiveBufferSeconds * s->sampleRate) * s->channels;
+    while (!s->stop.load())
+    {
+        const bool more = DecodeMore(s);
+
+        // The song the station says it's playing (sent between audio blocks).
+        uint8_t* icy = nullptr;
+        if (av_opt_get(s->format, "icy_metadata_packet", AV_OPT_SEARCH_CHILDREN, &icy) >= 0 && icy)
+        {
+            const QByteArray packet(reinterpret_cast<const char*>(icy));
+            av_free(icy);
+            if (packet != s->lastIcyPacket)
+            {
+                s->lastIcyPacket = packet;
+                const QString title = ParseIcyTitle(packet);
+                std::lock_guard<std::mutex> lock(s->mutex);
+                s->title = title;
+            }
+        }
+
+        std::unique_lock<std::mutex> lock(s->mutex);
+        if (!more)
+        {
+            s->streamEnded = true;
+            return;
+        }
+        s->spaceFree.wait(lock, [&]() { return s->stop.load() || s->buffer.size() < capacity; });
+        s->buffer.insert(s->buffer.end(), s->pending.begin() + static_cast<std::ptrdiff_t>(s->pendingFrame * s->channels),
+                         s->pending.end());
+        s->pending.clear();
+        s->pendingFrame = 0;
+    }
+}
+
 ma_result OnRead(ma_data_source* source, void* framesOut, ma_uint64 frameCount, ma_uint64* framesRead)
 {
     auto* s = reinterpret_cast<FfmpegSource*>(source);
     auto* out = static_cast<float*>(framesOut);
+    if (s->live)
+    {
+        return ReadLive(s, out, frameCount, framesRead);
+    }
     if (s->length > 0)
     {
         // The encoder's padding after the real end (a few hundred samples) isn't played.
@@ -159,6 +286,10 @@ ma_result OnRead(ma_data_source* source, void* framesOut, ma_uint64 frameCount, 
 ma_result OnSeek(ma_data_source* source, ma_uint64 frameIndex)
 {
     auto* s = reinterpret_cast<FfmpegSource*>(source);
+    if (s->live)
+    {
+        return MA_ERROR; // a live stream has no positions to go to
+    }
     AVStream* stream = s->format->streams[s->stream];
     // AAC's first frame after a seek comes out garbled (each frame overlaps the
     // one before it), so decoding starts two frames early and those are
@@ -219,6 +350,12 @@ bool IsFfmpegAudioFile(const QString& path)
     return extensions.contains(QFileInfo(path).suffix().toLower());
 }
 
+bool IsStreamUrl(const QString& path)
+{
+    return path.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
+        || path.startsWith(QLatin1String("https://"), Qt::CaseInsensitive);
+}
+
 ma_data_source* OpenFfmpegAudio(const QString& path)
 {
     auto* s = new FfmpegSource();
@@ -229,8 +366,26 @@ ma_data_source* OpenFfmpegAudio(const QString& path)
         return nullptr;
     };
 
+    s->live = IsStreamUrl(path);
+    AVDictionary* options = nullptr;
+    if (s->live)
+    {
+        static std::once_flag networkReady;
+        std::call_once(networkReady, []() { avformat_network_init(); });
+        s->format = avformat_alloc_context();
+        s->format->interrupt_callback = {&Interrupted, s}; // closing doesn't wait out a stalled connection
+        av_dict_set(&options, "icy", "1", 0);                 // ask for the song titles
+        av_dict_set(&options, "reconnect", "1", 0);
+        av_dict_set(&options, "reconnect_streamed", "1", 0);
+        av_dict_set(&options, "reconnect_on_network_error", "1", 0);
+        av_dict_set(&options, "reconnect_delay_max", "4", 0);
+        av_dict_set(&options, "rw_timeout", "15000000", 0);   // 15 s without data: give up
+        av_dict_set(&options, "user_agent", app::UserAgent().constData(), 0);
+    }
     // FFmpeg takes UTF-8 paths on Windows too.
-    if (avformat_open_input(&s->format, path.toUtf8().constData(), nullptr, nullptr) < 0)
+    const int opened = avformat_open_input(&s->format, path.toUtf8().constData(), nullptr, &options);
+    av_dict_free(&options);
+    if (opened < 0)
     {
         return fail("not readable");
     }
@@ -265,7 +420,11 @@ ma_data_source* OpenFfmpegAudio(const QString& path)
     }
     av_channel_layout_uninit(&outLayout);
 
-    if (stream->duration != AV_NOPTS_VALUE && stream->duration > 0)
+    if (s->live)
+    {
+        // No length: a station plays until it's stopped.
+    }
+    else if (stream->duration != AV_NOPTS_VALUE && stream->duration > 0)
     {
         s->length = static_cast<ma_uint64>(av_rescale_q(stream->duration, stream->time_base, AVRational{1, s->sampleRate}));
     }
@@ -282,6 +441,10 @@ ma_data_source* OpenFfmpegAudio(const QString& path)
     {
         return fail("no data source");
     }
+    if (s->live)
+    {
+        s->decoder = std::thread(&DecodeLive, s);
+    }
     return reinterpret_cast<ma_data_source*>(s);
 }
 
@@ -292,9 +455,31 @@ void CloseFfmpegAudio(ma_data_source* source)
         return;
     }
     auto* s = reinterpret_cast<FfmpegSource*>(source);
+    if (s->decoder.joinable())
+    {
+        s->stop.store(true);
+        s->spaceFree.notify_all();
+        s->decoder.join();
+    }
     ma_data_source_uninit(&s->base);
     Release(s);
     delete s;
+}
+
+bool IsFfmpegLive(const ma_data_source* source)
+{
+    return source && reinterpret_cast<const FfmpegSource*>(source)->live;
+}
+
+QString FfmpegStreamTitle(const ma_data_source* source)
+{
+    if (!IsFfmpegLive(source))
+    {
+        return QString();
+    }
+    auto* s = const_cast<FfmpegSource*>(reinterpret_cast<const FfmpegSource*>(source));
+    std::lock_guard<std::mutex> lock(s->mutex);
+    return s->title;
 }
 
 } // namespace audioforge

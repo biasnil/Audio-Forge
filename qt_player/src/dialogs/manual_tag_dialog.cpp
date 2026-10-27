@@ -73,8 +73,18 @@ ManualTagDialog::ManualTagDialog(const QString& path, const QMap<QString, QStrin
         "              padding: 6px 14px; }"
         "QPushButton:hover { background: #3a3a3a; }");
     connect(fillButton, &QPushButton::clicked, this, &ManualTagDialog::fillFromInternetRequested);
+    auto* findButton = new QPushButton(tr("Find missing info"));
+    findButton->setStyleSheet(fillButton->styleSheet());
+    findButton->setToolTip(tr("Fills the empty fields from Apple Music or Deezer. Nothing changes until you click Save."));
+    connect(findButton, &QPushButton::clicked, this, &ManualTagDialog::findMissingInfoRequested);
+    header->addWidget(findButton);
     header->addWidget(fillButton);
     outer->addLayout(header);
+    m_findStatus = new QLabel();
+    m_findStatus->setStyleSheet("color: #9a9a9a;");
+    m_findStatus->setWordWrap(true);
+    m_findStatus->hide();
+    outer->addWidget(m_findStatus);
 
     // --- Body: cover art on the left, scrollable tag rows on the right ----
     auto* body = new QHBoxLayout;
@@ -255,6 +265,38 @@ void ManualTagDialog::setDetectedGenre(const QString& label, const QString& fill
     connect(fill, &QPushButton::clicked, this, [this, fillValue]() { setOrAddTag("GENRE", fillValue); });
     row->addWidget(fill);
     m_outerLayout->insertLayout(1, row); // under the title row
+}
+
+QString ManualTagDialog::tagValue(const QString& key) const
+{
+    for (const auto& row : m_rows)
+    {
+        if (row.key.compare(key, Qt::CaseInsensitive) == 0)
+        {
+            return row.valueEdit->text().trimmed();
+        }
+    }
+    return QString();
+}
+
+int ManualTagDialog::fillMissing(const QMap<QString, QString>& found)
+{
+    int filled = 0;
+    for (auto it = found.constBegin(); it != found.constEnd(); ++it)
+    {
+        if (!it.value().trimmed().isEmpty() && tagValue(it.key()).isEmpty())
+        {
+            setOrAddTag(it.key(), it.value().trimmed());
+            ++filled;
+        }
+    }
+    return filled;
+}
+
+void ManualTagDialog::setFindStatus(const QString& text)
+{
+    m_findStatus->setText(text);
+    m_findStatus->setVisible(!text.isEmpty());
 }
 
 void ManualTagDialog::trySave()

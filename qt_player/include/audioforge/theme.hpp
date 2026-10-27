@@ -23,6 +23,8 @@ struct Tokens
     QColor accent;      // warm peach -- play button, active states, progress
     QColor accentHover;
     QColor accentText;  // text/icons drawn on top of the accent color
+    QColor textSoft;    // 35% text + 65% muted: nav labels, table cells, quiet icons
+    QColor textStrong;  // 75% text + 25% muted: emphasized secondary text
 };
 
 const Tokens& tokens(bool dark);
@@ -41,6 +43,7 @@ enum class Icon
     Queue, More, Close,
     Heart, HeartFilled, Visualizer, SmartPlaylist, Podcast,
     Trash, CheckCircle,
+    Radio, Book, Download, Star, StarFilled, Chapters,
 };
 
 // `checked` is used for the QIcon::On state (checkable buttons), `disabled`
