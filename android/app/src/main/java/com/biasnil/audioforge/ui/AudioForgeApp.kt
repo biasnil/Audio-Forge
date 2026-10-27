@@ -172,6 +172,8 @@ private fun PageContent(page: Page, onOpenPage: (Page) -> Unit, onBack: () -> Un
         is Page.PodcastShow -> PodcastShowPage(page.name, onBack = onBack)
         Page.Widgets -> WidgetsPage(onBack = onBack)
         Page.ListeningStats -> ListeningStatsPage(onBack = onBack)
+        Page.CleanUpNames -> CleanUpNamesPage(onBack = onBack)
+        Page.LeftOutByLength -> LeftOutByLengthPage(onBack = onBack)
         is Page.SettingsSectionPage -> SettingsSectionPage(page.key, page.focus, onBack = onBack, onOpenPage = onOpenPage)
         Page.HeadphonePicker -> HeadphonePickerPage(onBack = onBack)
         Page.PodcastSearch -> PodcastSearchPage(onBack = onBack, onOpenPage = onOpenPage)

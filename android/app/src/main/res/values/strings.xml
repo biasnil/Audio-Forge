@@ -660,7 +660,7 @@
     <string name="autofill_offline">Couldn\'t connect. Check your internet connection.</string>
     <string name="autofill_cover_from">Cover from %1$s</string>
     <string name="autofill_use_cover">Use this cover</string>
-    <string name="autofill_note">Sends the title and artist to Apple, and to Deezer if Apple has nothing. Only empty fields are filled.</string>
+    <string name="autofill_note">Sends the title and artist to Apple, and to Deezer if Apple has nothing. Names like “Artist - Title (Lyrics)” are tidied up first, and the title and artist are fixed. Otherwise only empty fields are filled.</string>
     <string name="covers_find">Find missing covers</string>
     <string name="covers_find_explanation">Looks up a cover for every album that has none, on Apple and Deezer (each album\'s name and artist are sent; for a song with no album, its title and artist). Covers are kept in the app; your music files aren\'t changed.</string>
     <string name="covers_progress">Checked %1$d of %2$d albums and songs · %3$d covers found</string>
@@ -801,5 +801,48 @@
     <plurals name="downloads_phrases_reset_confirm">
         <item quantity="one">This removes the %d phrase you added.</item>
         <item quantity="other">This removes the %d phrases you added.</item>
+    </plurals>
+    <string name="autofill_fixed">Fixed the title and artist from %1$s. Check them, then tap Save.</string>
+    <string name="autofill_fixed_filled">Fixed the title and artist, and filled %1$d empty fields from %2$s. Check them, then tap Save.</string>
+    <string name="autofill_fixed_not_found">Tidied up the title and artist, but couldn\'t find this song on Apple or Deezer. Check them, then tap Save.</string>
+    <string name="cleanup_title">Clean up song names</string>
+    <string name="cleanup_note">Songs whose names look like video titles, such as “Artist - Title (Official Video)”, and what they would become. Untick or edit any, then tap Fix. Nothing changes until then, and nothing is sent anywhere.</string>
+    <string name="cleanup_none">All your song names look tidy.</string>
+    <string name="cleanup_progress">Fixing %1$d of %2$d…</string>
+    <string name="cleanup_some_failed">%1$d fixed; %2$d couldn\'t be changed.</string>
+    <string name="cleanup_cancelled">Nothing was changed.</string>
+    <string name="cleanup_was">Was: %1$s · %2$s</string>
+    <string name="cleanup_edit">Edit</string>
+    <string name="cleanup_field_title">Title</string>
+    <string name="cleanup_field_artist">Artist</string>
+    <string name="cleanup_swap">Swap title and artist</string>
+    <plurals name="cleanup_count">
+        <item quantity="one">%d song to tidy</item>
+        <item quantity="other">%d songs to tidy</item>
+    </plurals>
+    <plurals name="cleanup_fix">
+        <item quantity="one">Fix %d song</item>
+        <item quantity="other">Fix %d songs</item>
+    </plurals>
+    <plurals name="cleanup_done">
+        <item quantity="one">Fixed %d song.</item>
+        <item quantity="other">Fixed %d songs.</item>
+    </plurals>
+    <plurals name="cleanup_read_only">
+        <item quantity="one">%d song in an added folder was left as it is: open it in Edit tags once to allow changes.</item>
+        <item quantity="other">%d songs in added folders were left as they are: open one in Edit tags once to allow changes.</item>
+    </plurals>
+    <string name="length_skip">Leave out very short and very long files</string>
+    <string name="length_skip_explanation">Music under 5 seconds (ringtones, notification sounds) or over 15 minutes isn\'t added to your library by itself. You can add any of them back by hand, and songs you import are always added. Audiobooks and podcasts aren\'t affected.</string>
+    <string name="length_page_title">Left out for length</string>
+    <string name="length_page_note">These are under 5 seconds or over 15 minutes, so they were left out of your library. Add the ones you want; they stay in from then on.</string>
+    <string name="length_add">Add</string>
+    <plurals name="length_left_out">
+        <item quantity="one">%d file left out for its length</item>
+        <item quantity="other">%d files left out for their length</item>
+    </plurals>
+    <plurals name="length_add_all">
+        <item quantity="one">Add %d file</item>
+        <item quantity="other">Add all %d</item>
     </plurals>
 </resources>

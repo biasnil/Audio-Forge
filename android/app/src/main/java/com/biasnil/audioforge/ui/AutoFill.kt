@@ -35,6 +35,7 @@ import com.biasnil.audioforge.R
 import com.biasnil.audioforge.data.FoundInfo
 import com.biasnil.audioforge.data.RemoteImages
 import com.biasnil.audioforge.data.fillEmptyFields
+import com.biasnil.audioforge.data.lookupNames
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -42,7 +43,9 @@ import java.io.IOException
  * Tag editor -> Find missing info: looks the song up (title and artist go to
  * Apple, then Deezer), fills only the empty Album, Album artist, Year,
  * Genre and Track fields -- the user still checks them and taps Save -- and
- * offers the cover it found, which [onUseCover] embeds.
+ * offers the cover it found, which [onUseCover] embeds. A video-style name
+ * ("NSYNC - Bye Bye Bye (Lyrics)" by a lyrics channel) is cleaned up first
+ * (see lookupNames), and then Title and Artist are fixed too.
  */
 @Composable
 fun FindMissingInfoSection(
@@ -71,15 +74,40 @@ fun FindMissingInfoSection(
                     found = null
                     scope.launch {
                         try {
-                            val info = container.metadata.findSong(title, artist)
+                            // "NSYNC - Bye Bye Bye (Lyrics)" by "7clouds" is looked up as Bye Bye Bye by NSYNC.
+                            val names = lookupNames(title, artist, container.store.settings.value.titleRules)
+                            var info: FoundInfo? = null
+                            var usedSearch: Pair<String, String>? = null
+                            for (search in names.searches) {
+                                info = container.metadata.findSong(search.first, search.second)
+                                if (info != null) {
+                                    usedSearch = search
+                                    break
+                                }
+                            }
+                            // The title and artist are fixed when they needed it: to the song found, or
+                            // to the cleaned-up names when nothing was found.
+                            val typed = title.trim() to artist.trim()
+                            val fixedNames = when {
+                                info != null && usedSearch != typed && info.title.isNotBlank() -> info.title to info.artist.ifBlank { names.artist }
+                                info == null && names.cleaned -> names.title to names.artist
+                                else -> null
+                            }
+                            val renamed = fixedNames?.let { (newTitle, newArtist) -> withTitleAndArtist(fields, newTitle, newArtist) } ?: fields
                             if (info == null) {
-                                message = context.getString(R.string.autofill_not_found)
+                                if (renamed != fields) onFill(renamed)
+                                message = context.getString(if (renamed != fields) R.string.autofill_fixed_not_found else R.string.autofill_not_found)
                             } else {
                                 found = info
-                                val (updated, filled) = fillEmptyFields(fields, info)
+                                val (updated, filled) = fillEmptyFields(renamed, info)
                                 onFill(updated)
-                                message = if (filled.isEmpty()) context.getString(R.string.autofill_nothing_new, info.source)
-                                else context.getString(R.string.autofill_filled, filled.size, info.source)
+                                val fixed = renamed != fields
+                                message = when {
+                                    fixed && filled.isEmpty() -> context.getString(R.string.autofill_fixed, info.source)
+                                    fixed -> context.getString(R.string.autofill_fixed_filled, filled.size, info.source)
+                                    filled.isEmpty() -> context.getString(R.string.autofill_nothing_new, info.source)
+                                    else -> context.getString(R.string.autofill_filled, filled.size, info.source)
+                                }
                             }
                         } catch (e: IOException) {
                             message = context.getString(R.string.autofill_offline)
@@ -129,6 +157,13 @@ fun FindMissingInfoSection(
             }
         }
     }
+}
+
+/** [fields] with TITLE and ARTIST set (added if the list had none). */
+private fun withTitleAndArtist(fields: List<Pair<String, String>>, title: String, artist: String): List<Pair<String, String>> {
+    val wanted = mapOf("TITLE" to title, "ARTIST" to artist).filterValues { it.isNotBlank() }
+    val updated = fields.map { (key, value) -> key to (wanted[key] ?: value) }
+    return updated + wanted.filterKeys { key -> fields.none { it.first == key } }.toList()
 }
 
 /**

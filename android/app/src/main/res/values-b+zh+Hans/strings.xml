@@ -646,7 +646,7 @@
     <string name="autofill_offline">无法连接，请检查网络连接。</string>
     <string name="autofill_cover_from">来自 %1$s 的封面</string>
     <string name="autofill_use_cover">使用此封面</string>
-    <string name="autofill_note">会把标题和艺人发送给 Apple；如果 Apple 没有结果，再发送给 Deezer。只会填写空白字段。</string>
+    <string name="autofill_note">会把标题和艺人发送给 Apple；如果 Apple 没有结果，再发送给 Deezer。像“艺人 - 标题 (Lyrics)”这样的名称会先整理，并修正标题和艺人。除此之外只会填写空白字段。</string>
     <string name="covers_find">查找缺失封面</string>
     <string name="covers_find_explanation">在 Apple 和 Deezer 上为每张没有封面的专辑查找封面（会发送每张专辑的名称和艺人；没有专辑的歌曲则发送其标题和艺人）。封面保存在应用内，不会修改你的音乐文件。</string>
     <string name="covers_progress">已检查 %1$d / %2$d 张专辑和歌曲 · 找到 %3$d 个封面</string>
@@ -786,5 +786,42 @@
     <string name="downloads_phrases_reset">恢复默认</string>
     <plurals name="downloads_phrases_reset_confirm">
         <item quantity="other">这会移除你添加的 %d 个短语。</item>
+    </plurals>
+    <string name="autofill_fixed">已根据 %1$s 修正标题和艺人。请检查后点击保存。</string>
+    <string name="autofill_fixed_filled">已修正标题和艺人，并从 %2$s 填入 %1$d 个空白字段。请检查后点击保存。</string>
+    <string name="autofill_fixed_not_found">已整理标题和艺人，但在 Apple 和 Deezer 上都找不到这首歌。请检查后点击保存。</string>
+    <string name="cleanup_title">整理歌曲名称</string>
+    <string name="cleanup_note">名称看起来像视频标题的歌曲（例如“艺人 - 标题 (Official Video)”），以及整理后的名称。可以取消勾选或编辑，然后点击“修正”。在此之前不会更改任何内容，也不会发送到任何地方。</string>
+    <string name="cleanup_none">所有歌曲名称看起来都很整齐。</string>
+    <string name="cleanup_progress">正在修正第 %1$d 首，共 %2$d 首…</string>
+    <string name="cleanup_some_failed">已修正 %1$d 首；%2$d 首无法更改。</string>
+    <string name="cleanup_cancelled">没有更改任何内容。</string>
+    <string name="cleanup_was">原为：%1$s · %2$s</string>
+    <string name="cleanup_edit">编辑</string>
+    <string name="cleanup_field_title">标题</string>
+    <string name="cleanup_field_artist">艺人</string>
+    <string name="cleanup_swap">互换标题和艺人</string>
+    <plurals name="cleanup_count">
+        <item quantity="other">%d 首歌曲需要整理</item>
+    </plurals>
+    <plurals name="cleanup_fix">
+        <item quantity="other">修正 %d 首歌曲</item>
+    </plurals>
+    <plurals name="cleanup_done">
+        <item quantity="other">已修正 %d 首歌曲。</item>
+    </plurals>
+    <plurals name="cleanup_read_only">
+        <item quantity="other">已添加文件夹中的 %d 首歌曲保持不变：请在“编辑标签”中打开其中一首一次，以允许更改。</item>
+    </plurals>
+    <string name="length_skip">不收录过短和过长的文件</string>
+    <string name="length_skip_explanation">短于 5 秒（铃声、通知音）或长于 15 分钟的音乐不会自动加入音乐库。你可以手动把它们加回来，你导入的歌曲总会加入。有声书和播客不受影响。</string>
+    <string name="length_page_title">因长度未收录</string>
+    <string name="length_page_note">这些文件短于 5 秒或长于 15 分钟，所以没有收录到音乐库。添加你想要的文件，之后会一直保留。</string>
+    <string name="length_add">添加</string>
+    <plurals name="length_left_out">
+        <item quantity="other">%d 个文件因长度未收录</item>
+    </plurals>
+    <plurals name="length_add_all">
+        <item quantity="other">全部添加（%d）</item>
     </plurals>
 </resources>

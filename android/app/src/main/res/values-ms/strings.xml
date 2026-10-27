@@ -646,7 +646,7 @@
     <string name="autofill_offline">Tidak dapat menyambung. Semak sambungan internet anda.</string>
     <string name="autofill_cover_from">Kulit album daripada %1$s</string>
     <string name="autofill_use_cover">Guna kulit album ini</string>
-    <string name="autofill_note">Menghantar tajuk dan artis kepada Apple, dan kepada Deezer jika Apple tiada. Hanya medan kosong diisi.</string>
+    <string name="autofill_note">Menghantar tajuk dan artis kepada Apple, dan kepada Deezer jika Apple tiada. Nama seperti “Artis - Tajuk (Lyrics)” dikemaskan dahulu, dan tajuk serta artis dibetulkan. Selain itu, hanya medan kosong diisi.</string>
     <string name="covers_find">Cari kulit album yang tiada</string>
     <string name="covers_find_explanation">Mencari kulit untuk setiap album yang tiada, di Apple dan Deezer (nama dan artis setiap album dihantar; bagi lagu tanpa album, tajuk dan artisnya). Kulit album disimpan dalam apl; fail muzik anda tidak diubah.</string>
     <string name="covers_progress">%1$d daripada %2$d album dan lagu disemak · %3$d kulit ditemui</string>
@@ -786,5 +786,42 @@
     <string name="downloads_phrases_reset">Tetapkan semula kepada lalai</string>
     <plurals name="downloads_phrases_reset_confirm">
         <item quantity="other">Ini membuang %d frasa yang anda tambah.</item>
+    </plurals>
+    <string name="autofill_fixed">Tajuk dan artis dibetulkan daripada %1$s. Semak, kemudian ketik Simpan.</string>
+    <string name="autofill_fixed_filled">Tajuk dan artis dibetulkan, dan %1$d medan kosong diisi daripada %2$s. Semak, kemudian ketik Simpan.</string>
+    <string name="autofill_fixed_not_found">Tajuk dan artis dikemaskan, tetapi lagu ini tidak ditemui di Apple atau Deezer. Semak, kemudian ketik Simpan.</string>
+    <string name="cleanup_title">Kemaskan nama lagu</string>
+    <string name="cleanup_note">Lagu yang namanya seperti tajuk video, seperti “Artis - Tajuk (Official Video)”, dan nama baharunya. Nyahtanda atau sunting mana-mana, kemudian ketik Betulkan. Tiada apa berubah sebelum itu, dan tiada apa dihantar ke mana-mana.</string>
+    <string name="cleanup_none">Semua nama lagu anda kelihatan kemas.</string>
+    <string name="cleanup_progress">Membetulkan %1$d daripada %2$d…</string>
+    <string name="cleanup_some_failed">%1$d dibetulkan; %2$d tidak dapat diubah.</string>
+    <string name="cleanup_cancelled">Tiada apa yang diubah.</string>
+    <string name="cleanup_was">Asal: %1$s · %2$s</string>
+    <string name="cleanup_edit">Sunting</string>
+    <string name="cleanup_field_title">Tajuk</string>
+    <string name="cleanup_field_artist">Artis</string>
+    <string name="cleanup_swap">Tukar tajuk dan artis</string>
+    <plurals name="cleanup_count">
+        <item quantity="other">%d lagu untuk dikemaskan</item>
+    </plurals>
+    <plurals name="cleanup_fix">
+        <item quantity="other">Betulkan %d lagu</item>
+    </plurals>
+    <plurals name="cleanup_done">
+        <item quantity="other">%d lagu dibetulkan.</item>
+    </plurals>
+    <plurals name="cleanup_read_only">
+        <item quantity="other">%d lagu dalam folder yang ditambah dibiarkan: buka satu dalam Edit tag sekali untuk membenarkan perubahan.</item>
+    </plurals>
+    <string name="length_skip">Abaikan fail yang sangat pendek dan sangat panjang</string>
+    <string name="length_skip_explanation">Muzik kurang daripada 5 saat (nada dering, bunyi pemberitahuan) atau lebih daripada 15 minit tidak ditambah ke pustaka anda dengan sendirinya. Anda boleh menambahnya semula secara manual, dan lagu yang anda import sentiasa ditambah. Buku audio dan podcast tidak terjejas.</string>
+    <string name="length_page_title">Diabaikan kerana panjang</string>
+    <string name="length_page_note">Fail ini kurang daripada 5 saat atau lebih daripada 15 minit, jadi ia diabaikan daripada pustaka anda. Tambah yang anda mahu; ia akan kekal selepas itu.</string>
+    <string name="length_add">Tambah</string>
+    <plurals name="length_left_out">
+        <item quantity="other">%d fail diabaikan kerana panjangnya</item>
+    </plurals>
+    <plurals name="length_add_all">
+        <item quantity="other">Tambah kesemua %d</item>
     </plurals>
 </resources>

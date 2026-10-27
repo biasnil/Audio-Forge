@@ -126,6 +126,44 @@ fun bestSongMatch(results: List<FoundInfo>, title: String, artist: String): Foun
         if (titleScore == 0 || artistScore == 0) null else found to titleScore * 2 + artistScore
     }.maxByOrNull { it.second }?.first
 
+/**
+ * What Find missing info searches with. [title] / [artist] are the tags
+ * cleaned up -- "NSYNC - Bye Bye Bye (Lyrics)" by the channel "7clouds"
+ * becomes Bye Bye Bye by NSYNC -- or the tags as they were when cleaning
+ * isn't clearly right ([cleaned] false). [searches] are (title, artist)
+ * pairs to try in order: the best guess, the same without any bracketed
+ * extras, and the other reading.
+ */
+data class LookupNames(
+    val title: String,
+    val artist: String,
+    val cleaned: Boolean,
+    val searches: List<Pair<String, String>>,
+)
+
+private val BRACKETED = Regex("""\s*[(\[{（【「『][^)\]}）】」』]*[)\]}）】」』]""")
+/** " - Remastered 2011" is version information, not a title after an artist. */
+private val VERSION_WORDS = Regex("""(?i)\b(remaster\w*|version|edit|mix|live|mono|stereo|demo|acoustic|instrumental|bonus)\b""")
+
+fun lookupNames(title: String, artist: String, rules: TitleRules): LookupNames {
+    val typedTitle = title.trim()
+    val typedArtist = artist.trim()
+    val suggestion = TitleCleaner.suggest(typedTitle, typedArtist, rules.copy(enabled = true))
+    // Split into a different artist (not just extras taken out of the title).
+    val split = normalizeName(suggestion.artist) != normalizeName(typedArtist)
+    // A tagged song's title isn't taken apart on a guess: only when the artist field is
+    // empty, or the name was clearly a video's ("(Lyrics)" came out), and the part
+    // left as the title isn't version information.
+    val trusted = suggestion.changed && suggestion.title.isNotBlank() && !VERSION_WORDS.containsMatchIn(suggestion.title.replace(BRACKETED, "")) &&
+        (!split || typedArtist.isEmpty() || suggestion.removed.isNotEmpty())
+    val best = if (trusted) suggestion.title to suggestion.artist else typedTitle to typedArtist
+    val other = if (trusted) typedTitle to typedArtist else suggestion.title to suggestion.artist
+    val searches = listOf(best, best.first.replace(BRACKETED, "").trim() to best.second, other)
+        .filter { it.first.isNotBlank() }
+        .distinctBy { (it.first + "|" + it.second).lowercase(Locale.ROOT) }
+    return LookupNames(best.first, best.second, trusted, searches)
+}
+
 /** Like [bestSongMatch], for an album by name (and artist when known), with a cover. */
 fun bestAlbumMatch(results: List<FoundInfo>, album: String, artist: String): FoundInfo? =
     results.filter { it.coverUrl != null }.mapNotNull { found ->

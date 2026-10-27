@@ -96,6 +96,8 @@ private val SETTINGS_CATALOG: List<SettingEntry> = listOf(
     SettingEntry("library.refresh", SettingsSection.Library, R.string.refresh_library, aliases = listOf("rescan", "scan", "reload", "missing songs")),
     SettingEntry("library.duplicates", SettingsSection.Library, R.string.duplicates_find, aliases = listOf("duplicate", "same song", "copies")),
     SettingEntry("library.stats", SettingsSection.Library, R.string.listening_stats, aliases = listOf("statistics", "history", "most played", "time")),
+    SettingEntry("library.length", SettingsSection.Library, R.string.length_skip, aliases = listOf("short", "long", "ringtone", "sounds", "missing songs", "length", "seconds", "minutes")),
+    SettingEntry("library.cleanup", SettingsSection.Library, R.string.cleanup_title, aliases = listOf("clean", "rename", "fix names", "tidy", "official video", "lyrics", "titles")),
     SettingEntry("library.covers", SettingsSection.Library, R.string.covers_find, aliases = listOf("covers", "artwork", "album art", "pictures")),
     // Download from link (GitHub version only)
     SettingEntry("downloads.smart_titles", SettingsSection.Downloads, R.string.downloads_smart_titles, R.string.downloads_smart_titles_summary, listOf("title", "artist", "rename", "clean", "download", "official video"), LinkDownloadFeature.AVAILABLE),

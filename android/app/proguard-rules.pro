@@ -34,3 +34,7 @@
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 -dontwarn com.fasterxml.jackson.**
 -dontwarn org.apache.commons.**
+# It unpacks Python and FFmpeg (once, on the first download after installing)
+# with Commons Compress, which makes its zip extra-field classes by reflection
+# (ExtraFieldUtils: "class ... is not a concrete class" once R8 strips them).
+-keep class org.apache.commons.compress.** { *; }

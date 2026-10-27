@@ -672,7 +672,7 @@
     <string name="autofill_offline">Connexion impossible. Vérifiez votre connexion Internet.</string>
     <string name="autofill_cover_from">Pochette de %1$s</string>
     <string name="autofill_use_cover">Utiliser cette pochette</string>
-    <string name="autofill_note">Envoie le titre et l\'artiste à Apple, et à Deezer si Apple ne trouve rien. Seuls les champs vides sont remplis.</string>
+    <string name="autofill_note">Envoie le titre et l\'artiste à Apple, et à Deezer si Apple ne trouve rien. Les noms comme « Artiste - Titre (Lyrics) » sont d\'abord nettoyés, et le titre et l\'artiste corrigés. Sinon, seuls les champs vides sont remplis.</string>
     <string name="covers_find">Trouver les pochettes manquantes</string>
     <string name="covers_find_explanation">Cherche une pochette pour chaque album qui n\'en a pas, sur Apple et Deezer (le nom et l\'artiste de chaque album sont envoyés ; pour un morceau sans album, son titre et son artiste). Les pochettes restent dans l\'app ; vos fichiers ne sont pas modifiés.</string>
     <string name="covers_progress">%1$d albums et morceaux vérifiés sur %2$d · %3$d pochettes trouvées</string>
@@ -814,5 +814,54 @@
         <item quantity="one">Cela supprime l\'expression que vous avez ajoutée (%d).</item>
         <item quantity="many">Cela supprime les %d expressions que vous avez ajoutées.</item>
         <item quantity="other">Cela supprime les %d expressions que vous avez ajoutées.</item>
+    </plurals>
+    <string name="autofill_fixed">Titre et artiste corrigés depuis %1$s. Vérifiez-les, puis touchez Enregistrer.</string>
+    <string name="autofill_fixed_filled">Titre et artiste corrigés, et %1$d champs vides remplis depuis %2$s. Vérifiez-les, puis touchez Enregistrer.</string>
+    <string name="autofill_fixed_not_found">Titre et artiste nettoyés, mais ce morceau est introuvable sur Apple et Deezer. Vérifiez-les, puis touchez Enregistrer.</string>
+    <string name="cleanup_title">Nettoyer les noms des titres</string>
+    <string name="cleanup_note">Les titres dont le nom ressemble à celui d\'une vidéo, comme « Artiste - Titre (Official Video) », et ce qu\'ils deviendraient. Décochez-en ou modifiez-en, puis touchez Corriger. Rien ne change avant, et rien n\'est envoyé.</string>
+    <string name="cleanup_none">Tous les noms de vos titres sont propres.</string>
+    <string name="cleanup_progress">Correction de %1$d sur %2$d…</string>
+    <string name="cleanup_some_failed">%1$d corrigés ; %2$d impossibles à modifier.</string>
+    <string name="cleanup_cancelled">Rien n\'a été modifié.</string>
+    <string name="cleanup_was">Avant : %1$s · %2$s</string>
+    <string name="cleanup_edit">Modifier</string>
+    <string name="cleanup_field_title">Titre</string>
+    <string name="cleanup_field_artist">Artiste</string>
+    <string name="cleanup_swap">Inverser titre et artiste</string>
+    <plurals name="cleanup_count">
+        <item quantity="one">%d titre à nettoyer</item>
+        <item quantity="many">%d titres à nettoyer</item>
+        <item quantity="other">%d titres à nettoyer</item>
+    </plurals>
+    <plurals name="cleanup_fix">
+        <item quantity="one">Corriger %d titre</item>
+        <item quantity="many">Corriger %d titres</item>
+        <item quantity="other">Corriger %d titres</item>
+    </plurals>
+    <plurals name="cleanup_done">
+        <item quantity="one">%d titre corrigé.</item>
+        <item quantity="many">%d titres corrigés.</item>
+        <item quantity="other">%d titres corrigés.</item>
+    </plurals>
+    <plurals name="cleanup_read_only">
+        <item quantity="one">%d titre d\'un dossier ajouté est resté tel quel : ouvrez-le une fois dans Modifier les balises pour autoriser les modifications.</item>
+        <item quantity="many">%d titres de dossiers ajoutés sont restés tels quels : ouvrez-en un une fois dans Modifier les balises pour autoriser les modifications.</item>
+        <item quantity="other">%d titres de dossiers ajoutés sont restés tels quels : ouvrez-en un une fois dans Modifier les balises pour autoriser les modifications.</item>
+    </plurals>
+    <string name="length_skip">Exclure les fichiers très courts et très longs</string>
+    <string name="length_skip_explanation">La musique de moins de 5 secondes (sonneries, sons de notification) ou de plus de 15 minutes n\'est pas ajoutée d\'elle-même à votre bibliothèque. Vous pouvez en rajouter à la main, et les titres que vous importez sont toujours ajoutés. Les livres audio et les podcasts ne sont pas concernés.</string>
+    <string name="length_page_title">Exclus pour leur durée</string>
+    <string name="length_page_note">Ces fichiers durent moins de 5 secondes ou plus de 15 minutes ; ils ont donc été exclus de votre bibliothèque. Ajoutez ceux que vous voulez : ils y resteront.</string>
+    <string name="length_add">Ajouter</string>
+    <plurals name="length_left_out">
+        <item quantity="one">%d fichier exclu pour sa durée</item>
+        <item quantity="many">%d fichiers exclus pour leur durée</item>
+        <item quantity="other">%d fichiers exclus pour leur durée</item>
+    </plurals>
+    <plurals name="length_add_all">
+        <item quantity="one">Ajouter %d fichier</item>
+        <item quantity="many">Tout ajouter (%d)</item>
+        <item quantity="other">Tout ajouter (%d)</item>
     </plurals>
 </resources>

@@ -38,6 +38,10 @@ sealed interface Page {
     data class PodcastShow(val name: String) : Page
     data object Widgets : Page
     data object ListeningStats : Page
+    /** Settings -> Library -> Clean up song names. */
+    data object CleanUpNames : Page
+    /** Settings -> Library -> songs left out for being very short or very long. */
+    data object LeftOutByLength : Page
     /** Settings -> one category (SettingsSection.key); [focus] = a search result's setting id. */
     data class SettingsSectionPage(val key: String, val focus: String? = null) : Page
     /** Effects tab -> Headphone correction: the AutoEq model list. */
@@ -80,6 +84,8 @@ sealed interface Page {
         is PodcastShow -> "show:$name"
         Widgets -> "widgets"
         ListeningStats -> "stats"
+        CleanUpNames -> "cleanup"
+        LeftOutByLength -> "leftout"
         is SettingsSectionPage -> "settings:$key" + focus?.let { "|$it" }.orEmpty()
         HeadphonePicker -> "headphones"
         PodcastSearch -> "psearch"
@@ -117,6 +123,8 @@ sealed interface Page {
             value.startsWith("show:") -> PodcastShow(value.removePrefix("show:"))
             value == "widgets" -> Widgets
             value == "stats" -> ListeningStats
+            value == "cleanup" -> CleanUpNames
+            value == "leftout" -> LeftOutByLength
             // Saved before 1.4.4 without a focus: "settings:playback".
             value.startsWith("settings:") -> value.removePrefix("settings:").let {
                 SettingsSectionPage(it.substringBefore('|'), it.substringAfter('|', "").ifEmpty { null })

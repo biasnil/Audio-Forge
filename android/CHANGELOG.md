@@ -35,6 +35,22 @@
 
 ### Fixed and improved
 
+- **Download from link no longer crashes the first time** in the GitHub
+  release APK. Unpacking yt-dlp's Python and FFmpeg (done once after
+  installing) used a part of a library the release build had stripped out.
+- **Very short and very long files are left out** (Settings → Library, on
+  by default): music under 5 seconds (ringtones, notification sounds) or
+  over 15 minutes isn't added by itself. "Files left out for their length"
+  lists them to add back by hand; songs you import are always added.
+  Audiobooks and podcasts aren't affected.
+- **Clean up song names** (Settings → Library): lists every song whose name
+  looks like a video title, with what it would become; untick or edit any,
+  then fix them all at once (Android asks once for permission). It works on
+  the phone only, with the same phrases as Download from link.
+- **Find missing info** (tag editor) tidies up video-style names first:
+  "NSYNC - Bye Bye Bye (Lyrics)" by a lyrics channel is looked up as Bye Bye
+  Bye by NSYNC, and the title and artist are fixed to the song it finds.
+  Songs that are already tagged properly keep their title and artist.
 - More scrolls, so every tab (Wallpapers included) can be reached on small
   screens and with large text.
 - Audiobooks show tag edits straight away (they kept the old title until

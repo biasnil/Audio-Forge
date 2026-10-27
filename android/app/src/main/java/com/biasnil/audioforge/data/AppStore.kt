@@ -155,6 +155,10 @@ data class AppSettings(
     val chartCountry: String = "",
     val podcastChartCountry: String = "",
     val chartKind: ChartKind = ChartKind.Songs,
+    /** Library: music under 5 seconds or over 15 minutes is left out (see isOutsideLengthLimits) ... */
+    val skipShortAndLong: Boolean = true,
+    /** ... unless the user added it by hand (track URIs; imported songs are added too). */
+    val addedByHand: Set<String> = emptySet(),
 ) {
     val smartEnabled: Boolean get() = analysisCompleted && smartTransitions
     val beatMatchEnabled: Boolean get() = analysisCompleted && beatMatchedCrossfade && crossfadeEnabled
@@ -259,6 +263,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
                 audiobookFolders = root.optJSONArray("audiobookFolders").toStringList().toSet(),
                 albumLayout = AlbumLayout.entries.firstOrNull { it.name == root.optString("albumLayout") } ?: AlbumLayout.Grid,
                 titleRules = root.optJSONObject("titleRules")?.let(::readTitleRules) ?: TitleRules(),
+                skipShortAndLong = root.optBoolean("skipShortAndLong", true),
+                addedByHand = root.optJSONArray("addedByHand").toStringList().toSet(),
                 chartCountry = root.optString("chartCountry", ""),
                 podcastChartCountry = root.optString("podcastChartCountry", ""),
                 chartKind = ChartKind.entries.firstOrNull { it.name == root.optString("chartKind") && it != ChartKind.Podcasts }
@@ -353,6 +359,8 @@ class AppStore(context: Context, private val scope: CoroutineScope) {
             .put("audiobookFolders", JSONArray(settings.audiobookFolders.toList()))
             .put("albumLayout", settings.albumLayout.name)
             .put("titleRules", writeTitleRules(settings.titleRules))
+            .put("skipShortAndLong", settings.skipShortAndLong)
+            .put("addedByHand", JSONArray(settings.addedByHand.toList()))
             .put("chartCountry", settings.chartCountry)
             .put("podcastChartCountry", settings.podcastChartCountry)
             .put("chartKind", settings.chartKind.name)

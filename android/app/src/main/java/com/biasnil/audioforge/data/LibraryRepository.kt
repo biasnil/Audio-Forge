@@ -29,6 +29,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+/** Shortest and longest music the library takes in by itself (ringtones and sounds; long recordings). */
+const val MIN_SONG_MS = 5_000L
+const val MAX_SONG_MS = 15 * 60_000L
+
+/** Whether [track] is too short or too long to be taken into the library by itself (unknown length: kept). */
+fun isOutsideLengthLimits(track: Track): Boolean =
+    track.durationMs in 1 until MIN_SONG_MS || track.durationMs > MAX_SONG_MS
+
 /** The permission that lets the app read the phone's music library on this Android version. */
 val audioPermission: String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
@@ -68,6 +76,10 @@ class LibraryRepository(
     /** .m4b files, Android's audiobooks and songs in folders marked Audiobook (the Audiobooks tab); never in [tracks]. */
     private val _audiobooks = MutableStateFlow<List<Track>>(emptyList())
     val audiobooks: StateFlow<List<Track>> = _audiobooks.asStateFlow()
+
+    private val _leftOutByLength = MutableStateFlow<List<Track>>(emptyList())
+    /** Music left out for being under 5 s or over 15 min (Settings -> Library), to add back by hand. */
+    val leftOutByLength: StateFlow<List<Track>> = _leftOutByLength.asStateFlow()
 
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
@@ -179,11 +191,28 @@ class LibraryRepository(
         tracksByUri = merged.associateBy { it.uri }
         // Audiobooks first: an .m4b in a podcast folder is still a book.
         val (books, rest) = merged.partition { isAudiobook(it, settings.audiobookFolders) }
-        val (podcastTracks, music) = rest.partition { isPodcast(it, settings.podcastFolders) }
+        val (podcastTracks, allMusic) = rest.partition { isPodcast(it, settings.podcastFolders) }
+        // Audiobooks and podcasts are long by nature; only music is checked.
+        val (leftOut, music) = if (!settings.skipShortAndLong) emptyList<Track>() to allMusic
+        else allMusic.partition { it.uri !in settings.addedByHand && isOutsideLengthLimits(it) }
         _tracks.value = music
+        _leftOutByLength.value = leftOut
         _podcasts.value = podcastTracks
         _audiobooks.value = books
         _phoneFolders.value = folderCounts(phoneTracks)
+    }
+
+    /** Settings -> Library: leave very short and very long music out, or take everything in. */
+    fun setSkipShortAndLong(skip: Boolean) {
+        store.update { it.copy(skipShortAndLong = skip) }
+        publish()
+    }
+
+    /** Adds songs the length limits left out (they stay in from now on). */
+    fun addByHand(uris: Collection<String>) {
+        if (uris.isEmpty()) return
+        store.update { it.copy(addedByHand = it.addedByHand + uris) }
+        publish()
     }
 
     fun isPodcast(uri: String): Boolean = tracksByUri[uri]?.let { isPodcast(it, store.settings.value.podcastFolders) } == true
@@ -400,6 +429,8 @@ class LibraryRepository(
      */
     suspend fun importFiles(uris: List<Uri>): Int {
         var copied = 0
+        // Imported by hand, so never left out for its length.
+        val imported = ArrayList<String>()
         withContext(Dispatchers.IO) {
             val resolver = context.contentResolver
             val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -419,6 +450,11 @@ class LibraryRepository(
                         } ?: throw java.io.IOException("Couldn't read $source")
                         resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
                         copied++
+                        // In the form the library scan uses (MediaStoreSource), so it matches.
+                        imported += android.content.ContentUris.withAppendedId(
+                            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL),
+                            android.content.ContentUris.parseId(target),
+                        ).toString()
                     } catch (e: Exception) {
                         resolver.delete(target, null, null) // don't leave a half-written file
                         throw e
@@ -428,6 +464,7 @@ class LibraryRepository(
                 }
             }
         }
+        if (imported.isNotEmpty()) store.update { it.copy(addedByHand = it.addedByHand + imported) }
         if (copied > 0) refresh()
         return copied
     }

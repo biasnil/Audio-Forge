@@ -310,6 +310,10 @@ private fun LibrarySettings(onOpenPage: (Page) -> Unit) {
     SettingAnchor("library.stats") {
         SettingsLinkRow(stringResource(R.string.listening_stats)) { onOpenPage(Page.ListeningStats) }
     }
+    SettingAnchor("library.length") { LengthLimitRows(onOpenPage) }
+    SettingAnchor("library.cleanup") {
+        SettingsLinkRow(stringResource(R.string.cleanup_title)) { onOpenPage(Page.CleanUpNames) }
+    }
     SettingAnchor("library.covers") { FindMissingCoversRow() }
 }
 
@@ -675,7 +679,7 @@ private fun LyricsSettings() {
 
 /** A row that opens a page (Listening stats, Widgets). */
 @Composable
-private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
+internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
